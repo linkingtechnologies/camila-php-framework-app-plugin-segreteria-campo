@@ -40,7 +40,7 @@ function drawMap() {
 		$TBS->SetOption(array('render'=>TBS_OUTPUT));
 		$TBS->SetOption('noerr', false);
 
-		$TBS->LoadTemplate(CAMILA_APP_PATH.'/plugins/'.basename(dirname(__FILE__)).'/templates/tbs/it/resources_gmap.htm');
+		$TBS->LoadTemplate(CAMILA_APP_PATH.'/plugins/'.basename(dirname(__FILE__)).'/templates/tbs/it/resources_jmap.htm');
 		$TBS->MergeBlock('res','adodb',$camilaWT->parseWorktableSqlStatement($queryList));
 		$TBS->MergeBlock('res2','adodb',$camilaWT->parseWorktableSqlStatement($queryList));
 		$_CAMILA['page']->add_userdefined(new CHAW_tbs($TBS, true));		
