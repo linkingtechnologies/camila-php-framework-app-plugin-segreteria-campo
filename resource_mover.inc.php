@@ -485,7 +485,7 @@ if (!isset($_REQUEST['service'])) {
 							}
 
 							if ($from == $serviceEndServiceValue && $serviceEndServiceValue != '') {
-								$query.= ',${' .$resourceTable. '.DATA/ORA USCITA DEFINITIVA}=' . $camilaWT->db->qstr('');
+								$query.= ',${' .$resourceTable. '.DATA/ORA USCITA DEFINITIVA}=NULL';
 							//	$query.= ',${' .$resourceTable. '.DATA FINE ATTESTATO}=' . $camilaWT->db->qstr('');
 							}
 
