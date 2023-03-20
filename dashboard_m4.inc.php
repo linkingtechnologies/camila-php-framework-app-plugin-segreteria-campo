@@ -1,6 +1,6 @@
 <?php
 /*  This File is part of Camila PHP Framework
-    Copyright (C) 2006-2022 Umberto Bresciani
+    Copyright (C) 2006-2023 Umberto Bresciani
 
     Camila PHP Framework is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@ $camilaUI->insertDivider();
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="row">'));
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-4">'));
 
-$camilaUI->insertButton('https://github.com/linkingtechnologies/protezionet-segreteria-campo/wiki', 'Manuale','globe');
+$camilaUI->insertButton('https://help.protezionet.it', 'Manuale','globe');
 
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-4">'));
