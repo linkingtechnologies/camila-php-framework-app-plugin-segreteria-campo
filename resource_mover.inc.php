@@ -1,6 +1,6 @@
 <?php
 /*  This File is part of Camila PHP Framework
-    Copyright (C) 2006-2022 Umberto Bresciani
+    Copyright (C) 2006-2023 Umberto Bresciani
 
     Camila PHP Framework is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -415,7 +415,7 @@ if (!isset($_REQUEST['service'])) {
 		$serviceResult->MoveNext();
 	}
 
-	$options = implode($s, ',');
+	$options = implode(',', $s);
 	new form_text_separator($form, "Assegnazione nuovo servizio alle risorse selezionate");
     new form_static_listbox($form, 'new_service_name', 'Nuovo servizio', $options, true);
 	
