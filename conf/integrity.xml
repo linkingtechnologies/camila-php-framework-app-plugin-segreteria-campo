@@ -22,7 +22,7 @@
 	<check>
       <id>2</id>
       <title>Volontari con provincia errata</title>
-      <query>SELECT ${volontari.codice fiscale} AS CF,${volontari.organizzazione} AS ORGANIZZAZIONE, ${volontari.cognome} AS COGNOME,${volontari.nome} AS NOME, ${volontari.provincia} AS PROVINCIA FROM ${volontari} WHERE ${volontari.provincia} IS NULL OR ${volontari.provincia}='' OR LENGTH(${volontari.provincia}) &lt;&gt; 2</query>
+      <query>SELECT ${volontari.codice fiscale} AS CF,${volontari.organizzazione} AS ORGANIZZAZIONE, ${volontari.cognome} AS COGNOME,${volontari.nome} AS NOME, ${volontari.provincia} AS PROVINCIA FROM ${volontari} WHERE ${volontari.provincia} IS NULL OR ${volontari.provincia}='' OR (LENGTH(${volontari.provincia}) &lt;&gt; 2 AND LENGTH(${volontari.provincia}) &lt;&gt; 3)</query>
       <source>db</source>
 	  <object>volontari</object>
       <type>count</type>
@@ -33,7 +33,7 @@
         </none>
         <multi>
           <code>warning</code>
-	      <message>Ci sono volontari con la provincia errata (vuota o non di 2 caratteri)</message>
+	      <message>Ci sono volontari con la provincia errata (vuota o non di 2-3 caratteri)</message>
         </multi>
       </result>
     </check>
