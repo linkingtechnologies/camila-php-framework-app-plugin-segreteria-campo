@@ -476,7 +476,7 @@ if (!isset($_REQUEST['service'])) {
 							$query.= ', last_upd_by_surname=' . $camilaWT->db->qstr($_CAMILA['user_surname']);
 							$query.= ', last_upd_by_name=' . $camilaWT->db->qstr($_CAMILA['user_name']);
 
-							if ($serviceEndServiceValue != '')
+							if ($to == $serviceEndServiceValue && $serviceEndServiceValue != '')
 								$query.= ',${' .$resourceTable. '.DATA FINE ATTESTATO}=' . $camilaWT->db->qstr($now2);
 
 							if ($to == $serviceEndServiceValue && $serviceEndServiceValue != '') {
