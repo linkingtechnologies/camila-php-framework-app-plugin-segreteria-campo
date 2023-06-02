@@ -318,7 +318,7 @@ if (!isset($_REQUEST['service'])) {
 			
 			//2017
 			$query = 'SELECT ${'.$resourceTable.'.'.$groupColumn.'},Id,${'.$resourceTable.'.'.$col1.'}, ${'.
-			$resourceTable.'.'.$col2.'} FROM ${'.$resourceTable.'} WHERE '.$filter.' ORDER BY ${'.$resourceTable.'.'.$groupColumn.'} LIMIT ' . $limit;
+			$resourceTable.'.'.$col2.'}, ${'.$resourceTable.'.'.$col3.'}  FROM ${'.$resourceTable.'} WHERE '.$filter.' ORDER BY ${'.$resourceTable.'.'.$groupColumn.'} LIMIT ' . $limit;
 			if ($page>0)
 			{
 				$query .= ' OFFSET ' . $page*$limit;
@@ -365,11 +365,11 @@ if (!isset($_REQUEST['service'])) {
 					$gResLabels = array();
 					$gResValues = array();
 
-					$gResLabels[]=$b[2] . ' ' . $b[3];
+					$gResLabels[]=$b[2] . ' / ' . $b[3] . ' / '. $b[4];
 					$gResValues[]=$b[1];
 				}
 				else {
-					$gResLabels[]=$b[2] . ' ' . $b[3];
+					$gResLabels[]=$b[2] . ' / ' . $b[3] . ' / '. $b[4];
 					$gResValues[]=$b[1];
 				}
 				$gCount++;

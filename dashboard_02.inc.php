@@ -8,6 +8,7 @@ $serviceTable = 'SERVIZI';
 $brogliaccio = 'MOV. RISORSE';
 $col1='COGNOME';
 $col2='NOME';
+$col3='MANSIONE';
 $serviceEndServiceValue = "USCITA DEFINITIVA";
 
 $titleText = 'Movimentazione ' . ucwords(strtolower($resourceTable));

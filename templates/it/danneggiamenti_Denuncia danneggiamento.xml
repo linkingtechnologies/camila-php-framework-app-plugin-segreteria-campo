@@ -24,7 +24,9 @@ Alla Segreteria del campo
 Oggetto: segnalazione danneggiamento mezzo/attrezzatura
 
 Io sottoscritto/a ${cognome} ${nome}, in qualità di Responsabile di Missione dell'organizzazione ${organizzazione}, segnalo il danneggiamento del mezzo/attrezzatura ${mezzo/attrezzatura}, avvenuto il giorno ${data} durante il servizio.
-
+</paragraph>
+<paragraph>
+${note}
 </paragraph>
 
 
@@ -68,7 +70,9 @@ Alla Segreteria del campo
 Oggetto: segnalazione danneggiamento mezzo/attrezzatura
 
 Io sottoscritto/a ${cognome} ${nome}, in qualità di Responsabile di Missione dell'organizzazione ${organizzazione}, segnalo il danneggiamento del mezzo/attrezzatura ${mezzo/attrezzatura}, avvenuto il giorno ${data} durante il servizio.
-
+</paragraph>
+<paragraph>
+${note}
 </paragraph>
 
 

@@ -6,8 +6,10 @@ $groupColumn = 'ORGANIZZAZIONE';
 $resourceTable = 'MEZZI';
 $serviceTable = 'SERVIZI';
 $brogliaccio = 'MOV. RISORSE';
-$col1='MARCA E MODELLO';
-$col2='TARGA';
+$col1='TARGA';
+$col2='MEZZO';
+$col3='MARCA E MODELLO';
+
 $serviceEndServiceValue = "USCITA DEFINITIVA";
 
 $titleText = 'Movimentazione ' . ucwords(strtolower($resourceTable));
