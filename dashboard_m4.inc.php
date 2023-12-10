@@ -22,7 +22,7 @@ $camilaUI->insertDivider();
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="row">'));
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-4">'));
 
-$camilaUI->insertButton('https://help.protezionet.it', 'Manuale','globe');
+$camilaUI->insertButton('plugins/segreteria-campo/docs/it/html/manual.html', 'Manuale','globe');
 
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-4">'));
