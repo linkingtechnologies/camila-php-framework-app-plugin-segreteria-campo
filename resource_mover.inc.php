@@ -1,6 +1,6 @@
 <?php
 /*  This File is part of Camila PHP Framework
-    Copyright (C) 2006-2023 Umberto Bresciani
+    Copyright (C) 2006-2024 Umberto Bresciani
 
     Camila PHP Framework is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -318,7 +318,7 @@ if (!isset($_REQUEST['service'])) {
 			
 			//2017
 			$query = 'SELECT ${'.$resourceTable.'.'.$groupColumn.'},Id,${'.$resourceTable.'.'.$col1.'}, ${'.
-			$resourceTable.'.'.$col2.'}, ${'.$resourceTable.'.'.$col3.'}  FROM ${'.$resourceTable.'} WHERE '.$filter.' ORDER BY ${'.$resourceTable.'.'.$groupColumn.'} LIMIT ' . $limit;
+			$resourceTable.'.'.$col2.'} FROM ${'.$resourceTable.'} WHERE '.$filter.' ORDER BY ${'.$resourceTable.'.'.$groupColumn.'} LIMIT ' . $limit;
 			if ($page>0)
 			{
 				$query .= ' OFFSET ' . $page*$limit;
@@ -365,11 +365,11 @@ if (!isset($_REQUEST['service'])) {
 					$gResLabels = array();
 					$gResValues = array();
 
-					$gResLabels[]=$b[2] . ' / ' . $b[3] . ' / '. $b[4];
+					$gResLabels[]=$b[2] . ' ' . $b[3];
 					$gResValues[]=$b[1];
 				}
 				else {
-					$gResLabels[]=$b[2] . ' / ' . $b[3] . ' / '. $b[4];
+					$gResLabels[]=$b[2] . ' ' . $b[3];
 					$gResValues[]=$b[1];
 				}
 				$gCount++;
@@ -393,9 +393,8 @@ if (!isset($_REQUEST['service'])) {
 
 	new form_hidden($form, $k . '_service_name', $_REQUEST['service']);
 	new form_hidden($form, $k . '_group_name', $currentGroup);
-
-	
-	new form_checklist($form, $k, $currentGroup . ' (' . count($gResValues) . ')', $gResLabels, $gResValues, false, false);
+	$c = ($gResValues !== null) ? count($gResValues) : '0' ;
+	new form_checklist($form, $k, $currentGroup . ' (' . $c . ')', $gResLabels, $gResValues, false, false);
 	$form->fields[$k]->cols = 1;
 
 
@@ -475,25 +474,29 @@ if (!isset($_REQUEST['service'])) {
 							$query.= ', last_upd_src=' . $camilaWT->db->qstr('application');
 							$query.= ', last_upd_by_surname=' . $camilaWT->db->qstr($_CAMILA['user_surname']);
 							$query.= ', last_upd_by_name=' . $camilaWT->db->qstr($_CAMILA['user_name']);
+							
+							
+							if (strpos($resourceTable, 'ATTESI') === false) {
 
-							if ($to == $serviceEndServiceValue && $serviceEndServiceValue != '')
-								$query.= ',${' .$resourceTable. '.DATA FINE ATTESTATO}=' . $camilaWT->db->qstr($now2);
+								if ($serviceEndServiceValue != '')
+									$query.= ',${' .$resourceTable. '.DATA FINE ATTESTATO}=' . $camilaWT->db->qstr($now2);
 
-							if ($to == $serviceEndServiceValue && $serviceEndServiceValue != '') {
-								$query.= ',${' .$resourceTable. '.DATA/ORA USCITA DEFINITIVA}=' . $camilaWT->db->qstr($now);
-							//	$query.= ',${' .$resourceTable. '.DATA FINE ATTESTATO}=' . $camilaWT->db->qstr($now2);
-							}
+								if ($to == $serviceEndServiceValue && $serviceEndServiceValue != '') {
+									$query.= ',${' .$resourceTable. '.DATA/ORA USCITA DEFINITIVA}=' . $camilaWT->db->qstr($now);0
+								//	$query.= ',${' .$resourceTable. '.DATA FINE ATTESTATO}=' . $camilaWT->db->qstr($now2);
+								}
 
-							if ($from == $serviceEndServiceValue && $serviceEndServiceValue != '') {
-								$query.= ',${' .$resourceTable. '.DATA/ORA USCITA DEFINITIVA}=NULL';
-							//	$query.= ',${' .$resourceTable. '.DATA FINE ATTESTATO}=' . $camilaWT->db->qstr('');
+								if ($from == $serviceEndServiceValue && $serviceEndServiceValue != '') {
+									$query.= ',${' .$resourceTable. '.DATA/ORA USCITA DEFINITIVA}=NULL';
+								//	$query.= ',${' .$resourceTable. '.DATA FINE ATTESTATO}=' . $camilaWT->db->qstr('');
+								}
 							}
 
 							$query.= ',mod_num = mod_num + 1';
 							$query.= ' WHERE id =' . $camilaWT->db->qstr($id);
 
 							$result = $camilaWT->startExecuteQuery($query,false);
-							//echo $query;
+							echo $query;
 
 							if ($result === false) {
 								camila_error_text($resource . ' (' . $group . '): ' . $from . '->' . $to . ': Aggiornamento KO!!!');
