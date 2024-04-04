@@ -496,7 +496,8 @@ if (!isset($_REQUEST['service'])) {
 							$query.= ' WHERE id =' . $camilaWT->db->qstr($id);
 
 							$result = $camilaWT->startExecuteQuery($query,false);
-							echo $query;
+							
+							//echo $query;
 
 							if ($result === false) {
 								camila_error_text($resource . ' (' . $group . '): ' . $from . '->' . $to . ': Aggiornamento KO!!!');
