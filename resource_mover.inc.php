@@ -482,7 +482,7 @@ if (!isset($_REQUEST['service'])) {
 									$query.= ',${' .$resourceTable. '.DATA FINE ATTESTATO}=' . $camilaWT->db->qstr($now2);
 
 								if ($to == $serviceEndServiceValue && $serviceEndServiceValue != '') {
-									$query.= ',${' .$resourceTable. '.DATA/ORA USCITA DEFINITIVA}=' . $camilaWT->db->qstr($now);0
+									$query.= ',${' .$resourceTable. '.DATA/ORA USCITA DEFINITIVA}=' . $camilaWT->db->qstr($now);
 								//	$query.= ',${' .$resourceTable. '.DATA FINE ATTESTATO}=' . $camilaWT->db->qstr($now2);
 								}
 
