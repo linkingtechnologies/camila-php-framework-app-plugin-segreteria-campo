@@ -20,7 +20,6 @@
 
 	<paragraph position="absolute" left="0" top="35" width="180" fontsize="14" lineheight="8" textalign="L" border="1">USCITA N°_____                                                DATA/ORA: ${data/ora applicazione modello}
 
-ORGANIZZAZIONE: ${organizzazione}
 SQUADRA: ${squadra}
 
 FREQUENZA RADIO USATA: ____________  CANALE: __________________
@@ -93,6 +92,65 @@ ELENCO VOLONTARI
 	<paragraph position="relative" left="60" top="-5" width="120" lineheight="5" fontsize="6" textalign="L" border="1">RESPONSABILE (S/N): ${responsabile}            ${organizzazione}</paragraph>
 <!-- $EndBlock row10 -->
 
+<!-- $BeginBlock row11 -->
+	<paragraph position="relative" left="0" width="10" lineheight="5" fontsize="6" textalign="L" border="1">N° ${contatore riga tabella}</paragraph>
+	<paragraph position="relative" left="10" top="-5" width="50" lineheight="5" fontsize="8" textalign="L" border="1">${cognome} ${nome}</paragraph>
+	<paragraph position="relative" left="60" top="-5" width="120" lineheight="5" fontsize="6" textalign="L" border="1">RESPONSABILE (S/N): ${responsabile}            ${organizzazione}</paragraph>
+<!-- $EndBlock row11 -->
+
+<!-- $BeginBlock row12 -->
+	<paragraph position="relative" left="0" width="10" lineheight="5" fontsize="6" textalign="L" border="1">N° ${contatore riga tabella}</paragraph>
+	<paragraph position="relative" left="10" top="-5" width="50" lineheight="5" fontsize="8" textalign="L" border="1">${cognome} ${nome}</paragraph>
+	<paragraph position="relative" left="60" top="-5" width="120" lineheight="5" fontsize="6" textalign="L" border="1">RESPONSABILE (S/N): ${responsabile}            ${organizzazione}</paragraph>
+<!-- $EndBlock row12 -->
+
+<!-- $BeginBlock row13 -->
+	<paragraph position="relative" left="0" width="10" lineheight="5" fontsize="6" textalign="L" border="1">N° ${contatore riga tabella}</paragraph>
+	<paragraph position="relative" left="10" top="-5" width="50" lineheight="5" fontsize="8" textalign="L" border="1">${cognome} ${nome}</paragraph>
+	<paragraph position="relative" left="60" top="-5" width="120" lineheight="5" fontsize="6" textalign="L" border="1">RESPONSABILE (S/N): ${responsabile}            ${organizzazione}</paragraph>
+<!-- $EndBlock row13 -->
+
+<!-- $BeginBlock row14 -->
+	<paragraph position="relative" left="0" width="10" lineheight="5" fontsize="6" textalign="L" border="1">N° ${contatore riga tabella}</paragraph>
+	<paragraph position="relative" left="10" top="-5" width="50" lineheight="5" fontsize="8" textalign="L" border="1">${cognome} ${nome}</paragraph>
+	<paragraph position="relative" left="60" top="-5" width="120" lineheight="5" fontsize="6" textalign="L" border="1">RESPONSABILE (S/N): ${responsabile}            ${organizzazione}</paragraph>
+<!-- $EndBlock row14 -->
+
+<!-- $BeginBlock row15 -->
+	<paragraph position="relative" left="0" width="10" lineheight="5" fontsize="6" textalign="L" border="1">N° ${contatore riga tabella}</paragraph>
+	<paragraph position="relative" left="10" top="-5" width="50" lineheight="5" fontsize="8" textalign="L" border="1">${cognome} ${nome}</paragraph>
+	<paragraph position="relative" left="60" top="-5" width="120" lineheight="5" fontsize="6" textalign="L" border="1">RESPONSABILE (S/N): ${responsabile}            ${organizzazione}</paragraph>
+<!-- $EndBlock row15 -->
+
+<!-- $BeginBlock row16 -->
+	<paragraph position="relative" left="0" width="10" lineheight="5" fontsize="6" textalign="L" border="1">N° ${contatore riga tabella}</paragraph>
+	<paragraph position="relative" left="10" top="-5" width="50" lineheight="5" fontsize="8" textalign="L" border="1">${cognome} ${nome}</paragraph>
+	<paragraph position="relative" left="60" top="-5" width="120" lineheight="5" fontsize="6" textalign="L" border="1">RESPONSABILE (S/N): ${responsabile}            ${organizzazione}</paragraph>
+<!-- $EndBlock row16 -->
+
+<!-- $BeginBlock row17 -->
+	<paragraph position="relative" left="0" width="10" lineheight="5" fontsize="6" textalign="L" border="1">N° ${contatore riga tabella}</paragraph>
+	<paragraph position="relative" left="10" top="-5" width="50" lineheight="5" fontsize="8" textalign="L" border="1">${cognome} ${nome}</paragraph>
+	<paragraph position="relative" left="60" top="-5" width="120" lineheight="5" fontsize="6" textalign="L" border="1">RESPONSABILE (S/N): ${responsabile}            ${organizzazione}</paragraph>
+<!-- $EndBlock row17 -->
+
+<!-- $BeginBlock row18 -->
+	<paragraph position="relative" left="0" width="10" lineheight="5" fontsize="6" textalign="L" border="1">N° ${contatore riga tabella}</paragraph>
+	<paragraph position="relative" left="10" top="-5" width="50" lineheight="5" fontsize="8" textalign="L" border="1">${cognome} ${nome}</paragraph>
+	<paragraph position="relative" left="60" top="-5" width="120" lineheight="5" fontsize="6" textalign="L" border="1">RESPONSABILE (S/N): ${responsabile}            ${organizzazione}</paragraph>
+<!-- $EndBlock row18 -->
+
+<!-- $BeginBlock row19 -->
+	<paragraph position="relative" left="0" width="10" lineheight="5" fontsize="6" textalign="L" border="1">N° ${contatore riga tabella}</paragraph>
+	<paragraph position="relative" left="10" top="-5" width="50" lineheight="5" fontsize="8" textalign="L" border="1">${cognome} ${nome}</paragraph>
+	<paragraph position="relative" left="60" top="-5" width="120" lineheight="5" fontsize="6" textalign="L" border="1">RESPONSABILE (S/N): ${responsabile}            ${organizzazione}</paragraph>
+<!-- $EndBlock row19 -->
+
+<!-- $BeginBlock row20 -->
+	<paragraph position="relative" left="0" width="10" lineheight="5" fontsize="6" textalign="L" border="1">N° ${contatore riga tabella}</paragraph>
+	<paragraph position="relative" left="10" top="-5" width="50" lineheight="5" fontsize="8" textalign="L" border="1">${cognome} ${nome}</paragraph>
+	<paragraph position="relative" left="60" top="-5" width="120" lineheight="5" fontsize="6" textalign="L" border="1">RESPONSABILE (S/N): ${responsabile}            ${organizzazione}</paragraph>
+<!-- $EndBlock row20 -->
 
 <paragraph position="relative" left="0" width="180" fontsize="14" lineheight="8" textalign="L" border="1">ELENCO MEZZI
 ________________________________________________________________

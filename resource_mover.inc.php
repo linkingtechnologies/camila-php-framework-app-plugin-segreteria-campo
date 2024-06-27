@@ -338,6 +338,17 @@ if (!isset($_REQUEST['service'])) {
 			$tCount = $resourceResult->RecordCount();
 
 			new form_link_separator($form, '' .$t . " (" . $tCount . (($tCount==$limit || $page>0) ? '+' : ''). ")", HAW_TEXTFORMAT_BOLD, $link, 'btn btn-md btn-default btn-info');
+			
+			if ($resourceTable == 'VOLONTARI') {
+				$lang = 'it';
+				$camilaTemplate = new CamilaTemplate('it');
+				$params = $camilaTemplate->getParameters();
+				$l1 = new form_weblink($form, $t.'l1', 'Modulo uscita');
+				$l1->value = $link.'&camila_xml2pdf='.urlencode($params['modellouscitavolontaripermissione'].'.xml');
+				$l1->updatable = false;
+				$l1->set_br(0);
+				$l1->skip_validation = true;
+			}
 
 			$gResLabels = array();
 			$gResValues = array();
