@@ -20,7 +20,7 @@ $camilaWT->db = $_CAMILA['db'];
 
 $rSheet = $camilaWT->getWorktableSheetId('REPORT');
 $aSheet = $camilaWT->getWorktableSheetId('BROGLIACCIO');
-$CSheet = $camilaWT->getWorktableSheetId('COMUNICAZIONI RADIO');
+$cSheet = $camilaWT->getWorktableSheetId('COMUNICAZIONI RADIO');
 
 require(CAMILA_LIB_DIR.'/fpdf/fpdf.php');
 
@@ -143,7 +143,7 @@ if (!isset($_REQUEST['export'])) {
 	$camilaUI->insertButton('?dashboard=01', 'Riepilogo ospiti e risorse', 'list-alt');
 	$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
 	
-	$refrCode = "<script>function refreshPage() {window.location.reload();};setInterval(refreshPage, 60000);</script>";
+	$refrCode = "<script>function refreshPage() {window.location.reload();};setInterval(refreshPage, 30000);</script>";
 	$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, $refrCode));
 
 }
