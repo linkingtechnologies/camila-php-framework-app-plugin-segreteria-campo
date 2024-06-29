@@ -184,7 +184,7 @@
 	<check>
       <id>11</id>
       <title>Mezzi con più di 300 km percorsi in servizio</title>
-      <query>SELECT ${mezzi.targa} AS TARGA, ${mezzi.organizzazione} AS ORGANIZZAZIONE, ${mezzi.provincia} AS PROVINCIA, ${mezzi.km all'arrivo} AS 'KM ARRIVO',${mezzi.km alla partenza} AS 'KM PARTENZA', (${mezzi.km alla partenza} - ${mezzi.km all'arrivo}) as DIFFERENZA FROM ${mezzi} WHERE ((${mezzi.km alla partenza} - ${mezzi.km all'arrivo})&gt;300) or ((${mezzi.km alla partenza} - ${mezzi.km all'arrivo})&lt;0)</query>
+      <query>SELECT ${mezzi.targa} AS TARGA, ${mezzi.organizzazione} AS ORGANIZZAZIONE, ${mezzi.provincia} AS PROVINCIA, ${mezzi.km all'arrivo} AS 'KM ARRIVO',${mezzi.km alla partenza} AS 'KM PARTENZA', (${mezzi.km alla partenza} - ${mezzi.km all'arrivo}) as DIFFERENZA FROM ${mezzi} WHERE (((${mezzi.km alla partenza} - ${mezzi.km all'arrivo})&gt;300) or ((${mezzi.km alla partenza} - ${mezzi.km all'arrivo})&lt;0)) AND ${mezzi.km alla partenza} IS NOT NULL AND ${mezzi.km alla partenza}&gt;0 AND ${mezzi.km alla partenza}&lt;&gt;''</query>
       <source>db</source>
 	  <object>mezzi</object>
       <type>count</type>
