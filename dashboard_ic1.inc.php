@@ -56,9 +56,9 @@ if ($_REQUEST['camila_custom']!='')
 			$resourceType = 'VOLONTARIO';
 			if ($resourceTable == 'MEZZI')
 				$resourceType = 'MEZZO';
-			$query = 'SELECT id,${'.$resourceTable.'.cognome} || \' \' || ${'.$resourceTable.'.nome},${'.$resourceTable.'.ORGANIZZAZIONE} FROM ${'.$resourceTable.'} WHERE ${'.$resourceTable.'.servizio} = \'USCITA DEFINITIVA\' AND (${' .$resourceTable. '.DATA/ORA USCITA DEFINITIVA} IS NOT NULL AND ${' .$resourceTable. '.DATA/ORA USCITA DEFINITIVA} <> \'\' ) AND (${'.$resourceTable.'.cognome} || \' \' || ${'.$resourceTable.'.nome}) NOT IN (SELECT ${mov. risorse.risorsa} FROM ${mov. risorse} WHERE ${mov. risorse.a} = \'USCITA DEFINITIVA\' AND ${mov. risorse.tipo risorsa} = \'VOLONTARIO\')';
+			$query = 'SELECT id,${'.$resourceTable.'.cognome} || \' \' || ${'.$resourceTable.'.nome},${'.$resourceTable.'.ORGANIZZAZIONE},${' .$resourceTable. '.DATA/ORA USCITA DEFINITIVA} FROM ${'.$resourceTable.'} WHERE ${'.$resourceTable.'.servizio} = \'USCITA DEFINITIVA\' AND (${' .$resourceTable. '.DATA/ORA USCITA DEFINITIVA} IS NOT NULL AND ${' .$resourceTable. '.DATA/ORA USCITA DEFINITIVA} <> \'\' ) AND (${'.$resourceTable.'.cognome} || \' \' || ${'.$resourceTable.'.nome}) NOT IN (SELECT ${mov. risorse.risorsa} FROM ${mov. risorse} WHERE ${mov. risorse.a} = \'USCITA DEFINITIVA\' AND ${mov. risorse.tipo risorsa} = \'VOLONTARIO\')';
 			if ($resourceTable == 'MEZZI')
-				$query = 'SELECT id,${'.$resourceTable.'.targa},${'.$resourceTable.'.ORGANIZZAZIONE} FROM ${'.$resourceTable.'} WHERE ${'.$resourceTable.'.servizio} = \'USCITA DEFINITIVA\' AND (${' .$resourceTable. '.DATA/ORA USCITA DEFINITIVA} IS NOT NULL AND ${' .$resourceTable. '.DATA/ORA USCITA DEFINITIVA} <> \'\' ) AND (${'.$resourceTable.'.targa}) NOT IN (SELECT TRIM(${mov. risorse.risorsa}) FROM ${mov. risorse} WHERE ${mov. risorse.a} = \'USCITA DEFINITIVA\' AND ${mov. risorse.tipo risorsa} = \'MEZZO\')';
+				$query = 'SELECT id,${'.$resourceTable.'.targa},${'.$resourceTable.'.ORGANIZZAZIONE},${' .$resourceTable. '.DATA/ORA USCITA DEFINITIVA} FROM ${'.$resourceTable.'} WHERE ${'.$resourceTable.'.servizio} = \'USCITA DEFINITIVA\' AND (${' .$resourceTable. '.DATA/ORA USCITA DEFINITIVA} IS NOT NULL AND ${' .$resourceTable. '.DATA/ORA USCITA DEFINITIVA} <> \'\' ) AND (${'.$resourceTable.'.targa}) NOT IN (SELECT TRIM(${mov. risorse.risorsa}) FROM ${mov. risorse} WHERE ${mov. risorse.a} = \'USCITA DEFINITIVA\' AND ${mov. risorse.tipo risorsa} = \'MEZZO\')';
 
 			$result = $camilaWT->startExecuteQuery($query);
 			
@@ -71,6 +71,7 @@ if ($_REQUEST['camila_custom']!='')
 				$subQuery = 'SELECT ${MOV. RISORSE.A} FROM ${MOV. RISORSE} WHERE TRIM(${MOV. RISORSE.RISORSA}) = '.$camilaWT->db->qstr($f[1]).' ORDER BY ${MOV. RISORSE.DATA/ORA} DESC LIMIT 1';
 				$subResult = $camilaWT->startExecuteQuery($subQuery);
 				$cnt = 0;
+
 				while (!$subResult->EOF) {
 					$cnt++;
 					$f2 = $subResult->fields;
@@ -85,7 +86,7 @@ if ($_REQUEST['camila_custom']!='')
 
 					$now = $_CAMILA['db']->BindTimeStamp(date("Y-m-d H:i:s", time()));
 					$fields = Array('DATA/ORA','RISORSA','TIPO RISORSA','GRUPPO','DA','A');
-					$values = Array($now,$f[1],$resourceType,$f[2],$from,$to);
+					$values = Array($f[3],$f[1],$resourceType,$f[2],$from,$to);
 
 					$fields2 = Array();
 					$fields2[]='id';
