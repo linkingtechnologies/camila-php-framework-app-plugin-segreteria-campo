@@ -2,6 +2,84 @@
 <integrity>
   <checks>
     <check>
+      <id>0v1</id>
+      <title>Volontari in uscita definitiva senza data/ora uscita</title>
+      <query>SELECT ${volontari.provincia} AS PROVINCIA,${volontari.organizzazione} AS ORGANIZZAZIONE, ${volontari.cognome} AS COGNOME,${volontari.nome} AS NOME, ${volontari.servizio} AS SERVIZIO,${volontari.DATA/ORA USCITA DEFINITIVA} AS 'DATA/ORA USCITA DEFINITIVA',last_upd as 'ULTIMA MODIFICA' FROM ${volontari} WHERE ${volontari.servizio} = 'USCITA DEFINITIVA' AND (${volontari.DATA/ORA USCITA DEFINITIVA} IS NULL OR ${volontari.DATA/ORA USCITA DEFINITIVA}='')</query>
+      <source>db</source>
+	  <object>volontari</object>
+      <type>count</type>
+      <result>
+        <none>
+	      <code>success</code>
+	      <message></message>
+        </none>
+	    <multi>
+	      <code>warning</code>
+	      <message>Ci sono volontari in uscita definitiva senza data/ora uscita</message>
+        </multi>
+      </result>
+	  <fix>uscita-definitiva-volontari</fix>
+    </check>
+    <check>
+      <id>0v2</id>
+      <title>Volontari in uscita definitiva senza movimentazione</title>
+      <query>SELECT ${volontari.provincia} AS PROVINCIA,${volontari.organizzazione} AS ORGANIZZAZIONE, ${volontari.nome} || ' ' || ${volontari.cognome} AS RISORSA, ${volontari.servizio} AS SERVIZIO,${volontari.DATA/ORA USCITA DEFINITIVA} AS 'DATA/ORA USCITA DEFINITIVA',last_upd as 'ULTIMA MODIFICA' FROM ${volontari} WHERE ${volontari.servizio} = 'USCITA DEFINITIVA' AND (${volontari.cognome} || ' ' || ${volontari.nome}) NOT IN (SELECT ${mov. risorse.risorsa} FROM ${mov. risorse} WHERE ${mov. risorse.a} = 'USCITA DEFINITIVA' AND ${mov. risorse.tipo risorsa} = 'VOLONTARIO')
+	  </query>
+      <source>db</source>
+	  <object>volontari</object>
+      <type>count</type>
+      <result>
+        <none>
+	      <code>success</code>
+	      <message></message>
+        </none>
+	    <multi>
+	      <code>warning</code>
+	      <message>Ci sono volontari in uscita definitiva senza movimentazione</message>
+        </multi>
+      </result>
+	  <fix>movimentazione-risorse-volontari</fix>
+    </check>
+	<check>
+      <id>0m1</id>
+      <title>Mezzi in uscita definitiva senza data/ora uscita</title>
+      <query>SELECT ${mezzi.provincia} AS PROVINCIA,${mezzi.organizzazione} AS ORGANIZZAZIONE, ${mezzi.targa} AS TARGA, ${mezzi.servizio} AS SERVIZIO,${mezzi.DATA/ORA USCITA DEFINITIVA} AS 'DATA/ORA USCITA DEFINITIVA',last_upd as 'ULTIMA MODIFICA' FROM ${mezzi} WHERE ${mezzi.servizio} = 'USCITA DEFINITIVA' AND (${mezzi.DATA/ORA USCITA DEFINITIVA} IS NULL OR ${mezzi.DATA/ORA USCITA DEFINITIVA}='')</query>
+      <source>db</source>
+	  <object>mezzi</object>
+      <type>count</type>
+      <result>
+        <none>
+	      <code>success</code>
+	      <message></message>
+        </none>
+	    <multi>
+	      <code>warning</code>
+	      <message>Ci sono mezzi in uscita definitiva senza data/ora uscita</message>
+        </multi>
+      </result>
+	  <fix>uscita-definitiva-mezzi</fix>
+    </check>
+    <check>
+      <id>0m2</id>
+      <title>Mezzi in uscita definitiva senza movimentazione</title>
+      <query>SELECT ${mezzi.provincia} AS PROVINCIA,${mezzi.organizzazione} AS ORGANIZZAZIONE, ${mezzi.targa} AS RISORSA, ${mezzi.servizio} AS SERVIZIO,${mezzi.DATA/ORA USCITA DEFINITIVA} AS 'DATA/ORA USCITA DEFINITIVA',last_upd as 'ULTIMA MODIFICA' FROM ${mezzi} WHERE ${mezzi.servizio} = 'USCITA DEFINITIVA' AND ${mezzi.targa} NOT IN (SELECT TRIM(${mov. risorse.risorsa}) FROM ${mov. risorse} WHERE ${mov. risorse.a} = 'USCITA DEFINITIVA' AND ${mov. risorse.tipo risorsa} = 'MEZZO')
+	  </query>
+      <source>db</source>
+	  <object>mezzi</object>
+      <type>count</type>
+      <result>
+        <none>
+	      <code>success</code>
+	      <message></message>
+        </none>
+	    <multi>
+	      <code>warning</code>
+	      <message>Ci sono mezzi in uscita definitiva senza movimentazione</message>
+        </multi>
+      </result>
+	  <fix>movimentazione-risorse-mezzi</fix>
+    </check>
+    <check>
       <id>1</id>
       <title>Volontari senza codice fiscale</title>
       <query>SELECT ${volontari.provincia} AS PROVINCIA,${volontari.organizzazione} AS ORGANIZZAZIONE, ${volontari.cognome} AS COGNOME,${volontari.nome} AS NOME FROM ${volontari} WHERE ${volontari.codice fiscale} IS NULL OR ${volontari.codice fiscale}=''</query>

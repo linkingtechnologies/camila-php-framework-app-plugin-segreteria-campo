@@ -525,7 +525,7 @@ if (!isset($_REQUEST['service'])) {
 
 							if ($brogliaccio != '')
 							{
-								$res = $mover->insertRow($camilaWT,$brogliaccio, 'it', Array('DATA/ORA','RISORSA','TIPO RISORSA','GRUPPO','DA','A'), Array($now,$resource,$resourceType,$group,$from,$to));
+								$res = $mover->insertRow($camilaWT,$brogliaccio, 'it', Array('DATA/ORA','RISORSA','TIPO RISORSA','GRUPPO','DA','A'), Array($now,trim($resource),$resourceType,$group,$from,$to));
 
 								if ($res === false)
 								{
