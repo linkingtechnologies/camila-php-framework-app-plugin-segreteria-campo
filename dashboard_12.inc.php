@@ -1,13 +1,6 @@
 <?php
-
-$resourceTable1='VOLONTARI';
-$resourceTable2='MEZZI';
-$serviceTable = 'SERVIZI';
-$serviceColumn = 'SERVIZIO';
-$groupColumn = 'ORGANIZZAZIONE';
-
-$col1='COGNOME';
-$col2='NOME';
+require_once(CAMILA_VENDOR_DIR.'tinybutstrong/tinybutstrong/tbs_class.php');
+require_once(CAMILA_DIR.'tbs/plugins/tbsdb_jladodb.php');
 
 $camilaWT = new CamilaWorkTable();
 $camilaWT->db = $_CAMILA['db'];
@@ -26,6 +19,8 @@ function drawMap() {
 	$serviceColumn = 'SERVIZIO';
 	$groupColumn = 'ORGANIZZAZIONE';
 
+	$wtId1 = $camilaWT->getWorktableSheetId($resourceTable1);
+
 	$mapName = 'temp';
 	
 	$lang = 'it';
@@ -36,15 +31,13 @@ function drawMap() {
 	{
 		$sub1 = '(SELECT count(*) FROM  ${'.$resourceTable1.'} WHERE ${'.$resourceTable1.'.'.$serviceColumn.'} = ${'.$serviceTable.'.NOME}) as tot';
 		$sub2 = '(SELECT count(*) FROM  ${'.$resourceTable2.'} WHERE ${'.$resourceTable2.'.'.$serviceColumn.'} = ${'.$serviceTable.'.NOME}) as tot2';
-		$queryList = 'SELECT id, ${'.$serviceTable.'.COLORE} AS COLORE,${'.$serviceTable.'.COMUNE}, ${'.$serviceTable.'.LATITUDINE},${'.$serviceTable.'.LONGITUDINE},${'.$serviceTable.'.DESCRIZIONE}, ${'.$serviceTable.'.NOME}, ${'.$serviceTable.'.LETTERA} as lettera, '.$sub1.', '.$sub2.' FROM ${'.$serviceTable.'} WHERE ${'.$serviceTable.'.LATITUDINE} <> "" ORDER BY ${'.$serviceTable.'.ORDINE}';
-
-		require_once(CAMILA_VENDOR_DIR.'tinybutstrong/tinybutstrong/tbs_class.php');
-		require_once(CAMILA_DIR.'tbs/plugins/tbsdb_jladodb.php');
+		$queryList = 'SELECT id, ${'.$serviceTable.'.COLORE} AS COLORE,${'.$serviceTable.'.COMUNE}, ${'.$serviceTable.'.LATITUDINE},${'.$serviceTable.'.LONGITUDINE},${'.$serviceTable.'.DESCRIZIONE}, ${'.$serviceTable.'.NOME}, ${'.$serviceTable.'.LETTERA} as LETTERA, '.$sub1.', '.$sub2.' FROM ${'.$serviceTable.'} WHERE ${'.$serviceTable.'.LATITUDINE} <> "" ORDER BY ${'.$serviceTable.'.ORDINE}';
 
 		$TBS = new clsTinyButStrong();
 		$TBS->SetOption(array('render'=>TBS_OUTPUT));
 		$TBS->SetOption('noerr', false);
 		$TBS->SetVarRefItem('apikey', $params['chiave_mappa_google']);
+		$TBS->SetVarRefItem('wtid1', $wtId1);
 
 		$TBS->LoadTemplate(CAMILA_APP_PATH.'/plugins/'.basename(dirname(__FILE__)).'/templates/tbs/it/resources_gmap.htm');
 		$TBS->MergeBlock('res','adodb',$camilaWT->parseWorktableSqlStatement($queryList));
