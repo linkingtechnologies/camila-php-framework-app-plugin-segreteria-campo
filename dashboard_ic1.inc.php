@@ -206,7 +206,15 @@ if ($_REQUEST['camila_custom']!='')
 				$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-6">'));
 				$camilaUI->insertSubTitle('OK', 'thumbs-up');
 				$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
-			} else {
+			} else if ($check->code == 'queryerror') {
+				$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-6">'));
+				$camilaUI->insertWarning($check->message);
+				$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
+				$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-6">'));
+				//$camilaUI->insertButton('?dashboard=ic1&camila_custom='.$item->id.'&error='.urlencode($check->message), 'Visualizza','list',false,$check->count);
+				$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
+			} 
+			else {
 				$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-6">'));
 				$camilaUI->insertWarning($check->message);
 				$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));

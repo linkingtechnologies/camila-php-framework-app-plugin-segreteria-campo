@@ -36,8 +36,7 @@ function drawMap() {
 	{
 		$sub1 = '(SELECT count(*) FROM  ${'.$resourceTable1.'} WHERE ${'.$resourceTable1.'.'.$serviceColumn.'} = ${'.$serviceTable.'.NOME}) as tot';
 		$sub2 = '(SELECT count(*) FROM  ${'.$resourceTable2.'} WHERE ${'.$resourceTable2.'.'.$serviceColumn.'} = ${'.$serviceTable.'.NOME}) as tot2';
-		$queryList = 'SELECT id, ${'.$serviceTable.'.COMUNE}, ${'.$serviceTable.'.LATITUDINE},${'.$serviceTable.'.LONGITUDINE},${'.$serviceTable.'.DESCRIZIONE}, ${'.$serviceTable.'.NOME}, ${'.$serviceTable.'.LETTERA} as lettera, '.$sub1.', '.$sub2.' FROM ${'.$serviceTable.'} WHERE ${'.$serviceTable.'.LATITUDINE} <> "" ORDER BY ${'.$serviceTable.'.ORDINE}';
-
+		$queryList = 'SELECT id, ${'.$serviceTable.'.COLORE} AS COLORE,${'.$serviceTable.'.COMUNE}, ${'.$serviceTable.'.LATITUDINE},${'.$serviceTable.'.LONGITUDINE},${'.$serviceTable.'.DESCRIZIONE}, ${'.$serviceTable.'.NOME}, ${'.$serviceTable.'.LETTERA} as lettera, '.$sub1.', '.$sub2.' FROM ${'.$serviceTable.'} WHERE ${'.$serviceTable.'.LATITUDINE} <> "" ORDER BY ${'.$serviceTable.'.ORDINE}';
 
 		require_once(CAMILA_VENDOR_DIR.'tinybutstrong/tinybutstrong/tbs_class.php');
 		require_once(CAMILA_DIR.'tbs/plugins/tbsdb_jladodb.php');

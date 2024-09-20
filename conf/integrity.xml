@@ -4,7 +4,7 @@
     <check>
       <id>0v1</id>
       <title>Volontari in uscita definitiva senza data/ora uscita</title>
-      <query>SELECT ${volontari.provincia} AS PROVINCIA,${volontari.organizzazione} AS ORGANIZZAZIONE, ${volontari.cognome} AS COGNOME,${volontari.nome} AS NOME, ${volontari.servizio} AS SERVIZIO,${volontari.DATA/ORA USCITA DEFINITIVA} AS 'DATA/ORA USCITA DEFINITIVA',last_upd as 'ULTIMA MODIFICA' FROM ${volontari} WHERE ${volontari.servizio} = 'USCITA DEFINITIVA' AND (${volontari.DATA/ORA USCITA DEFINITIVA} IS NULL OR ${volontari.DATA/ORA USCITA DEFINITIVA}='')</query>
+      <query>SELECT ${volontari.provincia} AS PROVINCIA,${volontari.organizzazione} AS ORGANIZZAZIONE, ${volontari.cognome} AS COGNOME,${volontari.nome} AS NOME, ${volontari.servizio} AS SERVIZIO,${volontari.DATA/ORA USCITA DEFINITIVA} AS 'DATA/ORA USCITA DEFINITIVA',last_upd as 'ULTIMA MODIFICA' FROM ${volontari} WHERE ${volontari.servizio} = 'USCITA DEFINITIVA' AND ${volontari.DATA/ORA USCITA DEFINITIVA} IS NULL</query>
       <source>db</source>
 	  <object>volontari</object>
       <type>count</type>
@@ -43,7 +43,7 @@
 	<check>
       <id>0m1</id>
       <title>Mezzi in uscita definitiva senza data/ora uscita</title>
-      <query>SELECT ${mezzi.provincia} AS PROVINCIA,${mezzi.organizzazione} AS ORGANIZZAZIONE, ${mezzi.targa} AS TARGA, ${mezzi.servizio} AS SERVIZIO,${mezzi.DATA/ORA USCITA DEFINITIVA} AS 'DATA/ORA USCITA DEFINITIVA',last_upd as 'ULTIMA MODIFICA' FROM ${mezzi} WHERE ${mezzi.servizio} = 'USCITA DEFINITIVA' AND (${mezzi.DATA/ORA USCITA DEFINITIVA} IS NULL OR ${mezzi.DATA/ORA USCITA DEFINITIVA}='')</query>
+      <query>SELECT ${mezzi.provincia} AS PROVINCIA,${mezzi.organizzazione} AS ORGANIZZAZIONE, ${mezzi.targa} AS TARGA, ${mezzi.servizio} AS SERVIZIO,${mezzi.DATA/ORA USCITA DEFINITIVA} AS 'DATA/ORA USCITA DEFINITIVA',last_upd as 'ULTIMA MODIFICA' FROM ${mezzi} WHERE ${mezzi.servizio} = 'USCITA DEFINITIVA' AND (${mezzi.DATA/ORA USCITA DEFINITIVA} IS NULL)</query>
       <source>db</source>
 	  <object>mezzi</object>
       <type>count</type>

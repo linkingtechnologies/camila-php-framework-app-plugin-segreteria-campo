@@ -7,6 +7,12 @@
   <pages>02,03,04,27,28</pages>
  </tab>
  <tab>
+   <id>m6</id>
+  <title>ATTIVITÀ</title>
+  <url>?dashboard=m6</url>
+  <pages></pages>
+ </tab>
+ <tab>
   <id>m1</id>
   <title>REPORT</title>
   <url>?dashboard=m1</url>

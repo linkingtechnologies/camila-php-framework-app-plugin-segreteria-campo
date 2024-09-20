@@ -110,9 +110,13 @@ function initMap() {
 	[res;block=begin]
 	loc = new google.maps.LatLng([res.latitudine],[res.longitudine]);
 	bounds.extend(loc);
-	var icon = 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png';
-	if ([res.tot]>0)
-		icon = 'http://maps.google.com/mapfiles/ms/icons/green-dot.png';
+	var color = '[res.COLORE;strconv=js]';
+	
+	var icon = 'plugins/segreteria-campo/templates/images/it/marker_rosso.png';
+	if (!color) {
+	} else {
+		icon = 'plugins/segreteria-campo/templates/images/it/marker_'+color+'.png';
+	}
 	var marker = new google.maps.Marker({
 	  position: loc,
 	  map: map,
