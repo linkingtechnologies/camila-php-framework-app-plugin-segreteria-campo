@@ -211,7 +211,6 @@ if ($_REQUEST['camila_custom']!='')
 				$camilaUI->insertWarning($check->message);
 				$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
 				$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-6">'));
-				//$camilaUI->insertButton('?dashboard=ic1&camila_custom='.$item->id.'&error='.urlencode($check->message), 'Visualizza','list',false,$check->count);
 				$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
 			} 
 			else {
