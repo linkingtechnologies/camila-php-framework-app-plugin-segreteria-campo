@@ -8,7 +8,12 @@ $camilaWT->db = $_CAMILA['db'];
 $conn = $_CAMILA['db'];
 global $conn;
 
-function drawMap() {
+$template = 'gmap';
+if (isset($_GET['mt']) && $_GET['mt']=='osm') {
+	$template = 'osm';
+}
+
+function drawMap($template) {
 	global $_CAMILA;
 	global $camilaWT;
 	global $mapName;
@@ -38,8 +43,7 @@ function drawMap() {
 		$TBS->SetOption('noerr', false);
 		$TBS->SetVarRefItem('apikey', $params['chiave_mappa_google']);
 		$TBS->SetVarRefItem('wtid1', $wtId1);
-
-		$TBS->LoadTemplate(CAMILA_APP_PATH.'/plugins/'.basename(dirname(__FILE__)).'/templates/tbs/it/resources_gmap.htm');
+		$TBS->LoadTemplate(CAMILA_APP_PATH.'/plugins/'.basename(dirname(__FILE__)).'/templates/tbs/it/resources_'.$template.'.htm');
 		$TBS->MergeBlock('res','adodb',$camilaWT->parseWorktableSqlStatement($queryList));
 		$TBS->MergeBlock('res2','adodb',$camilaWT->parseWorktableSqlStatement($queryList));
 		$_CAMILA['page']->add_userdefined(new CHAW_tbs($TBS, true));		
@@ -50,6 +54,5 @@ function drawMap() {
 		$camilaUI->insertWarning('Nessun intervento in corso!');
 	}
 }
-
-drawMap();
+drawMap($template);
 ?>

@@ -1,0 +1,220 @@
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+
+<style>
+#map_canvas {
+	height: 400px;
+}
+
+h5:empty {
+	display: none;
+}
+
+</style>
+
+<script type="text/javascript">
+function writeMarkerIcon(color,letter) {
+	document.write('<img src="' + getMarkerPath(color,letter) + '" alt="marker">');
+}
+
+function getMarkerPath(color,letter) {	
+	var icon = 'plugins/segreteria-campo/templates/images/it/marker_rosso.png';
+	if (!color) {
+	} else {
+		icon = 'plugins/segreteria-campo/templates/images/it/marker_'+color+'.png';
+	}
+	if (!letter) {
+	} else {
+		icon = 'plugins/segreteria-campo/templates/images/en/marker_'+traduciColore(color)+letter.toUpperCase()+'.png';
+	}
+	return icon;
+}
+
+function traduciColore(colore) {
+    let coloreInInglese;
+    
+    switch (colore.toLowerCase()) {
+        case 'rosso':
+            coloreInInglese = 'red';
+            break;
+        case 'nero':
+            coloreInInglese = 'black';
+            break;
+        case 'blu':
+            coloreInInglese = 'blue';
+            break;
+        case 'verde':
+            coloreInInglese = 'green';
+            break;
+        case 'grigio':
+            coloreInInglese = 'grey';
+            break;
+        case 'arancione':
+            coloreInInglese = 'orange';
+            break;
+        case 'viola':
+            coloreInInglese = 'purple';
+            break;
+        case 'bianco':
+            coloreInInglese = 'white';
+            break;
+        case 'giallo':
+            coloreInInglese = 'yellow';
+            break;
+        default:
+            coloreInInglese = 'red';
+    }
+    
+    return coloreInInglese;
+}
+</script>
+
+
+<div class="row">
+    <h3><span class="glyphicon glyphicon-map-marker"></span> MAPPA SERVIZI</h3>
+</div>
+<div class="row">
+    <div class="col-md-4">
+        <div class="panel panel-default">
+            <div class="panel-body">
+                <input id="filter" type="text" placeholder="Cerca...">
+                <div id="results">
+                    [res2;block=begin]
+                    <div class="results">
+                        <h4>
+                            <script type="text/javascript">writeMarkerIcon('[res2.COLORE;strconv=js]','[res2.LETTERA;strconv=js]');</script>
+                            <a href="javascript:zoomIn('[res2.id]');">[res2.nome]</a>
+                        </h4>
+                        <h5>[res2.descrizione]</h5>
+                        <h5>[res2.comune]</h5>
+                        <div class="form-horizontal">
+                            <div class="form-group">
+                                <label class="control-label col-md-4">Volontari</label>
+                                <div class="col-md-8 form-control-static">
+                                    [res2.tot]
+                                </div>
+                                <label class="control-label col-md-4">Mezzi</label>
+                                <div class="col-md-8 form-control-static">
+                                    [res2.tot2]
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    [res2;block=end]
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <div class="panel panel-default">
+            <div id="map_canvas"></div>
+        </div>
+
+        <div class="panel panel-default">
+            <input id="searchTextField" type="text" size="50" placeholder="Ricerca indirizzo e premi invio..." autocomplete="on" />
+        </div>
+        <div class="panel panel-default">
+            <input type="hidden" id="city2" name="city2" />
+            <input type="Lat" id="cityLat" name="cityLat" placeholder="Latitudine" />
+            <input type="Long" id="cityLng" name="cityLng" placeholder="Longitudine" />
+        </div>
+    </div>
+</div>
+
+<script type="text/javascript">
+    var map;
+    var markers = {};
+
+    function initMap() {
+        var osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        });
+
+        var satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+        });
+
+        map = L.map('map_canvas', {
+            center: [41.8719, 12.5674], // Centro sull'Italia
+            zoom: 6,
+            layers: [osmLayer]  // Layer di default
+        });
+
+        var baseMaps = {
+            "OpenStreetMap": osmLayer,
+            "Satellite": satelliteLayer
+        };
+
+        L.control.layers(baseMaps).addTo(map);
+
+        var bounds = new L.LatLngBounds();
+
+        [res;block=begin]
+        var loc = L.latLng([res.latitudine], [res.longitudine]);
+        bounds.extend(loc);
+
+        var icon = L.icon({
+            iconUrl: getMarkerPath('[res.COLORE;strconv=js]', '[res.LETTERA;strconv=js]'),
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34]
+        });
+
+        var marker = L.marker(loc, { icon: icon })
+            .addTo(map)
+            .bindPopup('<b>[res.nome;strconv=js]</b><br/>[res.tot] VOLONTARI<br/>[res.tot2] MEZZI');
+
+        markers['[res.id]'] = marker;
+        [res;block=end]
+
+        map.fitBounds(bounds);
+    }
+
+    $(document).ready(function() {
+        $("#filter").keyup(function() {
+            var filter = $(this).val(),
+                count = 0;
+            $('#results div').each(function() {
+                if ($(this).text().search(new RegExp(filter, "i")) < 0) {
+                    $(this).hide();
+                } else {
+                    $(this).show();
+                    count++;
+                }
+            });
+        });
+    });
+
+    function zoomIn(index) {
+        var marker = markers[index];
+        if (marker) {
+            map.setView(marker.getLatLng(), 17);
+        }
+    }
+
+    document.getElementById('searchTextField').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            var query = document.getElementById('searchTextField').value;
+            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.length > 0) {
+                        var lat = data[0].lat;
+                        var lon = data[0].lon;
+                        map.setView([lat, lon], 17);
+                        document.getElementById('cityLat').value = lat;
+                        document.getElementById('cityLng').value = lon;
+                    }
+                });
+        }
+    });
+
+    document.addEventListener('DOMContentLoaded', function() {
+        initMap();
+    });
+</script>
+
+</body>
+</html>
