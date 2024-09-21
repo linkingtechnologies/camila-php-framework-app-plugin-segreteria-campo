@@ -17,8 +17,8 @@ if (isset($params['chiave_mappa_google']) && $params['chiave_mappa_google'] != '
 
 $camilaUI->insertButton('?dashboard=12&mt=osm', 'Mappa servizi (OpenStreetMap)', 'map-marker');
 
-$camilaUI->insertButton('https://'.$params['host_geotracker'].'/app/geotracker/?dashboard=omap', 'GeoTracker (OpenStreetMap)', 'map-marker', true, '', '_blank');
 if (isset($params['host_geotracker']) && $params['host_geotracker'] != '') {
+	$camilaUI->insertButton('https://'.$params['host_geotracker'].'/app/geotracker/?dashboard=omap', 'GeoTracker (OpenStreetMap)', 'map-marker', true, '', '_blank');
 	$camilaUI->insertButton('https://'.$params['host_geotracker'].'/app/geotracker/?dashboard=gmap', 'GeoTracker (Google Maps)', 'map-marker', true, '', '_blank');
 }
 $camilaUI->insertButton('?dashboard=12l', 'Mappa servizi (locale)', 'map-marker');
