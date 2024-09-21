@@ -28,7 +28,19 @@ $camilaUI->insertDivider();
 if (isset($params['URL_geotracker']) && $params['URL_geotracker'] != '') {
 	$camilaUI->insertText($params['URL_geotracker']);
 	$camilaUI->insertDivider();
-	$camilaUI->insertImage('../../lib/qrcode/image.php?msg='.urlencode($params['URL_geotracker']));
+	$in = 
+    $letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+	$payload = json_encode([
+		"_type" => "configuration",
+		"mode" => 3,
+		/*"autostartOnBoot" => false,*/
+		"tid" => $letters[rand(0, strlen($letters) - 1)] . $letters[rand(0, strlen($letters) - 1)],
+		"monitoring" => 1,
+		"host" => $params['URL_geotracker']
+	]);
+
+	$camilaUI->insertImage('../../lib/qrcode/image.php?msg='.urlencode('owntracks:///config?inline='.urlencode(base64_encode($payload))));
 	$camilaUI->insertDivider();
 	$camilaUI->insertSuccess('URL GeoTracker configurato!');	
 } else {
