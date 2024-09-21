@@ -168,19 +168,8 @@ function initMap() {
 	[res;block=begin]
 	loc = new google.maps.LatLng([res.latitudine],[res.longitudine]);
 	bounds.extend(loc);
-	var color = '[res.COLORE;strconv=js]';
-	var letter = '[res.LETTERA;strconv=js]';
 	
-	var icon = 'plugins/segreteria-campo/templates/images/it/marker_rosso.png';
-	if (!color) {
-	} else {
-		icon = 'plugins/segreteria-campo/templates/images/it/marker_'+color+'.png';
-	}
-	
-	if (!letter) {
-	} else {
-		icon = 'plugins/segreteria-campo/templates/images/en/marker_'+traduciColore(color)+letter.toUpperCase()+'.png';
-	}
+	var icon = getMarkerPath('[res.COLORE;strconv=js]','[res.LETTERA;strconv=js]');
 
 	var marker = new google.maps.Marker({
 	  position: loc,
