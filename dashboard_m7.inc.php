@@ -8,7 +8,9 @@ $params = $camilaTemplate->getParameters();
  
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="row">'));	
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-4">'));
-$camilaUI->insertTitle('Mappe', 'globe');
+if (isset($params['chiave_mappa_google']) && $params['chiave_mappa_google'] != '') {
+	$camilaUI->insertTitle('Mappe', 'globe');
+}
 
 $camilaUI->insertButton('?dashboard=12', 'Mappa servizi', 'map-marker');
 if (isset($params['host_geotracker']) && $params['host_geotracker'] != '') {
@@ -20,6 +22,8 @@ $camilaUI->insertDivider();
 
 if (isset($params['chiave_mappa_google']) && $params['chiave_mappa_google'] != '') {
 	$camilaUI->insertSuccess('Chiave per mappa Google configurata!');
+} else {
+	$camilaUI->insertWarning('Chiave per mappa Google non configurata!');
 }
 
 if (isset($params['host_geotracker']) && $params['host_geotracker'] != '') {
