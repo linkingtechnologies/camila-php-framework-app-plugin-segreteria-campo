@@ -1,4 +1,6 @@
 <?php
+require_once(CAMILA_LIB_DIR.'qrcode/qrcode.class.php');
+
 $camilaWT  = new CamilaWorkTable();
 $camilaWT->db = $_CAMILA['db'];
 
@@ -14,11 +16,21 @@ if (isset($params['chiave_mappa_google']) && $params['chiave_mappa_google'] != '
 
 $camilaUI->insertButton('?dashboard=12', 'Mappa servizi', 'map-marker');
 if (isset($params['host_geotracker']) && $params['host_geotracker'] != '') {
-	$camilaUI->insertButton('https://'.$params['host_geotracker'].'/app/geotracker', 'GeoTracker', 'map-marker', true, '', '_blank');
+	$camilaUI->insertButton('https://'.$params['host_geotracker'].'/app/geotracker/?dashboard=map', 'GeoTracker', 'map-marker', true, '', '_blank');
 }
 $camilaUI->insertButton('?dashboard=12l', 'Mappa servizi (locale)', 'map-marker');
 
 $camilaUI->insertDivider();
+
+if (isset($params['URL_geotracker']) && $params['URL_geotracker'] != '') {
+	$camilaUI->insertText($params['URL_geotracker']);
+	$camilaUI->insertDivider();
+	$camilaUI->insertImage('../../lib/qrcode/image.php?msg='.urlencode($params['URL_geotracker']));
+	$camilaUI->insertDivider();
+	$camilaUI->insertSuccess('URL GeoTracker configurato!');	
+} else {
+	$camilaUI->insertWarning('URL GeoTracker non configurato!');
+}
 
 if (isset($params['chiave_mappa_google']) && $params['chiave_mappa_google'] != '') {
 	$camilaUI->insertSuccess('Chiave per mappa Google configurata!');
@@ -31,15 +43,6 @@ if (isset($params['host_geotracker']) && $params['host_geotracker'] != '') {
 } else {
 	$camilaUI->insertWarning('Host GeoTracker non configurato!');
 }
-
-if (isset($params['URL_geotracker']) && $params['URL_geotracker'] != '') {
-	$camilaUI->insertSuccess('URL GeoTracker configurato!');
-	$camilaUI->insertText($params['URL_geotracker']);
-} else {
-	$camilaUI->insertWarning('URL GeoTracker non configurato!');
-}
-
-
 
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-4">'));
