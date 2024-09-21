@@ -1,11 +1,70 @@
-<br/>
-
 <style>
-
 #map_canvas {
 	height: 400px;
 }
+
+h5:empty {
+	display: none;
+}
+
 </style>
+
+<script type="text/javascript">
+function writeMarkerIcon(color,letter) {
+	document.write('<img src="' + getMarkerPath(color,letter) + '" alt="marker">');
+}
+
+function getMarkerPath(color,letter) {	
+	var icon = 'plugins/segreteria-campo/templates/images/it/marker_rosso.png';
+	if (!color) {
+	} else {
+		icon = 'plugins/segreteria-campo/templates/images/it/marker_'+color+'.png';
+	}
+	if (!letter) {
+	} else {
+		icon = 'plugins/segreteria-campo/templates/images/en/marker_'+traduciColore(color)+letter.toUpperCase()+'.png';
+	}
+	return icon;
+}
+
+function traduciColore(colore) {
+    let coloreInInglese;
+    
+    switch (colore.toLowerCase()) {
+        case 'rosso':
+            coloreInInglese = 'red';
+            break;
+        case 'nero':
+            coloreInInglese = 'black';
+            break;
+        case 'blu':
+            coloreInInglese = 'blue';
+            break;
+        case 'verde':
+            coloreInInglese = 'green';
+            break;
+        case 'grigio':
+            coloreInInglese = 'grey';
+            break;
+        case 'arancione':
+            coloreInInglese = 'orange';
+            break;
+        case 'viola':
+            coloreInInglese = 'purple';
+            break;
+        case 'bianco':
+            coloreInInglese = 'white';
+            break;
+        case 'giallo':
+            coloreInInglese = 'yellow';
+            break;
+        default:
+            coloreInInglese = 'red';
+    }
+    
+    return coloreInInglese;
+}
+</script>
 
 <div class="row">
 	<h3><span class="glyphicon glyphicon-map-marker"></span> MAPPA SERVIZI</h3>
@@ -19,13 +78,13 @@
 			[res2;block=begin]
 				<div class="results">
 				<h4>
-					<a href="javascript:zoomIn('[res2.id]');"><span class="glyphicon glyphicon-map-marker"></span> [res2.nome]</a>
+					<script type="text/javascript">writeMarkerIcon('[res2.COLORE;strconv=js]','[res2.LETTERA;strconv=js]');</script>
+					<a href="javascript:zoomIn('[res2.id]');">[res2.nome]</a>
 				</h4>
-				<h5>
-					[res2.descrizione]<br/>
-					[res2.comune]
-				</h5>
+				<h5>[res2.descrizione]</h5>
+				<h5>[res2.comune]</h5>
 				<div class="form-horizontal">
+	
 					<div class="form-group">
 						<label class="control-label col-md-4">Volontari</label>
 						<div class="col-md-8 form-control-static">
@@ -98,7 +157,6 @@ function zoomIn(index) {
 	map.panTo(markers[index].position);
 	window.scrollTo({ top: 0, behavior: 'smooth' });
 }
-
 
 function initMap() {
 	var bounds = new google.maps.LatLngBounds();
@@ -174,44 +232,6 @@ function initMap() {
 				map.panTo(place.geometry.location);
             });
   
-}
-
-function traduciColore(colore) {
-    let coloreInInglese;
-    
-    switch (colore.toLowerCase()) {
-        case 'rosso':
-            coloreInInglese = 'red';
-            break;
-        case 'nero':
-            coloreInInglese = 'black';
-            break;
-        case 'blu':
-            coloreInInglese = 'blue';
-            break;
-        case 'verde':
-            coloreInInglese = 'green';
-            break;
-        case 'grigio':
-            coloreInInglese = 'grey';
-            break;
-        case 'arancione':
-            coloreInInglese = 'orange';
-            break;
-        case 'viola':
-            coloreInInglese = 'purple';
-            break;
-        case 'bianco':
-            coloreInInglese = 'white';
-            break;
-        case 'giallo':
-            coloreInInglese = 'yellow';
-            break;
-        default:
-            coloreInInglese = 'red';
-    }
-    
-    return coloreInInglese;
 }
 </script>
 <script async defer src='https://maps.googleapis.com/maps/api/js?key=[onshow.apikey]&callback=initMap&libraries=places'>
