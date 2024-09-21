@@ -24,7 +24,7 @@ function drawMap() {
 	$mapName = 'temp';
 	
 	$lang = 'it';
-	$camilaTemplate = new CamilaTemplate('it');
+	$camilaTemplate = new CamilaTemplate($lang);
 	$params = $camilaTemplate->getParameters();
 
 	if ($mapName != '')

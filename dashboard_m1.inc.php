@@ -138,8 +138,6 @@ if (!isset($_REQUEST['export'])) {
 	$camilaUI->insertButton('cf_worktable'.$aSheet.'.php', 'Brogliaccio attività', 'list');
 	$camilaUI->insertButton('cf_worktable'.$rSheet.'.php', 'Report operativi', 'list');	
 	$camilaUI->insertButton('cf_worktable'.$cSheet.'.php', 'Comunicazioni radio', 'list');	
-	$camilaUI->insertButton('?dashboard=12', 'Mappa servizi', 'map-marker');
-	$camilaUI->insertButton('?dashboard=12l', 'Mappa servizi (locale)', 'map-marker');
 	$camilaUI->insertButton('?dashboard=01', 'Riepilogo ospiti e risorse', 'list-alt');
 	$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
 	

@@ -13,10 +13,16 @@
   <pages></pages>
  </tab>
  <tab>
+  <id>m7</id>
+  <title>MAPPE</title>
+  <url>?dashboard=m7</url>
+  <pages>12,12l</pages>
+ </tab>
+ <tab>
   <id>m1</id>
   <title>REPORT</title>
   <url>?dashboard=m1</url>
-  <pages>01,12,12l</pages>
+  <pages>01</pages>
  </tab>
  <tab>
   <id>m5</id>

@@ -11,7 +11,7 @@ $form->drawrules = true;
 $form->preservecontext = true;
 
 foreach ($params as $key => $val) {
-	if ($key == 'logo' || $key == 'logo2' || $key == 'chiave_mappa_google') {
+	if ($key == 'logo' || $key == 'logo2' || $key == 'chiave_mappa_google' || $key == 'host_geotracker' || $key == 'URL_geotracker') {
 	}
 	else
 	{
@@ -27,6 +27,22 @@ reset($params);
 foreach ($params as $key => $val) {
 	if ($key == 'logo' || $key == 'logo2') {
 		new form_fm_file_listbox($form, $key, $key, CAMILA_TMPL_DIR . '/images/' . $lang . '/');
+		$form->fields[$key]->set_br(2);
+		$form->fields[$key]->set_css_class('form-control');
+		$form->fields[$key]->value = $val;
+	}
+	
+
+	
+	if ($key == 'host_geotracker') {
+		new form_textbox($form, $key, ucfirst(str_replace("_"," ",$key)), false, 50, 100);
+		$form->fields[$key]->set_br(2);
+		$form->fields[$key]->set_css_class('form-control');
+		$form->fields[$key]->value = $val;
+	}
+	
+	if ($key == 'URL_geotracker') {
+		new form_textbox($form, $key, ucfirst(str_replace("_"," ",$key)), false, 50, 100);
 		$form->fields[$key]->set_br(2);
 		$form->fields[$key]->set_css_class('form-control');
 		$form->fields[$key]->value = $val;
