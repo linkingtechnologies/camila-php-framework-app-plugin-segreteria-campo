@@ -16,6 +16,20 @@
     along with Camila PHP Framework. If not, see <http://www.gnu.org/licenses/>. */
 
 
+$includeMov = false;
+$includeLast = true;
+$includeAll = false;
+if (isset($_GET['t']) && $_GET['t'] == 'all') {
+	$includeMov = true;
+	$includeAll = true;
+	$includeMov = true;
+}
+if (isset($_GET['t']) && $_GET['t'] == 'partial') {
+	$includeLast = false;
+	$includeAll = true;
+	$includeMov = false;
+}
+
 $camilaWT  = new CamilaWorkTable();
 $camilaWT->db = $_CAMILA['db'];
 
@@ -66,84 +80,131 @@ $s = array();
 while (!$result->EOF) {
 	$f = $result->fields;
 	$key = $f[0].'r';
-	$fin[$key] = '[Com. radio] Da "' . $f[2] . '" a "'.$f[3] . '": "' . $f[4] . '"';
+	$fin[$key] = '[Sala radio] Da "' . $f[2] . '" a "'.$f[3] . '": "' . $f[4] . '"';
 	$result->MoveNext();
 }
 
 ksort($fin);
 
-$timestamp_inizio = strtotime(substr(array_key_first($fin),0,19));
-$timestamp_fine = strtotime(substr(array_key_last($fin),0,19));
+if ($includeMov) {
+	$timestamp_inizio = strtotime(substr(array_key_first($fin),0,19));
+	$timestamp_fine = strtotime(substr(array_key_last($fin),0,19));
 
-$last = '';
-if (!$noVols) {
-	for ($ts = $timestamp_inizio; $ts <= $timestamp_fine; $ts += 3600/2) {
-		$subQuery = 'SELECT ${MOV. RISORSE.RISORSA} FROM ${MOV. RISORSE} WHERE ${MOV. RISORSE.TIPO RISORSA} = \'VOLONTARIO\' AND ${MOV. RISORSE.A} = \'USCITA DEFINITIVA\' AND ${MOV. RISORSE.DATA/ORA}<\''.date('Y-m-d H:i:s',$ts).'\'';
-		$query = 'SELECT COUNT(DISTINCT ${MOV. RISORSE.RISORSA}) FROM ${MOV. RISORSE} WHERE ${MOV. RISORSE.TIPO RISORSA} = \'VOLONTARIO\' AND ${MOV. RISORSE.DA} = \'IN ATTESA DI SERVIZIO\' AND ${MOV. RISORSE.DATA/ORA}<\''.date('Y-m-d H:i:s',$ts).'\' and ${MOV. RISORSE.RISORSA} NOT IN ('.$subQuery.') ORDER BY ${MOV. RISORSE.DATA/ORA}';
-		$result = $camilaWT->startExecuteQuery($query);
-		$s = array();
-		
-		while (!$result->EOF) {
-			$f = $result->fields;
-			$key = date('Y-m-d H:i:s',$ts).'v';
-			$text = '[Segreteria] Num. volontari: ' . $f[0];
-			if ($last != $text) {
-				$fin[$key] = $text;
-				$last = $text;
+	$last = '';
+	if (!$noVols) {
+		for ($ts = $timestamp_inizio; $ts <= $timestamp_fine; $ts += 3600/2) {
+			$subQuery = 'SELECT ${MOV. RISORSE.RISORSA} FROM ${MOV. RISORSE} WHERE ${MOV. RISORSE.TIPO RISORSA} = \'VOLONTARIO\' AND ${MOV. RISORSE.A} = \'USCITA DEFINITIVA\' AND ${MOV. RISORSE.DATA/ORA}<\''.date('Y-m-d H:i:s',$ts).'\'';
+			$query = 'SELECT COUNT(DISTINCT ${MOV. RISORSE.RISORSA}) FROM ${MOV. RISORSE} WHERE ${MOV. RISORSE.TIPO RISORSA} = \'VOLONTARIO\' AND ${MOV. RISORSE.DA} = \'IN ATTESA DI SERVIZIO\' AND ${MOV. RISORSE.DATA/ORA}<\''.date('Y-m-d H:i:s',$ts).'\' and ${MOV. RISORSE.RISORSA} NOT IN ('.$subQuery.') ORDER BY ${MOV. RISORSE.DATA/ORA}';
+			$result = $camilaWT->startExecuteQuery($query);
+			$s = array();
+			
+			while (!$result->EOF) {
+				$f = $result->fields;
+				$key = date('Y-m-d H:i:s',$ts).'v';
+				$text = '[Segreteria] Num. volontari: ' . $f[0];
+				if ($last != $text) {
+					$fin[$key] = $text;
+					$last = $text;
+				}
+				$result->MoveNext();
 			}
-			$result->MoveNext();
+			
 		}
-		
 	}
+
+	ksort($fin);
 }
 
-ksort($fin);
-$camilaUI->insertTitle('Ultime 20 attività','globe');
 
-$latest = array_slice($fin, -20);
+$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="row">'));	
+$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-8">'));
 
-if (!empty($latest)) {
-	foreach ($latest as $key => $val) {
-		$dateTime = new DateTime(substr($key,0,19));
-		$txt = $dateTime->format('d/m/Y H:i:s') . " $val\n";
-		$text = new CHAW_text($txt);
-		$text->set_br(0);
-		$_CAMILA['page']->add_text($text);   
-	}
-} else {
-	$camilaUI->insertWarning('Non ci sono ancora attività!');
-}
-
-$camilaUI->insertTitle('Tutte le attività','globe');
-
-if (!empty($fin)) {
+if ($includeLast) {
+	$lNum = 30;
+	$camilaUI->insertTitle('Ultime '.$lNum.' attività','list-alt');
+	$latest = array_slice($fin, -$lNum);
+	krsort($latest);
 	
 	$last = '';
 
-	foreach ($fin as $key => $val) {
-		$currDT = new DateTime(substr($key,0,19));
-		$curr = $currDT->format('d/m/Y');
-		
-		if ($curr != $last) {
-			if ($last!='') {
-				$text = new CHAW_text('');
+	if (!empty($latest)) {
+		foreach ($latest as $key => $val) {
+			$currDT = new DateTime(substr($key,0,19));
+			$curr = $currDT->format('d/m/Y');
+			
+			if ($curr != $last) {
+				if ($last!='') {
+					$text = new CHAW_text('');
+					$text->set_br(2);
+					$_CAMILA['page']->add_text($text);
+				}
+				$text = new CHAW_text('Giornata ' . $curr);
 				$text->set_br(2);
 				$_CAMILA['page']->add_text($text);
 			}
-			$text = new CHAW_text('Giornata ' . $curr);
-			$text->set_br(2);
+			
+			$dateTime = new DateTime(substr($key,0,19));
+			$txt = $dateTime->format('d/m/Y H:i:s') . " $val\n";
+			$text = new CHAW_text($txt);
+			$text->set_br(0);
 			$_CAMILA['page']->add_text($text);
+			
+			$last = $curr;
 		}
 		
-		$dateTime = new DateTime(substr($key,0,19));
-		$txt = $dateTime->format('d/m/Y H:i:s') . " $val\n";
-		$text = new CHAW_text($txt);
-		$text->set_br(0);
-		$_CAMILA['page']->add_text($text);
+		$camilaUI->insertButton('index.php?dashboard=m6&t=partial', 'Tutte le attività senza movimentazioni segreteria', 'list');
+		$camilaUI->insertButton('index.php?dashboard=m6&t=all', 'Tutte le attività', 'list');
 		
-		$last = $curr;
+	} else {
+		$camilaUI->insertWarning('Non ci sono ancora attività!');
 	}
-} else {
-	$camilaUI->insertWarning('Non ci sono ancora attività!');
 }
+
+if ($includeAll) {
+	$camilaUI->insertTitle('Tutte le attività','list-alt');
+
+	if (!empty($fin)) {
+		
+		$last = '';
+
+		foreach ($fin as $key => $val) {
+			$currDT = new DateTime(substr($key,0,19));
+			$curr = $currDT->format('d/m/Y');
+			
+			if ($curr != $last) {
+				if ($last!='') {
+					$text = new CHAW_text('');
+					$text->set_br(2);
+					$_CAMILA['page']->add_text($text);
+				}
+				$text = new CHAW_text('Giornata ' . $curr);
+				$text->set_br(2);
+				$_CAMILA['page']->add_text($text);
+			}
+			
+			$dateTime = new DateTime(substr($key,0,19));
+			$txt = $dateTime->format('d/m/Y H:i:s') . " $val\n";
+			$text = new CHAW_text($txt);
+			$text->set_br(0);
+			$_CAMILA['page']->add_text($text);
+			
+			$last = $curr;
+		}
+
+	} else {
+		$camilaUI->insertWarning('Non ci sono ancora attività!');
+	}
+}
+
+$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
+
+$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-4">'));
+$camilaUI->insertTitle('Menu', 'list');
+$camilaUI->insertButton('index.php?dashboard=m6&t=partial', 'Tutte le attività senza movimentazioni segreteria', 'list');
+$camilaUI->insertButton('index.php?dashboard=m6&t=all', 'Tutte le attività', 'list');
+$camilaUI->insertButton('cf_worktable'.$aSheet.'.php', 'Brogliaccio attività', 'list');
+$camilaUI->insertButton('cf_worktable'.$cSheet.'.php', 'Comunicazioni radio', 'list');	
+$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
+$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
+
 ?>

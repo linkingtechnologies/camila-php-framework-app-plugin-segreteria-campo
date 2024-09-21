@@ -135,9 +135,7 @@ if (!isset($_REQUEST['export'])) {
 	$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-3">'));
 	$camilaUI->insertTitle('Menu', 'list');
 	$camilaUI->insertButton('?dashboard=m1&export=pdf', 'Situazione attuale (PDF)', 'file');
-	$camilaUI->insertButton('cf_worktable'.$aSheet.'.php', 'Brogliaccio attività', 'list');
 	$camilaUI->insertButton('cf_worktable'.$rSheet.'.php', 'Report operativi', 'list');	
-	$camilaUI->insertButton('cf_worktable'.$cSheet.'.php', 'Comunicazioni radio', 'list');	
 	$camilaUI->insertButton('?dashboard=01', 'Riepilogo ospiti e risorse', 'list-alt');
 	$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
 	

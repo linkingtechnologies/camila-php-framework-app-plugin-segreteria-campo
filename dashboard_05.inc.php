@@ -18,8 +18,7 @@ foreach ($params as $key => $val) {
 		new form_textbox($form, $key, $key, false, 50, 200);
 		$form->fields[$key]->set_css_class('form-control');
 		$form->fields[$key]->value = $val;
-	}
-	
+	}	
 }
 
 reset($params);
@@ -31,9 +30,7 @@ foreach ($params as $key => $val) {
 		$form->fields[$key]->set_css_class('form-control');
 		$form->fields[$key]->value = $val;
 	}
-	
 
-	
 	if ($key == 'host_geotracker') {
 		new form_textbox($form, $key, ucfirst(str_replace("_"," ",$key)), false, 50, 100);
 		$form->fields[$key]->set_br(2);

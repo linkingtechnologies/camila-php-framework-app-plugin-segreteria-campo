@@ -1,13 +1,11 @@
 <?php
-require_once(CAMILA_LIB_DIR.'qrcode/qrcode.class.php');
-
 $camilaWT  = new CamilaWorkTable();
 $camilaWT->db = $_CAMILA['db'];
 
 $lang = 'it';
 $camilaTemplate = new CamilaTemplate($lang);
 $params = $camilaTemplate->getParameters();
- 
+
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="row">'));	
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-4">'));
 if (isset($params['chiave_mappa_google']) && $params['chiave_mappa_google'] != '') {
