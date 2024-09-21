@@ -20,7 +20,7 @@ $includeMov = false;
 $includeLast = true;
 $includeAll = false;
 if (isset($_GET['t']) && $_GET['t'] == 'all') {
-	$includeMov = true;
+	$includeLast = false;
 	$includeAll = true;
 	$includeMov = true;
 }
@@ -121,7 +121,7 @@ $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-8"
 
 if ($includeLast) {
 	$lNum = 30;
-	$camilaUI->insertTitle('Ultime '.$lNum.' attività','list-alt');
+	$camilaUI->insertTitle('Ultime '.$lNum.' attività registrate','list-alt');
 	$latest = array_slice($fin, -$lNum);
 	krsort($latest);
 	
