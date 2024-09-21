@@ -12,7 +12,7 @@ $camilaUI->insertTitle('Mappe', 'globe');
 
 $camilaUI->insertButton('?dashboard=12', 'Mappa servizi', 'map-marker');
 if (isset($params['host_geotracker']) && $params['host_geotracker'] != '') {
-	$camilaUI->insertButton('https://'.$params['host_geotracker'].'/app/geotracker', 'GeoTracker', 'map-marker');
+	$camilaUI->insertButton('https://'.$params['host_geotracker'].'/app/geotracker', 'GeoTracker', 'map-marker', true, '', '_blank');
 }
 $camilaUI->insertButton('?dashboard=12l', 'Mappa servizi (locale)', 'map-marker');
 
