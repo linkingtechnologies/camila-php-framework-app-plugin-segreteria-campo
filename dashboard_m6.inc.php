@@ -100,7 +100,7 @@ if (!$noVols) {
 ksort($fin);
 $camilaUI->insertTitle('Ultime 20 attività','globe');
 
-$latest = array_slice($fin, 0, 20);
+$latest = array_slice($fin, -20);
 
 if (!empty($latest)) {
 	foreach ($latest as $key => $val) {
@@ -117,12 +117,31 @@ if (!empty($latest)) {
 $camilaUI->insertTitle('Tutte le attività','globe');
 
 if (!empty($fin)) {
+	
+	$last = '';
+
 	foreach ($fin as $key => $val) {
+		$currDT = new DateTime(substr($key,0,19));
+		$curr = $currDT->format('d/m/Y');
+		
+		if ($curr != $last) {
+			if ($last!='') {
+				$text = new CHAW_text('');
+				$text->set_br(2);
+				$_CAMILA['page']->add_text($text);
+			}
+			$text = new CHAW_text('Giornata ' . $curr);
+			$text->set_br(2);
+			$_CAMILA['page']->add_text($text);
+		}
+		
 		$dateTime = new DateTime(substr($key,0,19));
 		$txt = $dateTime->format('d/m/Y H:i:s') . " $val\n";
 		$text = new CHAW_text($txt);
 		$text->set_br(0);
-		$_CAMILA['page']->add_text($text);   
+		$_CAMILA['page']->add_text($text);
+		
+		$last = $curr;
 	}
 } else {
 	$camilaUI->insertWarning('Non ci sono ancora attività!');
