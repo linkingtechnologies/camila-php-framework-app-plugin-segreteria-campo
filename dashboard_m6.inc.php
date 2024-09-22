@@ -169,6 +169,8 @@ if ($includeLast) {
 	} else {
 		$camilaUI->insertWarning('Non ci sono ancora attività!');
 	}
+	
+	$camilaUI->insertAutoRefresh(10000);
 }
 
 if ($includeAll) {
@@ -229,6 +231,6 @@ $camilaUI->insertButton('cf_worktable'.$cSheet.'.php', 'Comunicazioni radio', 'l
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
 
-$camilaUI->insertAutoRefresh(10000);
+
 
 ?>
