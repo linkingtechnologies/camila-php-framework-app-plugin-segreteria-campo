@@ -30,7 +30,6 @@ $camilaUI->insertDivider();
 if (isset($params['URL_geotracker']) && $params['URL_geotracker'] != '') {
 	$camilaUI->insertText($params['URL_geotracker']);
 	$camilaUI->insertDivider();
-	$in = 
     $letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
 	$payload = json_encode([
