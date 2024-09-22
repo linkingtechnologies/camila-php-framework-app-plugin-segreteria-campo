@@ -16,12 +16,14 @@ if (isset($params['chiave_mappa_google']) && $params['chiave_mappa_google'] != '
 }
 
 $camilaUI->insertButton('?dashboard=12&mt=osm', 'Mappa servizi (OpenStreetMap)', 'map-marker');
+$camilaUI->insertButton('?dashboard=12l', 'Mappa servizi (locale)', 'map-marker');
+
+$camilaUI->insertDivider();
 
 if (isset($params['host_geotracker']) && $params['host_geotracker'] != '') {
-	$camilaUI->insertButton('https://'.$params['host_geotracker'].'/app/geotracker/?dashboard=omap', 'GeoTracker (OpenStreetMap)', 'map-marker', true, '', '_blank');
 	$camilaUI->insertButton('https://'.$params['host_geotracker'].'/app/geotracker/?dashboard=gmap', 'GeoTracker (Google Maps)', 'map-marker', true, '', '_blank');
+	$camilaUI->insertButton('https://'.$params['host_geotracker'].'/app/geotracker/?dashboard=omap', 'GeoTracker (OpenStreetMap)', 'map-marker', true, '', '_blank');
 }
-$camilaUI->insertButton('?dashboard=12l', 'Mappa servizi (locale)', 'map-marker');
 
 $camilaUI->insertDivider();
 
@@ -37,7 +39,7 @@ if (isset($params['URL_geotracker']) && $params['URL_geotracker'] != '') {
 		/*"autostartOnBoot" => false,*/
 		"tid" => $letters[rand(0, strlen($letters) - 1)] . $letters[rand(0, strlen($letters) - 1)],
 		"monitoring" => 1,
-		"host" => $params['URL_geotracker']
+		"url" => $params['URL_geotracker']
 	]);
 
 	$camilaUI->insertImage('../../lib/qrcode/image.php?msg='.urlencode('owntracks:///config?inline='.urlencode(base64_encode($payload))));
