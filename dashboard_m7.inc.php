@@ -37,7 +37,8 @@ if (isset($params['URL_geotracker']) && $params['URL_geotracker'] != '') {
 		"_type" => "configuration",
 		"mode" => 3,
 		/*"autostartOnBoot" => false,*/
-		"tid" => $letters[rand(0, strlen($letters) - 1)] . $letters[rand(0, strlen($letters) - 1)],
+		/*"tid" => $letters[rand(0, strlen($letters) - 1)] . $letters[rand(0, strlen($letters) - 1)],*/
+		"deviceId" => $letters[rand(0, strlen($letters) - 1)] . $letters[rand(0, strlen($letters) - 1)],
 		"monitoring" => 1,
 		"url" => $params['URL_geotracker']
 	]);
