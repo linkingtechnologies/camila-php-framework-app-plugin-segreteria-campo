@@ -139,9 +139,7 @@ if (!isset($_REQUEST['export'])) {
 	$camilaUI->insertButton('?dashboard=01', 'Riepilogo ospiti e risorse', 'list-alt');
 	$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
 	
-	$refrCode = "<script>function refreshPage() {window.location.reload();};setInterval(refreshPage, 30000);</script>";
-	$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, $refrCode));
-
+	$camilaUI->insertAutoRefresh(30000);
 }
 else
 {

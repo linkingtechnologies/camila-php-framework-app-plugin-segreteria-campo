@@ -120,7 +120,7 @@ $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="row">'));
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-8">'));
 
 if ($includeLast) {
-	$lNum = 30;
+	$lNum = 20;
 	$camilaUI->insertTitle('Ultime '.$lNum.' attività registrate','list-alt');
 	$latest = array_slice($fin, -$lNum);
 	krsort($latest);
@@ -128,29 +128,40 @@ if ($includeLast) {
 	$last = '';
 
 	if (!empty($latest)) {
+		$t = new CHAW_table();
+
 		foreach ($latest as $key => $val) {
+			$r = new CHAW_row();
+			 
 			$currDT = new DateTime(substr($key,0,19));
 			$curr = $currDT->format('d/m/Y');
-			
+
 			if ($curr != $last) {
 				if ($last!='') {
-					$text = new CHAW_text('');
-					$text->set_br(2);
-					$_CAMILA['page']->add_text($text);
-				}
-				$text = new CHAW_text('Giornata ' . $curr);
-				$text->set_br(2);
-				$_CAMILA['page']->add_text($text);
+					$r2 = new CHAW_row();
+					$r2->add_column(new CHAW_text(''));
+					$r2->add_column(new CHAW_text(''));
+					$r2->add_column(new CHAW_text(''));
+					$t->add_row($r2);					
+				}				
+				$r3 = new CHAW_row();
+				$r3->add_column(new CHAW_text(''));
+				$r3->add_column(new CHAW_text(''));
+				$r3->add_column(new CHAW_text('Giornata ' . $curr, HAW_TEXTFORMAT_BOLD));
+				$t->add_row($r3);
 			}
-			
-			$dateTime = new DateTime(substr($key,0,19));
-			$txt = $dateTime->format('d/m/Y H:i:s') . " $val\n";
-			$text = new CHAW_text($txt);
-			$text->set_br(0);
-			$_CAMILA['page']->add_text($text);
-			
+
+			$dateTime = new DateTime(substr($key,0,19));			
+			$r->add_column(new CHAW_text($dateTime->format('d/m/Y H:i:s')));			
+			$res = splitMessage($val);
+			$r->add_column(new CHAW_text($res[0]));
+			$r->add_column(new CHAW_text($res[1]));
+			$t->add_row($r);
+
 			$last = $curr;
 		}
+		
+		$_CAMILA['page']->add_table($t);
 		
 		$camilaUI->insertButton('index.php?dashboard=m6&t=partial', 'Tutte le attività senza movimentazioni segreteria', 'list');
 		$camilaUI->insertButton('index.php?dashboard=m6&t=all', 'Tutte le attività', 'list');
@@ -196,6 +207,17 @@ if ($includeAll) {
 	}
 }
 
+function splitMessage($str) {
+    if (preg_match('/\[(.*?)\]/', $str, $matches)) {
+        $primaParte = $matches[1];        
+        $secondaParte = preg_replace('/\[(.*?)\]/', '', $str);        
+        $secondaParte = trim($secondaParte);
+        return [$primaParte, $secondaParte];
+    } else {
+        return [null, $str];
+    }
+}
+
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
 
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-4">'));
@@ -206,5 +228,7 @@ $camilaUI->insertButton('cf_worktable'.$aSheet.'.php', 'Brogliaccio attività', 
 $camilaUI->insertButton('cf_worktable'.$cSheet.'.php', 'Comunicazioni radio', 'list');	
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
+
+$camilaUI->insertAutoRefresh(10000);
 
 ?>
