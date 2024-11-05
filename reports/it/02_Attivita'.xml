@@ -1,0 +1,55 @@
+<?xml version='1.0' standalone='yes' ?>
+<reports>
+ <report>
+  <id>1</id>
+  <query></query>
+  <mysqlQuery>SELECT DATE(${BROGLIACCIO.Data/ora}),DATE_FORMAT(DATE(${BROGLIACCIO.Data/ora}), '%e/%c') AS DATA,count(*) AS TOTALE FROM ${BROGLIACCIO} GROUP BY DATE(${BROGLIACCIO.Data/ora}),DATE_FORMAT(DATE(${BROGLIACCIO.Data/ora}), '%e/%c') ORDER BY DATE(${BROGLIACCIO.Data/ora})</mysqlQuery>
+  <graphs>
+   <!--<graph>
+    <id>1</id>
+	<filename>rep1.png</filename>
+	<width>500</width>
+	<height>400</height>
+	<type>bar</type>
+    <title>Attività brogliaccio</title>
+	<hideFirstColumn>true</hideFirstColumn>
+   </graph>-->
+   <graph>
+    <id>2</id>
+	<type>table</type>
+    <title>Attività segreteria (brogliaccio)</title>
+	<hideFirstColumn>true</hideFirstColumn>
+	<sum>1</sum>
+   </graph>
+  </graphs>
+ </report>
+  <report>
+  <id>3</id>
+  <query></query>
+  <mysqlQuery>SELECT DATE(${COMUNICAZIONI RADIO.Data/ora}),DATE_FORMAT(DATE(${COMUNICAZIONI RADIO.Data/ora}), '%e/%c') AS DATA,count(*) AS TOTALE FROM ${COMUNICAZIONI RADIO} GROUP BY DATE(${COMUNICAZIONI RADIO.Data/ora}),DATE_FORMAT(DATE(${COMUNICAZIONI RADIO.Data/ora}), '%e/%c') ORDER BY DATE(${COMUNICAZIONI RADIO.Data/ora})</mysqlQuery>
+  <graphs>
+   <graph>
+    <id>2</id>
+	<type>table</type>
+    <title>Comunicazioni radio</title>
+	<hideFirstColumn>true</hideFirstColumn>
+	<sum>1</sum>
+   </graph>
+  </graphs>
+ </report>
+ 
+<report>
+  <id>2</id>
+  <query></query>
+  <mysqlQuery>(SELECT ${BROGLIACCIO.Data/ora} AS TS,DATE_FORMAT(${BROGLIACCIO.Data/ora}, '%e/%c %H:%i') AS 'Data/ora', 'SEGRETERIA' AS 'Funzione',${BROGLIACCIO.descrizione} AS 'Descrizione' FROM ${brogliaccio}) UNION (SELECT ${COMUNICAZIONI RADIO.Data/ora} AS TS,DATE_FORMAT(${COMUNICAZIONI RADIO.Data/ora}, '%e/%c %H:%i') AS 'Data/ora', 'SALA RADIO' AS 'Funzione',CONCAT('Da ',${COMUNICAZIONI RADIO.chiamante},' a ',${COMUNICAZIONI RADIO.chiamato},': ',${COMUNICAZIONI RADIO.messaggio}) AS 'Descrizione' FROM ${COMUNICAZIONI RADIO}) ORDER BY TS </mysqlQuery>
+  <graphs>
+   <graph>
+    <id>2</id>
+	<type>table</type>
+    <title>Elenco attività</title>
+	<hideFirstColumn>true</hideFirstColumn>
+   </graph>
+  </graphs>
+ </report>
+
+</reports>

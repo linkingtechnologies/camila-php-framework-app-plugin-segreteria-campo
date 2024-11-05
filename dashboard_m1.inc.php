@@ -17,175 +17,51 @@
 
 $camilaWT  = new CamilaWorkTable();
 $camilaWT->db = $_CAMILA['db'];
+$lang = 'it';
 
 $rSheet = $camilaWT->getWorktableSheetId('REPORT');
-$aSheet = $camilaWT->getWorktableSheetId('BROGLIACCIO');
-$cSheet = $camilaWT->getWorktableSheetId('COMUNICAZIONI RADIO');
 
-require(CAMILA_LIB_DIR.'/fpdf/fpdf.php');
+$camilaReport = new CamilaReport($lang, $camilaWT, CAMILA_HOMEDIR.'/plugins/'.basename(dirname(__FILE__)).'/reports', $_GET['report']);
 
-
-class PDF extends FPDF {
-
-	function Header()
-	{
-		$t = new CamilaTemplate('it');
-		$this->SetFont('Arial','B',15);
-		$this->Cell(0,10,'Intervento "' . $t->getParameters()['evento'] . '"',0,0,'C');
-		$this->Ln(20);
-	}
-
-	function Footer()
-	{
-		$this->SetY(-15);
-		$this->SetFont('Arial','I',8);
-		$this->Cell(0,10,CAMILA_APPLICATION_NAME . ' - Report del '.date('m/d/Y') . ' ore ' . date('H:i').' - Pagina '.$this->PageNo(),0,0,'C');
-	}
-
-	function ImprovedTable2($obj, $data)
-	{
-		$this->Write(10,$obj->title);
-		$w = array(90, 30);
-		$this->Ln();
-		$sum = $obj->sum;
-		$total = 0;
-		foreach($data as $k=>$v)
-		{
-			$this->Cell($w[0],6,$k,1);
-			$this->Cell($w[1],6,$v,1,1);
-			if ($sum != '')
-			{
-				$total += $v;
-			}
-		}
-
-		if ($total>0) {
-			$this->Cell($w[0],6,'',1);
-			$this->Cell($w[1],6,$total,1,1);
-		}	
-	}
-
-}
-
-$camilaReport = new CamilaReport($_CAMILA['db']);
-$reports = $camilaReport->loadXmlFromFile(CAMILA_HOMEDIR.'/plugins/'.basename(dirname(__FILE__)).'/conf/reports.xml');
-
-if (isset($_REQUEST['gid'])) {
-	foreach ($reports as $k => $v) {
-		if ($_REQUEST['rid']== ($v->id)) {
-			$query = $v->query;
-			$data = $camilaReport->camilaWT->queryWorktableDatabase($query);
-
-			foreach ($v->graphs as $k2 => $v2) {
-				if ($_REQUEST['gid'] == $v2->graph->id) {
-					if (count($data)>0)
-						$camilaReport->createGraph($v2->graph->id, $v2->graph, $data);
-				}
-			}
-		}
-	}
+if (isset($_REQUEST['gid'])) {	
+	$camilaReport->outputImageToBrowser($_REQUEST['rid'], $_REQUEST['gid'], $_REQUEST['report']);
 	exit;
 }
 
 
-if (!isset($_REQUEST['export'])) {
+if (!isset($_REQUEST['format'])) {
+	$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="row">'));
+	$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div class="row">'));
 	$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="row">'));
 	$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-9">'));
-	
-	$camilaUI->insertTitle('Situazione attuale', 'signal');
-	
-	foreach ($reports as $k => $v) {
-		$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="row">'));	
-		$query = $v->query;
-		$data = $camilaReport->camilaWT->queryWorktableDatabase($query);
-
-		$arr = $v->graphs->graph;
-		for ($i=0; $i<count($arr);$i++)
-		{
-			$v3 = $arr[$i];
-			if ($v3->type == 'pie' || $v3->type == 'bar') {
-				$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-8">'));
-				$image1 = new HAW_image("?dashboard=m1&rid=".$v2->id.'&gid='.$v3->id, "?dashboard=m1&rid=".$v->id.'&gid='.$v3->id, ":-)");
-				$image1->set_br(1);
-				if (count($data)>0)
-				{
-					$_CAMILA['page']->add_image($image1);
-				}
-				else
-				{
-					$camilaUI->insertWarning($v3->title . ' - Nessun dato!');
-				}
-				$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
-			}
-			if ($v3->type == 'table') {
-				$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-4">'));
-				$myDiv = new HAW_raw(HAW_HTML, $camilaReport->createTable($v3->id, $v3, $data));
-				$_CAMILA['page']->add_raw($myDiv);
-				$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
-			}
-		}
-		$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
-		
-		$camilaUI->insertDivider();
-	}
-	
-	
+	$camilaUI->insertTitle($camilaReport->getCurrentReportTitle(), 'dashboard');
+	$camilaReport->outputHtmlToBrowser();
 	$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
-	
 	$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-3">'));
-	$camilaUI->insertTitle('Menu', 'list');
-	$camilaUI->insertButton('?dashboard=m1&export=pdf', 'Situazione attuale (PDF)', 'file');
+	$camilaUI->insertTitle('Report', 'dashboard');
+	foreach ($camilaReport->getReports() as $k => $v) {
+		if ($k == $camilaReport->getCurrentReportName()) {
+			$camilaUI->insertButton('?dashboard=m1&report='.$_GET['report'], $camilaReport->getCurrentReportTitle(), 'dashboard');
+			$camilaUI->insertSecondaryButton('?dashboard=m1&format=pdf&report='.$_GET['report'], $camilaReport->getCurrentReportTitle().' (in PDF)', 'file');
+		} else {
+			$camilaUI->insertSecondaryButton('?dashboard=m1&report='.$k, $v, 'dashboard');
+			$camilaUI->insertSecondaryButton('?dashboard=m1&format=pdf&report='.$k, $v. ' (in PDF)', 'file');
+		}
+	}
+	$camilaUI->insertTitle('Altre risorse', 'list');
 	$camilaUI->insertButton('cf_worktable'.$rSheet.'.php', 'Report operativi', 'list');	
 	$camilaUI->insertButton('?dashboard=01', 'Riepilogo ospiti e risorse', 'list-alt');
 	$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
 	
 	$camilaUI->insertAutoRefresh(30000);
 }
-else
-{
-	/*ini_set('display_errors', 1);
-	ini_set('display_startup_errors', 1);
-	error_reporting(E_ALL);*/
 
-	$pdf = new PDF();
-	$pdf->SetFont('Arial','',10);	
-	$pageAdded = false;
-
-	foreach ($reports as $k => $v) {
-		$query = $v->query;
-		$data = $camilaReport->camilaWT->queryWorktableDatabase($query);
-
-		$arr = $v->graphs->graph;
-		for ($i=0; $i<count($arr);$i++)
-		{
-			$v3 = $arr[$i];
-			if ($v3->type == 'pie' || $v3->type == 'bar') {
-				
-				if (count($data)>0) {
-					$pdf->AddPage();
-					$pageAdded = true;
-					$f = CAMILA_TMP_DIR.'/g'.$v->id.'_'.$v3->id.'.png';
-					$camilaReport->createGraph($v3->id, $v3, $data, $f);
-
-					$pdf->Image($f,null,null,null,null,'PNG');
-				}
-			}
-			if ($v3->type == 'table') {
-				if (count($data)>0) {
-					if (!$pageAdded) {
-						$pdf->AddPage();
-						$pageAdded = true;
-					}
-					$pdf->ImprovedTable2($v3,$data);
-					$pdf->Ln();
-				}
-			}
-		}
-	}
-	$date = $_CAMILA['db']->UserDate(date('Y-m-d'), camila_get_locale_date_adodb_format());
-	$pdf->SetTitle('Report '.$date.'.pdf');
-	$pdf->Output('I', 'Report '.$date.'.pdf');
-	exit;
+if (isset($_GET['format']) && $_GET['format'] == 'pdf') {
+	$camilaReport->outputPdfToBrowser();
+} elseif (isset($_GET['format']) && $_GET['format'] == 'word') {
+	$camilaReport->outputWordToBrowser();
+} elseif (isset($_GET['format']) && $_GET['format'] == 'odf') {
+	$camilaReport->outputOdfToBrowser();
 }
 
 ?>

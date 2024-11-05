@@ -248,7 +248,7 @@
   </graphs>
  </report>  
 
-  <report>
+ <report>
   <id>c01</id>
   <query>SELECT ${OSPITI.TENDA},COUNT(*) AS TOTALE FROM ${OSPITI} GROUP BY ${OSPITI.TENDA}  ORDER BY ${OSPITI.TENDA}</query>
   <graphs>
@@ -368,4 +368,17 @@
    </graph>
   </graphs>
  </report>-->
+ 
+<!-- <report>
+  <id>c01ccc</id>
+  <query>SELECT ${BROGLIACCIO.Data/ora}, ${BROGLIACCIO.descrizione} FROM ${brogliaccio} ORDER BY ${BROGLIACCIO.Data/ora}</query>
+  <graphs>
+   <graph>
+    <id>2</id>
+	<type>table2</type>
+    <title>Attività</title>
+   </graph>
+  </graphs>
+ </report>-->
+
 </reports>
