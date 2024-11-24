@@ -4,16 +4,8 @@
   <id>1</id>
   <query></query>
   <mysqlQuery>SELECT DATE(${BROGLIACCIO.Data/ora}),DATE_FORMAT(DATE(${BROGLIACCIO.Data/ora}), '%e/%c') AS DATA,count(*) AS TOTALE FROM ${BROGLIACCIO} GROUP BY DATE(${BROGLIACCIO.Data/ora}),DATE_FORMAT(DATE(${BROGLIACCIO.Data/ora}), '%e/%c') ORDER BY DATE(${BROGLIACCIO.Data/ora})</mysqlQuery>
+  <sqliteQuery>SELECT DATE(${BROGLIACCIO.Data/ora}) AS date, strftime('%d/%m', ${BROGLIACCIO.Data/ora}) AS DATA, COUNT(*) AS TOTALE FROM ${BROGLIACCIO} GROUP BY DATE(${BROGLIACCIO.Data/ora}), strftime('%d/%m', ${BROGLIACCIO.Data/ora}) ORDER BY DATE(${BROGLIACCIO.Data/ora})</sqliteQuery>
   <graphs>
-   <!--<graph>
-    <id>1</id>
-	<filename>rep1.png</filename>
-	<width>500</width>
-	<height>400</height>
-	<type>bar</type>
-    <title>Attività brogliaccio</title>
-	<hideFirstColumn>true</hideFirstColumn>
-   </graph>-->
    <graph>
     <id>2</id>
 	<type>table</type>
@@ -27,6 +19,7 @@
   <id>3</id>
   <query></query>
   <mysqlQuery>SELECT DATE(${COMUNICAZIONI RADIO.Data/ora}),DATE_FORMAT(DATE(${COMUNICAZIONI RADIO.Data/ora}), '%e/%c') AS DATA,count(*) AS TOTALE FROM ${COMUNICAZIONI RADIO} GROUP BY DATE(${COMUNICAZIONI RADIO.Data/ora}),DATE_FORMAT(DATE(${COMUNICAZIONI RADIO.Data/ora}), '%e/%c') ORDER BY DATE(${COMUNICAZIONI RADIO.Data/ora})</mysqlQuery>
+  <sqliteQuery>SELECT DATE(${COMUNICAZIONI RADIO.Data/ora}) AS date, strftime('%d/%m', ${COMUNICAZIONI RADIO.Data/ora}) AS DATA,  COUNT(*) AS TOTALE FROM ${COMUNICAZIONI RADIO} GROUP BY DATE(${COMUNICAZIONI RADIO.Data/ora}), strftime('%d/%m', ${COMUNICAZIONI RADIO.Data/ora}) ORDER BY DATE(${COMUNICAZIONI RADIO.Data/ora})</sqliteQuery>
   <graphs>
    <graph>
     <id>2</id>
@@ -37,11 +30,11 @@
    </graph>
   </graphs>
  </report>
- 
 <report>
   <id>2</id>
   <query></query>
   <mysqlQuery>(SELECT ${BROGLIACCIO.Data/ora} AS TS,DATE_FORMAT(${BROGLIACCIO.Data/ora}, '%e/%c %H:%i') AS 'Data/ora', 'SEGRETERIA' AS 'Funzione',${BROGLIACCIO.descrizione} AS 'Descrizione' FROM ${brogliaccio}) UNION (SELECT ${COMUNICAZIONI RADIO.Data/ora} AS TS,DATE_FORMAT(${COMUNICAZIONI RADIO.Data/ora}, '%e/%c %H:%i') AS 'Data/ora', 'SALA RADIO' AS 'Funzione',CONCAT('Da ',${COMUNICAZIONI RADIO.chiamante},' a ',${COMUNICAZIONI RADIO.chiamato},': ',${COMUNICAZIONI RADIO.messaggio}) AS 'Descrizione' FROM ${COMUNICAZIONI RADIO}) ORDER BY TS </mysqlQuery>
+  <sqliteQuery>SELECT ${BROGLIACCIO.Data/ora} AS TS, strftime('%d/%m %H:%M', ${BROGLIACCIO.Data/ora}) AS 'Data/ora', 'SEGRETERIA' AS 'Funzione', ${BROGLIACCIO.descrizione} AS 'Descrizione' FROM ${BROGLIACCIO} UNION SELECT ${COMUNICAZIONI RADIO.Data/ora} AS TS, strftime('%d/%m %H:%M', ${COMUNICAZIONI RADIO.Data/ora}) AS 'Data/ora', 'SALA RADIO' AS 'Funzione', 'Da ' || ${COMUNICAZIONI RADIO.chiamante} || ' a ' || ${COMUNICAZIONI RADIO.chiamato} || ': ' || ${COMUNICAZIONI RADIO.messaggio} AS 'Descrizione' FROM ${COMUNICAZIONI RADIO} ORDER BY TS</sqliteQuery>
   <graphs>
    <graph>
     <id>2</id>
@@ -51,5 +44,4 @@
    </graph>
   </graphs>
  </report>
-
 </reports>
