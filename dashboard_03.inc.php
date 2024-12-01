@@ -1,12 +1,12 @@
 <?php
 
-$resourceType='ATTREZZATURA';
+$resourceType='MATERIALE';
 $serviceColumn = 'SERVIZIO';
 $groupColumn = 'ORGANIZZAZIONE';
-$resourceTable = 'ATTREZZATURE';
+$resourceTable = 'MATERIALI';
 $serviceTable = 'SERVIZI';
 $brogliaccio = 'MOV. RISORSE';
-$col1='TIPOLOGIA';
+$col1='MATERIALE';
 $col2='ATTREZZATURA';
 $col3='MATRICOLA';
 $serviceEndServiceValue = "USCITA DEFINITIVA";
