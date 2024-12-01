@@ -4,8 +4,8 @@ $camilaWT->db = $_CAMILA['db'];
 
 
 $vSheet = $camilaWT->getWorktableSheetId('VOLONTARI');
-$mSheet = $camilaWT->getWorktableSheetId('MATERIALI');
-$aSheet = $camilaWT->getWorktableSheetId('ATTREZZATURE');
+$mSheet = $camilaWT->getWorktableSheetId('MEZZI');
+$aSheet = $camilaWT->getWorktableSheetId('MATERIALI');
 
  
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="row">'));	
@@ -17,17 +17,17 @@ $camilaUI->insertButton('cf_worktable'.$vSheet.'.php', 'Elenco volontari', 'list
 $camilaUI->insertButton('?dashboard=27', 'Attestati', 'duplicate');
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-4">'));
-$camilaUI->insertTitle('Materiali', 'plane');
+$camilaUI->insertTitle('Mezzi', 'plane');
 $camilaUI->insertButton('cf_worktable'.$mSheet.'.php?camila_update=new', 'Registrazione mezzo', 'plus');
-$camilaUI->insertButton('?dashboard=04', 'Movimentazione materiali', 'random');
-$camilaUI->insertButton('cf_worktable'.$mSheet.'.php', 'Elenco materiali', 'list');
+$camilaUI->insertButton('?dashboard=04', 'Movimentazione mezzi', 'random');
+$camilaUI->insertButton('cf_worktable'.$mSheet.'.php', 'Elenco mezzi', 'list');
 $camilaUI->insertButton('?dashboard=28', 'Attestati', 'duplicate');
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-4">'));
-$camilaUI->insertTitle('Attrezzature', 'wrench');
-$camilaUI->insertButton('cf_worktable'.$aSheet.'.php?camila_update=new', 'Registrazione attrezzatura', 'plus');
-$camilaUI->insertButton('?dashboard=03', 'Movimentazione attrezzature', 'random');
-$camilaUI->insertButton('cf_worktable'.$aSheet.'.php', 'Elenco attrezzature', 'list');
+$camilaUI->insertTitle('Materiali', 'wrench');
+$camilaUI->insertButton('cf_worktable'.$aSheet.'.php?camila_update=new', 'Registrazione materiale', 'plus');
+$camilaUI->insertButton('?dashboard=03', 'Movimentazione materiali', 'random');
+$camilaUI->insertButton('cf_worktable'.$aSheet.'.php', 'Elenco materiali', 'list');
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
 
