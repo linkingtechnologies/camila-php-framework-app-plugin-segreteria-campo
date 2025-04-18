@@ -40,7 +40,7 @@
   <id>m2</id>
   <title>CONFIGURAZIONE</title>
   <url>?dashboard=m2</url>
-  <pages>00,05,06,30,31</pages>
+  <pages>00,05,06,30,31,iw</pages>
  </tab>
  <tab>
   <id>m4</id>
