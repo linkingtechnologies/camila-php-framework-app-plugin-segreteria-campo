@@ -43,10 +43,10 @@ $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-4"
 $camilaUI->insertButton('?dashboard=00', camila_get_translation('camila.serveraddress'),'globe');
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-4">'));
-$camilaUI->insertButton('?dashboard=30', 'Backup dati','download');
+$camilaUI->insertButton('?dashboard=30', 'Backup schede dati','download');
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-4">'));
-$camilaUI->insertButton('?dashboard=31', 'Backup intero database','download');
+$camilaUI->insertButton('?dashboard=31', 'Backup applicazione','download');
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
 
