@@ -1,4 +1,5 @@
 <?php
+$camilaUI->openBox();
 $camilaUI->insertTitle('Carica loghi', 'calendar');
 
 $lang = 'it';
@@ -25,4 +26,6 @@ if ($form->process())
 }
 	else
 		$form->draw();
+
+$camilaUI->closeBox();
 ?>

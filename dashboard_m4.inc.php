@@ -15,6 +15,7 @@
     You should have received a copy of the GNU General Public License
     along with Camila PHP Framework. If not, see <http://www.gnu.org/licenses/>. */
 
+$camilaUI->openBox();
 $camilaUI->insertTitle(CAMILA_APPLICATION_NAME, 'question-sign');
 $camilaUI->insertText('Aggiornamento del ' . date('d-m-Y', strtotime(CamilaPlugins::getRepositoryInformation(basename(dirname(__FILE__)))['pushed_at'])));
 $camilaUI->insertDivider();
@@ -39,5 +40,6 @@ $camilaUI->insertText('Programma rilasciato sotto licenza GNU GPL');
 //$camilaUI->insertButton('https://it.wikipedia.org/wiki/GNU_General_Public_License', 'Licenza d\'uso','globe');
 
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
+$camilaUI->closeBox();
 
 ?>

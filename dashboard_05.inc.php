@@ -1,4 +1,6 @@
 <?php
+
+$camilaUI->openBox();
 $camilaUI->insertTitle('Dati intervento', 'calendar');
 
 $lang = 'it';
@@ -65,4 +67,6 @@ if ($form->process())
 }
 	else
 		$form->draw();
+
+$camilaUI->closeBox();
 ?>

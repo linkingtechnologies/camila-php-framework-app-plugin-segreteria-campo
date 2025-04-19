@@ -1,6 +1,6 @@
 <?php
 /*  This File is part of Camila PHP Framework
-    Copyright (C) 2006-2024 Umberto Bresciani
+    Copyright (C) 2006-2025 Umberto Bresciani
 
     Camila PHP Framework is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@ if ($_REQUEST['camila_custom']!='')
 {
 
 	if (array_key_exists('fix', $_REQUEST)) {
+		$camilaUI->openBox();
 		$camilaUI->insertTitle('Problema sui dati', 'warning-sign');
 		$camilaWT  = new CamilaWorkTable();
 		$camilaWT->db = $_CAMILA['db'];
@@ -139,9 +140,12 @@ if ($_REQUEST['camila_custom']!='')
 			
 			$camilaUI->insertSuccess('Tentativo di sistemazione dati terminato!');
 		}
+		
+		$camilaUI->closeBox();
+		
 
 	} else {
-
+		
 		$camilaUI->insertButton('?dashboard='.$_REQUEST['dashboard'],'TORNA INDIETRO','chevron-left',false);
 
 		foreach ($checks as $k => $v) {
@@ -184,6 +188,7 @@ if ($_REQUEST['camila_custom']!='')
 	}
 
 } else {
+	$camilaUI->openBox();
 	$camilaUI->insertTitle('Controllo dati', 'warning-sign');
 	$camilaUI->insertDivider();
 
@@ -225,6 +230,8 @@ if ($_REQUEST['camila_custom']!='')
 		}
 		$camilaUI->insertDivider();
 	}
+	
+	$camilaUI->closeBox();
 
 }
 

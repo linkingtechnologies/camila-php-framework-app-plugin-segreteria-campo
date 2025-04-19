@@ -1,4 +1,5 @@
 <?php
+$camilaUI->openBox();
 $camilaUI->insertTitle('Backup schede dati','download');
 
 global $_CAMILA;
@@ -26,5 +27,5 @@ foreach ($wSheets as $k=>$val)
 		$camilaUI->insertButton('cf_worktable'.$k.'.php?'.$params.urlencode($val).'+'.$date, 'BACKUP ' . $val, 'hdd');
 	}
 }
-
+$camilaUI->closeBox();
 ?>

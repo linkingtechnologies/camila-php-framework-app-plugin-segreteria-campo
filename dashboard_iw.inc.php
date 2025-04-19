@@ -2,6 +2,8 @@
 $camilaWT  = new CamilaWorkTable();
 $camilaWT->db = $_CAMILA['db'];
 $lang = 'it';
+
+$camilaUI->openBox();
 $camilaUI->insertTitle('Importazione dati esempio','upload');
 
 global $_CAMILA;
@@ -62,4 +64,6 @@ if (is_dir($directory)) {
 } else {
     echo "La directory specificata non esiste.";
 }
+
+$camilaUI->closeBox();
 ?>

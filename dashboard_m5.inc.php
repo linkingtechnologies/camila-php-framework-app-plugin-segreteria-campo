@@ -1,6 +1,6 @@
 <?php
 /*  This File is part of Camila PHP Framework
-    Copyright (C) 2006-2022 Umberto Bresciani
+    Copyright (C) 2006-2025 Umberto Bresciani
 
     Camila PHP Framework is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -15,6 +15,8 @@
     You should have received a copy of the GNU General Public License
     along with Camila PHP Framework. If not, see <http://www.gnu.org/licenses/>. */
 
+
+$camilaUI->openBox();
 
 $camilaUI->insertTitle('Verifica integrità dati', 'check');
 $camilaUI->insertDivider();
@@ -34,5 +36,7 @@ $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-4"
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div><br/><br/><br/><br/><br/><br/>'));
 
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
+
+$camilaUI->closeBox();
 
 ?>

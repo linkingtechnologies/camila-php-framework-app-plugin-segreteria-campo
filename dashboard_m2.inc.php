@@ -20,6 +20,7 @@ $camilaWT->db = $_CAMILA['db'];
 
 $sSheet = $camilaWT->getWorktableSheetId('SERVIZI');
 
+$camilaUI->openBox();
 $camilaUI->insertTitle('Evento', 'cog');
 	
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="row">'));
@@ -49,6 +50,7 @@ $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-4"
 $camilaUI->insertButton('?dashboard=31', 'Backup applicazione','download');
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
+$camilaUI->closeBox();
 
 
 ?>

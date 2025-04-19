@@ -1,6 +1,6 @@
 <?php
 /*  This File is part of Camila PHP Framework
-    Copyright (C) 2006-2024 Umberto Bresciani
+    Copyright (C) 2006-2025 Umberto Bresciani
 
     Camila PHP Framework is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@ if (isset($_REQUEST['gid'])) {
 
 
 if (!isset($_REQUEST['format'])) {
+	$camilaUI->openBox();
 	$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="row">'));
 	$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div class="row">'));
 	$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="row">'));
@@ -52,6 +53,7 @@ if (!isset($_REQUEST['format'])) {
 	$camilaUI->insertButton('cf_worktable'.$rSheet.'.php', 'Report operativi', 'list');	
 	$camilaUI->insertButton('?dashboard=01', 'Riepilogo ospiti e risorse', 'list-alt');
 	$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
+	$camilaUI->closeBox();
 	
 	$camilaUI->insertAutoRefresh(30000);
 }

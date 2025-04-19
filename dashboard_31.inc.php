@@ -1,4 +1,5 @@
 <?php
+$camilaUI->openBox();
 $camilaUI->insertTitle('Backup applicazione','download');
 
 global $_CAMILA;
@@ -8,6 +9,8 @@ if ($_CAMILA['db']->databaseType == 'sqlite3')
 }
 
 $camilaUI->insertButton('?dashboard='.$_REQUEST['dashboard'].'&download2=yes', 'BACKUP DATABASE E CONFIGURAZIONI', 'hdd');
+
+$camilaUI->closeBox();
 
 if (isset($_REQUEST['download'])) {
 

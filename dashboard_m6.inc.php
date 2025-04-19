@@ -1,6 +1,6 @@
 <?php
 /*  This File is part of Camila PHP Framework
-    Copyright (C) 2006-2024 Umberto Bresciani
+    Copyright (C) 2006-2025 Umberto Bresciani
 
     Camila PHP Framework is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -115,9 +115,9 @@ if ($includeMov) {
 	ksort($fin);
 }
 
-
-$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="row">'));	
-$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-8">'));
+$camilaUI->openBox();
+$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="row columns">'));	
+$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-8 column is-12-mobile is-8-desktop">'));
 
 if ($includeLast) {
 	$lNum = 20;
@@ -222,7 +222,7 @@ function splitMessage($str) {
 
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
 
-$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-4">'));
+$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-4 column is-12-mobile is-4-desktop">'));
 $camilaUI->insertTitle('Menu', 'list');
 $camilaUI->insertButton('index.php?dashboard=m6&t=partial', 'Tutte le attività senza movimentazioni segreteria', 'list');
 $camilaUI->insertButton('index.php?dashboard=m6&t=all', 'Tutte le attività', 'list');
@@ -230,6 +230,7 @@ $camilaUI->insertButton('cf_worktable'.$aSheet.'.php', 'Brogliaccio attività', 
 $camilaUI->insertButton('cf_worktable'.$cSheet.'.php', 'Comunicazioni radio', 'list');	
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
+$camilaUI->closeBox();
 
 
 

@@ -9,6 +9,8 @@ $params = $camilaTemplate->getParameters();
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="row">'));	
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-4">'));
 
+$camilaUI->openBox();
+
 $camilaUI->insertTitle('Mappe', 'globe');
 
 if (isset($params['chiave_mappa_google']) && $params['chiave_mappa_google'] != '') {
@@ -70,4 +72,5 @@ $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-4"
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
 
+$camilaUI->closeBox();
 ?>

@@ -1,4 +1,5 @@
 <?php
+$camilaUI->openBox();
 $camilaUI->insertTitle(camila_get_translation('camila.serveraddress'),'globe');
 
 if (getenv('COMPUTERNAME') != '') {
@@ -25,5 +26,7 @@ if ($localIP != '') {
 	
 	$text = new CHAW_text('Spazio libero su disco: ' . disk_free_space( '/' ) . ' byte');
 	$_CAMILA['page']->add_text($text);
+
+$camilaUI->closeBox();
 
 ?>

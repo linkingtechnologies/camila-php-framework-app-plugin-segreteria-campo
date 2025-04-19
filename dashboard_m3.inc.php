@@ -7,7 +7,7 @@ $vSheet = $camilaWT->getWorktableSheetId('VOLONTARI ATTESI');
 $mSheet = $camilaWT->getWorktableSheetId('MEZZI ATTESI');
 $aSheet = $camilaWT->getWorktableSheetId('MATERIALI ATTESI');
 
- 
+$camilaUI->openBox();
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="row">'));	
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-4">'));
 $camilaUI->insertTitle('Volontari', 'user');
@@ -27,5 +27,6 @@ $camilaUI->insertButton('?dashboard=23', 'Assegnazione servizi', 'random');
 $camilaUI->insertButton('cf_worktable'.$aSheet.'.php', 'Elenco attrezzature attese', 'list');
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
+$camilaUI->closeBox();
 
 ?>
