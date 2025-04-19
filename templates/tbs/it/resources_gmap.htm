@@ -1,3 +1,5 @@
+<script type="text/javascript" src="plugins/segreteria-campo/templates/js/common.js"></script>
+
 <style>
 #map_canvas {
 	height: 400px;
@@ -8,63 +10,6 @@ h5:empty {
 }
 
 </style>
-
-<script type="text/javascript">
-function writeMarkerIcon(color,letter) {
-	document.write('<img src="' + getMarkerPath(color,letter) + '" alt="marker">');
-}
-
-function getMarkerPath(color,letter) {	
-	var icon = 'plugins/segreteria-campo/templates/images/it/marker_rosso.png';
-	if (!color) {
-	} else {
-		icon = 'plugins/segreteria-campo/templates/images/it/marker_'+color+'.png';
-	}
-	if (!letter) {
-	} else {
-		icon = 'plugins/segreteria-campo/templates/images/en/marker_'+traduciColore(color)+letter.toUpperCase()+'.png';
-	}
-	return icon;
-}
-
-function traduciColore(colore) {
-    let coloreInInglese;
-    
-    switch (colore.toLowerCase()) {
-        case 'rosso':
-            coloreInInglese = 'red';
-            break;
-        case 'nero':
-            coloreInInglese = 'black';
-            break;
-        case 'blu':
-            coloreInInglese = 'blue';
-            break;
-        case 'verde':
-            coloreInInglese = 'green';
-            break;
-        case 'grigio':
-            coloreInInglese = 'grey';
-            break;
-        case 'arancione':
-            coloreInInglese = 'orange';
-            break;
-        case 'viola':
-            coloreInInglese = 'purple';
-            break;
-        case 'bianco':
-            coloreInInglese = 'white';
-            break;
-        case 'giallo':
-            coloreInInglese = 'yellow';
-            break;
-        default:
-            coloreInInglese = 'red';
-    }
-    
-    return coloreInInglese;
-}
-</script>
 
 <div class="row">
 	<h3><span class="glyphicon glyphicon-map-marker"></span> MAPPA SERVIZI</h3>
@@ -78,7 +23,7 @@ function traduciColore(colore) {
 			[res2;block=begin]
 				<div class="results">
 				<h4>
-					<script type="text/javascript">writeMarkerIcon('[res2.COLORE;strconv=js]','[res2.LETTERA;strconv=js]');</script>
+					<script type="text/javascript">writeMarkerIcon('[res2.COLORE;strconv=js]','[res2.LETTERA;strconv=js]','[res2.tot;strconv=js]','[res2.tot2;strconv=js]');</script>
 					<a href="javascript:zoomIn('[res2.id]');">[res2.nome]</a>
 				</h4>
 				<h5>[res2.descrizione]</h5>
@@ -169,7 +114,7 @@ function initMap() {
 	loc = new google.maps.LatLng([res.latitudine],[res.longitudine]);
 	bounds.extend(loc);
 	
-	var icon = getMarkerPath('[res.COLORE;strconv=js]','[res.LETTERA;strconv=js]');
+	var icon = getMarkerPath('[res.COLORE;strconv=js]','[res.LETTERA;strconv=js]','[res.tot;strconv=js]','[res.tot2;strconv=js]');
 
 	var marker = new google.maps.Marker({
 	  position: loc,
