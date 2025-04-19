@@ -6,7 +6,7 @@ function writeMarkerIcon(color,letter,tot1,tot2) {
 
 function getMarkerPath(color,letter,tot1,tot2) {
 	var total = parseInt(tot1) + parseInt(tot2);
-	if (total == 0) {
+	if (total == 0 && !isNaN(letter)) {
 		color = 'grigio';
 	}
 	var icon = 'plugins/segreteria-campo/templates/images/it/marker_rosso.png';
