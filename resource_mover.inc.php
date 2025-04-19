@@ -1,6 +1,6 @@
 <?php
 /*  This File is part of Camila PHP Framework
-    Copyright (C) 2006-2024 Umberto Bresciani
+    Copyright (C) 2006-2025 Umberto Bresciani
 
     Camila PHP Framework is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -203,7 +203,7 @@ class WorkTableResourceMover
 
 
 $camilaUI = new CamilaUserInterface();
-
+$camilaUI->openBox();
 $camilaUI->insertTitle($titleText, $titleIcon);
 
 $mover = new WorkTableResourceMover();
@@ -571,4 +571,5 @@ if (!isset($_REQUEST['service'])) {
     }
 }
 
+$camilaUI->closeBox();
 ?>
