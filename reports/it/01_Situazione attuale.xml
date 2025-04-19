@@ -20,7 +20,27 @@
    </graph>
   </graphs>
  </report>
- 
+
+ <report>
+  <id>1bis</id>
+  <query>SELECT ${VOLONTARI.ORGANIZZAZIONE},count(*) AS TOTALE FROM ${VOLONTARI} WHERE ${volontari.SERVIZIO} &lt;&gt; 'USCITA DEFINITIVA' AND ${volontari.SERVIZIO} NOT LIKE '%NON IN SERVIZIO%' GROUP BY ${volontari.ORGANIZZAZIONE} ORDER BY ${volontari.ORGANIZZAZIONE}</query>
+  <graphs>
+   <graph>
+    <id>1</id>
+	<filename>rep1.png</filename>
+	<width>500</width>
+	<height>400</height>
+	<type>pie</type>
+    <title>Volontari in servizio</title>
+   </graph>
+   <graph>
+    <id>2</id>
+	<type>table</type>
+    <title>Volontari in servizio</title>
+	<sum>1</sum>
+   </graph>
+  </graphs>
+ </report>
 <!--  <report>
   <id>1bis</id>
   <query>SELECT ${VOLONTARI.SERVIZIO},count(*) AS TOTALE FROM ${VOLONTARI} WHERE ${volontari.SERVIZIO} &lt;&gt; 'USCITA DEFINITIVA' GROUP BY ${volontari.servizio} ORDER BY ${volontari.servizio}</query>
@@ -164,7 +184,7 @@
 
  <report>
   <id>xxx4bis</id>
-  <query>SELECT ${mezzi.PROVINCIA},sum(IFNULL(${mezzi.km alla partenza},${mezzi.km all'arrivo}) - IFNULL(${mezzi.km all'arrivo},0)) AS TOTALE FROM ${MEZZI} GROUP BY ${mezzi.provincia}</query>
+  <query>SELECT ${mezzi.PROVINCIA},sum(IFNULL(${mezzi.km alla partenza},0) - IFNULL(${mezzi.km all'arrivo},0)) AS TOTALE FROM ${MEZZI} GROUP BY ${mezzi.provincia}</query>
   <graphs>
    <graph>
     <id>1</id>
@@ -200,10 +220,10 @@
 
    <report>
   <id>c04</id>
-  <query>SELECT 'TOTALE OSPITI' AS 'TIPOLOGIA OSPITI', count(*) AS TOTALE FROM ${OSPITI}
-  UNION SELECT 'OSPITI ALLETTATI', count(*) AS TOTALE FROM ${OSPITI} WHERE ${OSPITI.ALLETTATO}='S'
-  UNION SELECT 'OSPITI INCINTA', count(*) AS TOTALE FROM ${OSPITI} WHERE ${OSPITI.INCINTA}='S'
-  UNION SELECT 'OSPITI DISABILI', count(*) AS TOTALE FROM ${OSPITI} WHERE ${OSPITI.DISABILE}='S'
+  <query>SELECT 'TOTALE OSPITI', count(*) FROM ${OSPITI}
+  UNION SELECT 'OSPITI ALLETTATI', count(*) FROM ${OSPITI} WHERE ${OSPITI.ALLETTATO}='S'
+  UNION SELECT 'OSPITI INCINTA', count(*) FROM ${OSPITI} WHERE ${OSPITI.INCINTA}='S'
+  UNION SELECT 'OSPITI DISABILI', count(*) FROM ${OSPITI} WHERE ${OSPITI.DISABILE}='S'
   UNION SELECT 'NUCLEI FAMILIARI', count(DISTINCT ${OSPITI.NUCLEO FAMILIARE}) FROM ${OSPITI} WHERE (${OSPITI.NUCLEO FAMILIARE}&lt;&gt;'' AND ${OSPITI.NUCLEO FAMILIARE} IS NOT NULL)
 
   </query>
