@@ -1,85 +1,134 @@
 <?xml version='1.0' standalone='yes' ?>
 <reports>
- 
- <report>
-  <id>2</id>
-  <query></query>
-  <mysqlQuery>(SELECT ${BROGLIACCIO.Data/ora} AS TS,DATE_FORMAT(${BROGLIACCIO.Data/ora}, '%e/%c %H:%i') AS 'Data/ora', 'SEGRETERIA' AS 'Funzione',${BROGLIACCIO.descrizione} AS 'Descrizione' FROM ${brogliaccio}) UNION (SELECT ${COMUNICAZIONI RADIO.Data/ora} AS TS,DATE_FORMAT(${COMUNICAZIONI RADIO.Data/ora}, '%e/%c %H:%i') AS 'Data/ora', 'SALA RADIO' AS 'Funzione',CONCAT('Da ',${COMUNICAZIONI RADIO.chiamante},' a ',${COMUNICAZIONI RADIO.chiamato},': ',${COMUNICAZIONI RADIO.messaggio}) AS 'Descrizione' FROM ${COMUNICAZIONI RADIO}) ORDER BY TS </mysqlQuery>
-  <graphs>
-   <graph>
-    <id>2</id>
-	<type>table</type>
-    <title>Elenco attività</title>
-	<hideFirstColumn>true</hideFirstColumn>
-   </graph>
-  </graphs>
- </report>
+	<report>
+		<id>1</id>
+		<query/>
+		<mysqlQuery>(SELECT ${BROGLIACCIO.Data/ora} AS TS,DATE_FORMAT(${BROGLIACCIO.Data/ora}, '%e/%c %H:%i') AS 'Data/ora', 'SEGRETERIA' AS 'Funzione',${BROGLIACCIO.descrizione} AS 'Descrizione' FROM ${brogliaccio}) UNION (SELECT ${COMUNICAZIONI RADIO.Data/ora} AS TS,DATE_FORMAT(${COMUNICAZIONI RADIO.Data/ora}, '%e/%c %H:%i') AS 'Data/ora', 'SALA RADIO' AS 'Funzione',CONCAT('Da ',${COMUNICAZIONI RADIO.chiamante},' a ',${COMUNICAZIONI RADIO.chiamato},': ',${COMUNICAZIONI RADIO.messaggio}) AS 'Descrizione' FROM ${COMUNICAZIONI RADIO}) ORDER BY TS </mysqlQuery>
+		<sqliteQuery>
+  SELECT 
+    ${BROGLIACCIO.Data/ora} AS TS,
+    CAST(strftime('%d', ${BROGLIACCIO.Data/ora}) AS INTEGER) || '/' || 
+    CAST(strftime('%m', ${BROGLIACCIO.Data/ora}) AS INTEGER) || ' ' || 
+    strftime('%H:%M', ${BROGLIACCIO.Data/ora}) AS 'Data/ora',
+    'SEGRETERIA' AS 'Funzione',
+    ${BROGLIACCIO.descrizione} AS 'Descrizione'
+  FROM ${brogliaccio}
 
- <report>
-  <id>9</id>
-  <query>SELECT ${VOLONTARI.ORGANIZZAZIONE},count(*) AS 'TOT. VOLONTARI' FROM ${VOLONTARI} WHERE ${volontari.SERVIZIO} &lt;&gt; 'USCITA DEFINITIVA' AND ${volontari.SERVIZIO} NOT LIKE '%NON IN SERVIZIO%' GROUP BY ${volontari.ORGANIZZAZIONE} ORDER BY ${volontari.ORGANIZZAZIONE}</query>
-  <graphs>
+UNION
 
-   <graph>
-    <id>2</id>
-	<type>table</type>
-    <title>Volontari in servizio per organizzazione</title>
-	<sum>1</sum>
-   </graph>
-   
-   <graph>
-    <id>1</id>
-	<filename>rep1.png</filename>
-	<width>500</width>
-	<height>400</height>
-	<type>pie</type>
-    <title>Volontari in servizio</title>
-   </graph>
-  </graphs>
- </report>
+  SELECT 
+    ${COMUNICAZIONI RADIO.Data/ora} AS TS,
+    CAST(strftime('%d', ${COMUNICAZIONI RADIO.Data/ora}) AS INTEGER) || '/' || 
+    CAST(strftime('%m', ${COMUNICAZIONI RADIO.Data/ora}) AS INTEGER) || ' ' || 
+    strftime('%H:%M', ${COMUNICAZIONI RADIO.Data/ora}) AS 'Data/ora',
+    'SALA RADIO' AS 'Funzione',
+    'Da ' || ${COMUNICAZIONI RADIO.chiamante} || ' a ' || ${COMUNICAZIONI RADIO.chiamato} || ': ' || ${COMUNICAZIONI RADIO.messaggio} AS 'Descrizione'
+  FROM ${COMUNICAZIONI RADIO}
 
-
- <report>
-  <id>3</id>
-  <query></query>
-  <mysqlQuery>SELECT DATE_FORMAT(DATE(${Mov. risorse.data/ora}), '%e/%c') AS DATA,${Mov. risorse.a} AS 'SERVIZIO/INTERVENTO',count(DISTINCT ${Mov. risorse.risorsa}) AS 'NUM. VOLONTARI' FROM ${Mov. risorse} where ${Mov. risorse.tipo risorsa} = 'VOLONTARIO' AND ${Mov. risorse.a} NOT IN ('IN ATTESA DI SERVIZIO','USCITA DEFINITIVA') GROUP BY DATE_FORMAT(DATE(${Mov. risorse.data/ora}), '%e/%c'),${Mov. risorse.a} ORDER BY DATE_FORMAT(DATE(${Mov. risorse.data/ora}), '%e/%c')</mysqlQuery>
-  <graphs>
-   <graph>
-    <id>2</id>
-	<type>table</type>
-    <title>Elenco servizi/interventi</title>
-   </graph>
-  </graphs>
- </report>
- 
- <report>
-  <id>1</id>
-  <query></query>
-  <mysqlQuery>SELECT DATE(${BROGLIACCIO.Data/ora}),DATE_FORMAT(DATE(${BROGLIACCIO.Data/ora}), '%e/%c') AS DATA,count(*) AS TOTALE FROM ${BROGLIACCIO} GROUP BY DATE(${BROGLIACCIO.Data/ora}),DATE_FORMAT(DATE(${BROGLIACCIO.Data/ora}), '%e/%c') ORDER BY DATE(${BROGLIACCIO.Data/ora})</mysqlQuery>
-  <graphs>
-   <graph>
-    <id>2</id>
-	<type>table</type>
-    <title>Attività segreteria (brogliaccio)</title>
-	<hideFirstColumn>true</hideFirstColumn>
-	<sum>1</sum>
-   </graph>
-  </graphs>
- </report>
-
-  <report>
-  <id>3</id>
-  <query></query>
-  <mysqlQuery>SELECT DATE(${COMUNICAZIONI RADIO.Data/ora}),DATE_FORMAT(DATE(${COMUNICAZIONI RADIO.Data/ora}), '%e/%c') AS DATA,count(*) AS TOTALE FROM ${COMUNICAZIONI RADIO} GROUP BY DATE(${COMUNICAZIONI RADIO.Data/ora}),DATE_FORMAT(DATE(${COMUNICAZIONI RADIO.Data/ora}), '%e/%c') ORDER BY DATE(${COMUNICAZIONI RADIO.Data/ora})</mysqlQuery>
-  <graphs>
-   <graph>
-    <id>2</id>
-	<type>table</type>
-    <title>Comunicazioni radio</title>
-	<hideFirstColumn>true</hideFirstColumn>
-	<sum>1</sum>
-   </graph>
-  </graphs>
- </report> 
-
+ORDER BY TS
+  </sqliteQuery>
+		<graphs>
+			<graph>
+				<id>2</id>
+				<type>table</type>
+				<title>Elenco attività</title>
+				<hideFirstColumn>true</hideFirstColumn>
+			</graph>
+		</graphs>
+	</report>
+	<report>
+		<id>2</id>
+		<query>SELECT ${VOLONTARI.ORGANIZZAZIONE},count(*) AS 'TOT. VOLONTARI' FROM ${VOLONTARI} WHERE ${volontari.SERVIZIO} &lt;&gt; 'USCITA DEFINITIVA' AND ${volontari.SERVIZIO} NOT LIKE '%NON IN SERVIZIO%' GROUP BY ${volontari.ORGANIZZAZIONE} ORDER BY ${volontari.ORGANIZZAZIONE}</query>
+		<graphs>
+			<graph>
+				<id>2</id>
+				<type>table</type>
+				<title>Volontari in servizio per organizzazione</title>
+				<sum>1</sum>
+			</graph>
+			<graph>
+				<id>1</id>
+				<filename>rep1.png</filename>
+				<width>500</width>
+				<height>400</height>
+				<type>pie</type>
+				<title>Volontari in servizio</title>
+			</graph>
+		</graphs>
+	</report>
+	<report>
+		<id>3</id>
+		<query/>
+		<mysqlQuery>SELECT DATE_FORMAT(DATE(${Mov. risorse.data/ora}), '%e/%c') AS DATA,${Mov. risorse.a} AS 'SERVIZIO/INTERVENTO',count(DISTINCT ${Mov. risorse.risorsa}) AS 'NUM. VOLONTARI' FROM ${Mov. risorse} where ${Mov. risorse.tipo risorsa} = 'VOLONTARIO' AND ${Mov. risorse.a} NOT IN ('IN ATTESA DI SERVIZIO','USCITA DEFINITIVA') GROUP BY DATE_FORMAT(DATE(${Mov. risorse.data/ora}), '%e/%c'),${Mov. risorse.a} ORDER BY DATE_FORMAT(DATE(${Mov. risorse.data/ora}), '%e/%c')</mysqlQuery>
+		<sqliteQuery>SELECT 
+  strftime('%d/%m', date(${Mov. risorse.data/ora})) AS DATA,
+  ${Mov. risorse.a} AS 'SERVIZIO/INTERVENTO',
+  count(DISTINCT ${Mov. risorse.risorsa}) AS 'NUM. VOLONTARI'
+FROM ${Mov. risorse}
+WHERE ${Mov. risorse.tipo risorsa} = 'VOLONTARIO'
+  AND ${Mov. risorse.a} NOT IN ('IN ATTESA DI SERVIZIO', 'USCITA DEFINITIVA')
+GROUP BY 
+  strftime('%d/%m', date(${Mov. risorse.data/ora})),
+  ${Mov. risorse.a}
+ORDER BY 
+  strftime('%d/%m', date(${Mov. risorse.data/ora}))
+</sqliteQuery>
+		<graphs>
+			<graph>
+				<id>2</id>
+				<type>table</type>
+				<title>Elenco servizi/interventi</title>
+			</graph>
+		</graphs>
+	</report>
+	<report>
+		<id>4</id>
+		<query/>
+		<mysqlQuery>SELECT DATE(${BROGLIACCIO.Data/ora}),DATE_FORMAT(DATE(${BROGLIACCIO.Data/ora}), '%e/%c') AS DATA,count(*) AS TOTALE FROM ${BROGLIACCIO} GROUP BY DATE(${BROGLIACCIO.Data/ora}),DATE_FORMAT(DATE(${BROGLIACCIO.Data/ora}), '%e/%c') ORDER BY DATE(${BROGLIACCIO.Data/ora})</mysqlQuery>
+		<sqliteQuery>SELECT 
+  date(${BROGLIACCIO.Data/ora}) AS 'date_only',
+  strftime('%d/%m', date(${BROGLIACCIO.Data/ora})) AS DATA,
+  count(*) AS TOTALE
+FROM ${BROGLIACCIO}
+GROUP BY 
+  date(${BROGLIACCIO.Data/ora}),
+  strftime('%d/%m', date(${BROGLIACCIO.Data/ora}))
+ORDER BY 
+  date(${BROGLIACCIO.Data/ora})
+  </sqliteQuery>
+		<graphs>
+			<graph>
+				<id>2</id>
+				<type>table</type>
+				<title>Attività segreteria (brogliaccio)</title>
+				<hideFirstColumn>true</hideFirstColumn>
+				<sum>1</sum>
+			</graph>
+		</graphs>
+	</report>
+	<report>
+		<id>5</id>
+		<query/>
+		<mysqlQuery>SELECT DATE(${COMUNICAZIONI RADIO.Data/ora}),DATE_FORMAT(DATE(${COMUNICAZIONI RADIO.Data/ora}), '%e/%c') AS DATA,count(*) AS TOTALE FROM ${COMUNICAZIONI RADIO} GROUP BY DATE(${COMUNICAZIONI RADIO.Data/ora}),DATE_FORMAT(DATE(${COMUNICAZIONI RADIO.Data/ora}), '%e/%c') ORDER BY DATE(${COMUNICAZIONI RADIO.Data/ora})</mysqlQuery>
+		<sqliteQuery>SELECT 
+  date(${COMUNICAZIONI RADIO.Data/ora}) AS 'date_only',
+  strftime('%d/%m', date(${COMUNICAZIONI RADIO.Data/ora})) AS DATA,
+  count(*) AS TOTALE
+FROM ${COMUNICAZIONI RADIO}
+GROUP BY 
+  date(${COMUNICAZIONI RADIO.Data/ora}),
+  strftime('%d/%m', date(${COMUNICAZIONI RADIO.Data/ora}))
+ORDER BY 
+  date(${COMUNICAZIONI RADIO.Data/ora})
+  </sqliteQuery>
+		<graphs>
+			<graph>
+				<id>2</id>
+				<type>table</type>
+				<title>Comunicazioni radio</title>
+				<hideFirstColumn>true</hideFirstColumn>
+				<sum>1</sum>
+			</graph>
+		</graphs>
+	</report>
 </reports>
