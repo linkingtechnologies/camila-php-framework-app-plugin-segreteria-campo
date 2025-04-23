@@ -48,7 +48,6 @@ if (!isset($_REQUEST['format'])) {
 		} else {
 			$camilaUI->insertSecondaryButton('?dashboard=m1&report='.$k, $v, 'dashboard');
 			$camilaUI->insertSecondaryButton('?dashboard=m1&format=pdf&report='.$k, $v. ' (in PDF)', 'file');
-			$camilaUI->insertSecondaryButton('?dashboard=m1&report='.$k, $v, 'dashboard');
 			$camilaUI->insertSecondaryButton('?dashboard=m1&format=docx&report='.$k, $v. ' (in .docx)', 'file');
 		}
 	}
