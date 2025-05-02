@@ -6,9 +6,9 @@ $groupColumn = 'ORGANIZZAZIONE';
 $resourceTable = 'MATERIALI';
 $serviceTable = 'SERVIZI';
 $brogliaccio = 'MOV. RISORSE';
-$col1='MATERIALE';
-$col2='ATTREZZATURA';
-$col3='MATRICOLA';
+$col1='TIPOLOGIA';
+$col2='NOTE';
+$col3='CODICE INVENTARIO';
 $serviceEndServiceValue = "USCITA DEFINITIVA";
 
 $titleText = 'Movimentazione ' . ucwords(strtolower($resourceTable));
