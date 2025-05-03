@@ -6,8 +6,8 @@ $groupColumn = 'ORGANIZZAZIONE';
 $resourceTable = 'MEZZI';
 $serviceTable = 'SERVIZI';
 $brogliaccio = 'MOV. RISORSE';
-$col1='TARGA';
-$col2='MARCA';
+$col1='MARCA';
+$col2='TARGA';
 $col3='MODELLO';
 
 $serviceEndServiceValue = "USCITA DEFINITIVA";

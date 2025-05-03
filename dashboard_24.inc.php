@@ -5,7 +5,7 @@ $groupColumn = 'ORGANIZZAZIONE';
 $resourceTable = 'MEZZI ATTESI';
 $serviceTable = 'SERVIZI';
 $brogliaccio = '';
-$col1='MARCA E MODELLO';
+$col1='MARCA';
 $col2='TARGA';
 $serviceEndServiceValue = "";
 

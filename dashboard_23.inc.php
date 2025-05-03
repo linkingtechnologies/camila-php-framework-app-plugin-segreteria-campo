@@ -1,12 +1,12 @@
 <?php
-$resourceType='ATTREZZATURA';
+$resourceType='MATERIALE';
 $serviceColumn = 'SERVIZIO';
 $groupColumn = 'ORGANIZZAZIONE';
-$resourceTable = 'ATTREZZATURE ATTESE';
+$resourceTable = 'MATERIALI ATTESI';
 $serviceTable = 'SERVIZI';
 $brogliaccio = '';
 $col1='TIPOLOGIA';
-$col2='ATTREZZATURA';
+$col2='CODICE INVENTARIO';
 $serviceEndServiceValue = "";
 
 $titleText = 'Pianificazione ' . ucwords(strtolower($resourceTable));
