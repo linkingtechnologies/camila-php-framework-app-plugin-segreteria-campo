@@ -53,7 +53,8 @@ if (is_dir($directory)) {
 			if (strpos($fileName, $name . "_") === 0) {	
 				if ($arrCount[$k] == 0)
 				{
-					$camilaUI->insertButton('cf_worktable_wizard_step4.php?camila_custom='.$k .'&camila_iwfilepath='.urlencode('/plugins/'.basename(dirname(__FILE__)).$relDir.'/'.$fileName), 'IMPORTA ' . $fileName, 'upload');
+					$position = strpos($fileName, "_") + 1;
+					$camilaUI->insertButton('cf_worktable_wizard_step4.php?camila_custom='.$k .'&camila_iwfilepath='.urlencode('/plugins/'.basename(dirname(__FILE__)).$relDir.'/'.$fileName), 'IMPORTA ' . substr($fileName, $position), 'upload');
 				}
 				break;
 			}

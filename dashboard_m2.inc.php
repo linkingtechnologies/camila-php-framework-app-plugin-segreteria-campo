@@ -32,7 +32,6 @@ $camilaUI->insertButton('cf_worktable'.$sSheet.'.php', 'Elenco servizi', 'list')
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-4">'));
 $camilaUI->insertButton('?dashboard=06', 'Carica loghi','upload');
-$camilaUI->insertButton('?dashboard=iw', 'Dati esempio','upload');
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div><br/>'));
 
