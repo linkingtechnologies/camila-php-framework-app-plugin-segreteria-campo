@@ -2,7 +2,7 @@
 <reports>
 	<report>
 		<id>1</id>
-		<query>SELECT ${VOLONTARI.PROVINCIA},count(DISTINCT ${volontari.ORGANIZZAZIONE}) AS 'TOT. ORG.' FROM ${VOLONTARI} GROUP BY ${volontari.PROVINCIA} ORDER BY ${volontari.PROVINCIA}</query>
+		<query>SELECT ${VOLONTARI.PROVINCIA} AS 'PROVINCIA',count(DISTINCT ${volontari.ORGANIZZAZIONE}) AS 'NUM. ORGANIZZAZIONI' FROM ${VOLONTARI} GROUP BY ${volontari.PROVINCIA} ORDER BY ${volontari.PROVINCIA}</query>
 		<graphs>
 			<graph>
 				<id>1</id>
@@ -24,7 +24,7 @@
 
 	<report>
 		<id>2</id>
-		<query>SELECT ${VOLONTARI.ORGANIZZAZIONE},count(*) AS 'TOT. VOLONTARI' FROM ${VOLONTARI} GROUP BY ${volontari.ORGANIZZAZIONE} ORDER BY ${volontari.ORGANIZZAZIONE}</query>
+		<query>SELECT ${VOLONTARI.ORGANIZZAZIONE} AS 'ORGANIZZAZIONE',count(*) AS 'TOT. VOLONTARI' FROM ${VOLONTARI} GROUP BY ${volontari.ORGANIZZAZIONE} ORDER BY ${volontari.ORGANIZZAZIONE}</query>
 		<graphs>
 			<graph>
 				<id>1</id>
@@ -45,7 +45,7 @@
 	</report>
 
 	<report>
-		<id>2bc</id>
+		<id>3</id>
 		<mysqlQuery>SELECT ${MEZZI.PROVINCIA} AS 'PROV.', ${MEZZI.ORGANIZZAZIONE} AS 'ORGANIZZAZIONE', ${MEZZI.TARGA} AS 'TARGA', ${MEZZI.MARCA} AS 'MARCA',${MEZZI.MODELLO} AS 'MODELLO', DATE_FORMAT(DATE(${MEZZI.DATA INIZIO ATTESTATO}), '%e/%c') AS 'DA',${MEZZI.KM ALL'ARRIVO} AS 'KM ARRIVO', DATE_FORMAT(DATE(${MEZZI.DATA FINE ATTESTATO}), '%e/%c') AS 'A', ${MEZZI.KM ALLA PARTENZA} AS 'KM PART.' FROM ${MEZZI} ORDER BY ${MEZZI.PROVINCIA},${MEZZI.ORGANIZZAZIONE}</mysqlQuery>
 		<sqliteQuery>SELECT ${MEZZI.PROVINCIA} AS 'PROV.', ${MEZZI.ORGANIZZAZIONE} AS 'ORGANIZZAZIONE', ${MEZZI.TARGA} AS 'TARGA', ${MEZZI.MARCA} AS 'MARCA',${MEZZI.MODELLO} AS 'MODELLO', strftime('%d/%m', date(${MEZZI.DATA INIZIO ATTESTATO})) AS 'DA',${MEZZI.KM ALL'ARRIVO} AS 'KM ARRIVO', strftime('%d/%m', date(${MEZZI.DATA FINE ATTESTATO})) AS 'A', ${MEZZI.KM ALLA PARTENZA} AS 'KM PART.' FROM ${MEZZI} ORDER BY ${MEZZI.PROVINCIA},${MEZZI.ORGANIZZAZIONE}</sqliteQuery>
 		<graphs>
@@ -53,14 +53,14 @@
 				<id>1</id>
 				<type>table</type>
 				<title>Mezzi accreditati</title>
-				<columnWidths>5,25,10,15,15,5,10,5,10</columnWidths>
+				<columnWidths>8,20,10,15,15,5,11,5,11</columnWidths>
 				<sum>0</sum>
 			</graph>
 		</graphs>
 	</report>
 	
 	<report>
-		<id>3</id>
+		<id>4</id>
 		<query/>
 		<mysqlQuery>SELECT DATE_FORMAT(DATE(${Mov. risorse.data/ora}), '%e/%c') AS DATA,${Mov. risorse.a} AS 'SERVIZIO/INTERVENTO',count(DISTINCT ${Mov. risorse.risorsa}) AS 'NUM. VOLONTARI' FROM ${Mov. risorse} where ${Mov. risorse.tipo risorsa} = 'VOLONTARIO' AND ${Mov. risorse.a} NOT IN ('IN ATTESA DI SERVIZIO','USCITA DEFINITIVA') GROUP BY DATE_FORMAT(DATE(${Mov. risorse.data/ora}), '%e/%c'),${Mov. risorse.a} ORDER BY DATE_FORMAT(DATE(${Mov. risorse.data/ora}), '%e/%c')</mysqlQuery>
 		<sqliteQuery>SELECT 
@@ -86,8 +86,8 @@ ORDER BY
 	</report>
 
 	<report>
-		<id>2b</id>
-		<query>SELECT ${DANNEGGIAMENTI.NUMERO SEGNALAZIONE} AS 'N.', ${DANNEGGIAMENTI.ORGANIZZAZIONE} AS 'ORG.', ${DANNEGGIAMENTI.MEZZO/ATTREZZATURA} AS 'MEZZO/ATTREZZATURA', ${DANNEGGIAMENTI.NOTE} AS 'NOTA' FROM ${DANNEGGIAMENTI}</query>
+		<id>5</id>
+		<query>SELECT ${DANNEGGIAMENTI.NUMERO SEGNALAZIONE} AS 'N.', ${DANNEGGIAMENTI.ORGANIZZAZIONE} AS 'ORGANIZZAZIONE', ${DANNEGGIAMENTI.MEZZO/ATTREZZATURA} AS 'MEZZO/ATTREZZATURA', ${DANNEGGIAMENTI.NOTE} AS 'NOTA' FROM ${DANNEGGIAMENTI}</query>
 		<graphs>
 			<graph>
 				<id>1</id>
@@ -100,7 +100,7 @@ ORDER BY
 	</report>
 
 	<report>
-		<id>4</id>
+		<id>6</id>
 		<query/>
 		<mysqlQuery>(SELECT ${BROGLIACCIO.Data/ora} AS TS,DATE_FORMAT(${BROGLIACCIO.Data/ora}, '%e/%c %H:%i') AS 'Data/ora', 'SEGRETERIA' AS 'Funzione',${BROGLIACCIO.descrizione} AS 'Descrizione' FROM ${brogliaccio}) UNION (SELECT ${COMUNICAZIONI RADIO.Data/ora} AS TS,DATE_FORMAT(${COMUNICAZIONI RADIO.Data/ora}, '%e/%c %H:%i') AS 'Data/ora', 'SALA RADIO' AS 'Funzione',CONCAT('Da ',${COMUNICAZIONI RADIO.chiamante},' a ',${COMUNICAZIONI RADIO.chiamato},': ',${COMUNICAZIONI RADIO.messaggio}) AS 'Descrizione' FROM ${COMUNICAZIONI RADIO}) ORDER BY TS </mysqlQuery>
 		<sqliteQuery>
