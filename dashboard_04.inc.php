@@ -7,8 +7,8 @@ $resourceTable = 'MEZZI';
 $serviceTable = 'SERVIZI';
 $brogliaccio = 'MOV. RISORSE';
 $col1='TARGA';
-$col2='MEZZO';
-$col3='MARCA E MODELLO';
+$col2='MARCA';
+$col3='MODELLO';
 
 $serviceEndServiceValue = "USCITA DEFINITIVA";
 
