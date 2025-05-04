@@ -572,4 +572,11 @@ if (!isset($_REQUEST['service'])) {
 }
 
 $camilaUI->closeBox();
+
+//Button in worktable list
+if (isset($_GET['id'])) {
+    $id = $_GET['id'];
+	$refrCode = "<script>document.addEventListener('DOMContentLoaded', function() {const checkboxes = document.querySelectorAll('input[type=\"checkbox\"]');checkboxes.forEach(function(checkbox) {if (checkbox.value === '$id') {checkbox.checked = true;}});});</script>";
+	$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, $refrCode));
+}		
 ?>
