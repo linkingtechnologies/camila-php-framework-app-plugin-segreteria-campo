@@ -190,7 +190,7 @@ if ($_REQUEST['camila_custom']!='')
 } else {
 	$camilaUI->openBox();
 	$camilaUI->insertTitle('Controllo dati', 'warning-sign');
-	$camilaUI->insertDivider();
+	//$camilaUI->insertDivider();
 
 	$camilaIntegrity->camilaWT = new CamilaWorkTable();
 	$camilaIntegrity->camilaWT->wtTable = CAMILA_TABLE_WORKT;
@@ -201,28 +201,28 @@ if ($_REQUEST['camila_custom']!='')
 		$arr = $v->check;
 		for ($i=0; $i<count($arr);$i++)
 		{
-			$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="row">'));	
+			$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="row columns">'));	
 			$item = $arr[$i];
 			$check = $camilaIntegrity->check($item);	
 			if ($check->code == 'success') {
-				$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-6">'));
+				$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-6 column is-full-mobile is-half-desktop">'));
 				$camilaUI->insertSuccess($item->title);
 				$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
-				$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-6">'));
+				$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-6 column is-full-mobile is-half-desktop">'));
 				$camilaUI->insertSubTitle('OK', 'thumbs-up');
 				$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
 			} else if ($check->code == 'queryerror') {
-				$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-6">'));
+				$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-6 column is-full-mobile is-half-desktop">'));
 				$camilaUI->insertWarning($check->message);
 				$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
-				$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-6">'));
+				$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-6 column is-full-mobile is-half-desktop">'));
 				$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
 			} 
 			else {
-				$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-6">'));
+				$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-6 column is-full-mobile is-half-desktop">'));
 				$camilaUI->insertWarning($check->message);
 				$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
-				$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-6">'));
+				$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-6 column is-full-mobile is-half-desktop">'));
 				$camilaUI->insertButton('?dashboard=ic1&camila_custom='.$item->id.'&error='.urlencode($check->message), 'Visualizza','list',false,$check->count);
 				$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
 			}
