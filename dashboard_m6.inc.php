@@ -163,6 +163,8 @@ if ($includeLast) {
 		
 		$_CAMILA['page']->add_table($t);
 		
+		$camilaUI->insertLineBreak();
+		
 		$camilaUI->insertButton('index.php?dashboard=m6&t=partial', 'Tutte le attività senza movimentazioni segreteria', 'list');
 		$camilaUI->insertButton('index.php?dashboard=m6&t=all', 'Tutte le attività', 'list');
 		
