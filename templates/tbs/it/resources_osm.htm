@@ -13,56 +13,90 @@ h5:empty {
 
 </style>
 
-<div class="row">
-    <h3><span class="glyphicon glyphicon-map-marker"></span> MAPPA SERVIZI</h3>
-</div>
-<div class="row">
-    <div class="col-md-4">
-        <div class="panel panel-default">
-            <div class="panel-body">
-                <input id="filter" type="text" autocomplete="off" placeholder="Cerca...">
-                <div id="results">
-                    [res2;block=begin]
-                    <div class="results">
-                        <h4>
-                            <script type="text/javascript">writeMarkerIcon('[res2.COLORE;strconv=js]','[res2.LETTERA;strconv=js]','[res2.tot;strconv=js]','[res2.tot2;strconv=js]');</script>
-                            <a href="javascript:zoomIn('[res2.id]');">[res2.nome]</a>
-                        </h4>
-                        <h5>[res2.descrizione]</h5>
-                        <h5>[res2.comune]</h5>
-                        <div class="form-horizontal">
-                            <div class="form-group">
-                                <label class="control-label col-md-4">Volontari</label>
-                                <div class="col-md-8 form-control-static">
-                                    [res2.tot]
-                                </div>
-                                <label class="control-label col-md-4">Mezzi</label>
-                                <div class="col-md-8 form-control-static">
-                                    [res2.tot2]
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    [res2;block=end]
-                </div>
-            </div>
-        </div>
-    </div>
+<div class="box">
+	<div class="row columns">
+		<h3 class="title is-5"><span class="glyphicon glyphicon-map-marker icon is-medium"></span><i class="ri-globe-line ri-lg"></i></span> MAPPA SERVIZI</h3>
+	</div>
+	<div class="row columns">
+		<div class="col-md-4 column is-4">
+			<div class="panel panel-default card">
+				<div class="panel-body card-content">
+					<input id="filter" type="text" autocomplete="off" placeholder="Cerca...">
+					<div id="results">
+						[res2;block=begin]
+						<div class="results pt-4">
+							<h4>
+								<script type="text/javascript">writeMarkerIcon('[res2.COLORE;strconv=js]','[res2.LETTERA;strconv=js]','[res2.tot;strconv=js]','[res2.tot2;strconv=js]');</script>
+								<a href="javascript:zoomIn('[res2.id]');">[res2.nome]</a>
+							</h4>
+							<h5>[res2.descrizione]</h5>
+							<h5>[res2.comune]</h5>
 
-    <div class="col-md-8">
-        <div class="panel panel-default">
-            <div id="map_canvas"></div>
-        </div>
+					<div class="form-horizontal">
+					  <div class="columns is-multiline">
+						
+						<!-- Colonna: Volontari -->
+						<div class="column is-half col-md-6">
+						  <div class="field is-horizontal form-group">
+							<div class="field-label is-one-third col-md-6">
+							  <label class="label control-label" style="color:black">Volontari</label>
+							</div>
+							<div class="field-body col-md-6">
+							  <div class="field">
+								<div class="control is-static form-control-static" style="padding:0">
+								  [res2.tot]
+								</div>
+							  </div>
+							</div>
+						  </div>
+						</div>
 
-        <div class="panel panel-default">
-            <input id="searchTextField" autocomplete="off" type="text" size="50" placeholder="Ricerca indirizzo e premi invio..." autocomplete="on" />
-        </div>
-        <div class="panel panel-default">
-            <input type="hidden" id="city2" name="city2" />
-            <input type="Lat" id="cityLat" name="cityLat" placeholder="Latitudine" />
-            <input type="Long" id="cityLng" name="cityLng" placeholder="Longitudine" />
-        </div>
-    </div>
+						<!-- Colonna: Mezzi -->
+						<div class="column is-half col-md-6">
+						  <div class="field is-horizontal form-group">
+							<div class="field-label is-one-third col-md-6">
+							  <label class="label control-label" style="color:black">Mezzi</label>
+							</div>
+							<div class="field-body col-md-6">
+							  <div class="field">
+								<div class="control is-static form-control-static" style="padding:0">
+								  [res2.tot2]
+								</div>
+							  </div>
+							</div>
+						  </div>
+						</div>
+
+					  </div>
+					</div>
+
+
+						</div>
+						[res2;block=end]
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="col-md-8 column is-8">
+			<div class="panel panel-default">
+				<div id="map_canvas"></div>
+			</div>
+			
+			<div class="card">
+				<div class="card-content">
+					<div class="panel panel-default">
+						<input id="searchTextField" autocomplete="off" type="text" size="50" placeholder="Ricerca indirizzo e premi invio..." autocomplete="on" />
+					</div>
+					<div class="panel panel-default">
+						<input type="hidden" id="city2" name="city2" />
+						<input type="Lat" id="cityLat" name="cityLat" placeholder="Latitudine" />
+						<input type="Long" id="cityLng" name="cityLng" placeholder="Longitudine" />
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
 </div>
 
 <script type="text/javascript">

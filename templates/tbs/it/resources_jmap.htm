@@ -7,42 +7,71 @@
 }
 </style>
 
-<div class="row">
-	<h3><span class="glyphicon glyphicon-map-marker"></span> MAPPA SERVIZI</h3>
-</div>
-<div class="row">	
-	<div class="col-md-3">
-		<div class="panel panel-default">
-			<div class="panel-body">
-			[res2;block=begin]
-				<h4>
-					[res2.lettera]. [res2.nome]
-				</h4>
-				<h5>
-					[res2.descrizione]
-				</h5>
-				<div class="form-horizontal">
-					<div class="form-group">
-						<label class="control-label col-md-4">Volontari</label>
-						<div class="col-md-8 form-control-static">
-							[res2.tot]
+<div class="box">
+	<div class="row columns">
+		<h3 class="title is-5">MAPPA SERVIZI</h3>
+	</div>
+	<div class="row columns">	
+		<div class="col-md-3 column is-3">
+			<div class="panel panel-default card">
+				<div class="panel-body card content">
+				[res2;block=begin]
+					<h5 class="p-4">
+						[res2.lettera]. [res2.nome]
+					</h5>
+					<h6>
+						[res2.descrizione]
+					</h6>
+		
+					<div class="form-horizontal p-4">
+					  <div class="columns is-multiline">
+						
+						<!-- Colonna: Volontari -->
+						<div class="column is-half col-md-6">
+						  <div class="field is-horizontal form-group">
+							<div class="field-label is-one-third col-md-6">
+							  <label class="label control-label" style="color:black">Volontari</label>
+							</div>
+							<div class="field-body col-md-6">
+							  <div class="field">
+								<div class="control is-static form-control-static" style="padding:0">
+								  [res2.tot]
+								</div>
+							  </div>
+							</div>
+						  </div>
 						</div>
-						<label class="control-label col-md-4">Mezzi</label>
-						<div class="col-md-8 form-control-static">
-							[res2.tot2]
+
+						<!-- Colonna: Mezzi -->
+						<div class="column is-half col-md-6">
+						  <div class="field is-horizontal form-group">
+							<div class="field-label is-one-third col-md-6">
+							  <label class="label control-label" style="color:black">Mezzi</label>
+							</div>
+							<div class="field-body col-md-6">
+							  <div class="field">
+								<div class="control is-static form-control-static" style="padding:0">
+								  [res2.tot2]
+								</div>
+							  </div>
+							</div>
+						  </div>
 						</div>
+
+					  </div>
 					</div>
+
+					[res2;block=end] 
 				</div>
-				[res2;block=end] 
 			</div>
 		</div>
-	</div>
-	<div class="col-md-9">
-		<div class="panel panel-default">
-			<!--<div class="panel-body">-->
-				<div id="map_canvas"></div>
-				<!--<div id="world-map-markers" style="width: 720px; height: 400px"></div>-->
-			<!--</div>-->
+		<div class="col-md-9 column is-9">
+			<div class="panel panel-default">
+				<!--<div class="panel-body">-->
+					<div id="map_canvas"></div>
+					<!--<div id="world-map-markers" style="width: 720px; height: 400px"></div>-->
+				<!--</div>-->
+			</div>
 		</div>
 	</div>
 </div>
