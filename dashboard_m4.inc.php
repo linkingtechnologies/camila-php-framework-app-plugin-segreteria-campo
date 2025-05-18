@@ -5,6 +5,9 @@ $camilaUI->insertTitle(CAMILA_APPLICATION_NAME, 'question-sign');
 
 $camilaUI->insertText('Versione del ' . date('d-m-Y', strtotime(CamilaPlugins::getRepositoryInformation(basename(dirname(__FILE__)))['pushed_at'])));
 
+$camilaUI->insertLineBreak();
+$camilaUI->insertLineBreak();
+
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="row columns">'));	
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-4 column is-12-mobile is-4-desktop">'));
 $camilaUI->insertButton('plugins/segreteria-campo/docs/it/html/manual.html', 'Manuale','globe');
