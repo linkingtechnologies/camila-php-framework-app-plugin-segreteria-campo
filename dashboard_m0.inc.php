@@ -2,11 +2,9 @@
 $camilaWT  = new CamilaWorkTable();
 $camilaWT->db = $_CAMILA['db'];
 
-
 $vSheet = $camilaWT->getWorktableSheetId('VOLONTARI');
 $mSheet = $camilaWT->getWorktableSheetId('MEZZI');
 $aSheet = $camilaWT->getWorktableSheetId('MATERIALI');
-
 
 $camilaUI->openBox();
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="row columns">'));	
@@ -31,7 +29,7 @@ $camilaUI->insertButton('?dashboard=03', 'Movimentazione materiali', 'random');
 $camilaUI->insertButton('cf_worktable'.$aSheet.'.php', 'Elenco materiali', 'list');
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
-$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
+//$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
 $camilaUI->closeBox();
 
 ?>
