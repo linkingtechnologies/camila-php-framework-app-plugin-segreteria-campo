@@ -28,8 +28,9 @@ $resResult = $camilaWT->startExecuteQuery($query);
 $myText = new CHAW_text('');
 $_CAMILA['page']->add_text($myText);
 
+$camilaUI->openBox();
 $camilaUI->insertTitle($title, $icon);
-$camilaUI->insertDivider();
+//$camilaUI->insertDivider();
 
 $count = $resResult->RecordCount();
 if ($count == 0)
@@ -45,10 +46,12 @@ while (!$resResult->EOF) {
 
 	$link .= '&filename='.urlencode($a[1]).'&camila_pagnum=-1&submit_button=Filtra+i+dati';
 	$myLink = new CHAW_link($title . ' ' . $a[0] . ' ' . $a[1],$link);
-	$myLink->set_css_class('btn btn-md btn-default btn-info');
+	$myLink->set_css_class('btn btn-md btn-default btn-info button is-small');
 	$myLink->set_br(2);
 	$_CAMILA['page']->add_link($myLink);
 	$resResult->MoveNext();
 }
+
+$camilaUI->closeBox();
 
 ?>
