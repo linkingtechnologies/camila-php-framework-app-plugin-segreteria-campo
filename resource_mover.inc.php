@@ -287,7 +287,7 @@ if (!isset($_REQUEST['service'])) {
 		$wCount++;
 		$a = $missionResult->fields;
 		$myLink = new CHAW_link((($a[0] == '') ? '(Nessun servizio)' : $a[0]) . ' (' . $a[1] . ')', '?dashboard='.$_REQUEST['dashboard'].'&service='.urlencode($a[0]));
-		$myLink->set_css_class('btn btn-md btn-default btn-info');
+		$myLink->set_css_class('btn btn-md btn-default btn-info button is-small');
 		$myLink->set_br(2);
 		$_CAMILA['page']->add_link($myLink);
 		$missionResult->MoveNext();
@@ -343,7 +343,7 @@ if (!isset($_REQUEST['service'])) {
 			$gCount = 0;
 			$tCount = $resourceResult->RecordCount();
 
-			new form_link_separator($form, '' .$t . " (" . $tCount . (($tCount==$limit || $page>0) ? '+' : ''). ")", HAW_TEXTFORMAT_BOLD, $link, 'btn btn-md btn-default btn-info');
+			new form_link_separator($form, '' .$t . " (" . $tCount . (($tCount==$limit || $page>0) ? '+' : ''). ")", HAW_TEXTFORMAT_BOLD, $link, 'btn btn-md btn-default btn-info button is-small');
 			
 			if ($resourceTable == 'VOLONTARI') {
 				$lang = 'it';
@@ -557,13 +557,13 @@ if (!isset($_REQUEST['service'])) {
 			$text = new CHAW_text('');
 			$_CAMILA['page']->add_text($text);
 			$myLink = new CHAW_link('Torna al riepilogo ' . $to, '?dashboard='.$_REQUEST['dashboard'].'&service='.urlencode($to));
-			$myLink->set_css_class('btn btn-md btn-default btn-info btn-space');
+			$myLink->set_css_class('btn btn-md btn-default btn-info btn-space button is-small');
 			$_CAMILA['page']->add_link($myLink);
 			$myLink = new CHAW_link('Torna al riepilogo ' . $from, '?dashboard='.$_REQUEST['dashboard'].'&service='.urlencode($from) . '&page='. $_REQUEST['page']);
-			$myLink->set_css_class('btn btn-md btn-default btn-info btn-space');
+			$myLink->set_css_class('btn btn-md btn-default btn-info btn-space button is-small');
 			$_CAMILA['page']->add_link($myLink);
 			$myLink = new CHAW_link('Torna al riepilogo ' . $resourceTable, '?dashboard='.$_REQUEST['dashboard']);
-			$myLink->set_css_class('btn btn-md btn-default btn-info btn-space');
+			$myLink->set_css_class('btn btn-md btn-default btn-info btn-space button is-small is-primary');
 			$_CAMILA['page']->add_link($myLink);
 		}
 		else
@@ -571,7 +571,7 @@ if (!isset($_REQUEST['service'])) {
 			camila_error_text('Nessuna risorsa selezionata!!!');
 
 			$myLink = new CHAW_link('Torna al riepilogo ' . $resourceTable, '?dashboard='.$_REQUEST['dashboard']);
-			$myLink->set_css_class('btn btn-md btn-default btn-info btn-space');
+			$myLink->set_css_class('btn btn-md btn-default btn-info btn-space button is-small button is-primary');
 			$_CAMILA['page']->add_link($myLink);
 		}
     }
