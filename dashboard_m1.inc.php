@@ -6,6 +6,9 @@ $lang = 'it';
 $rSheet = $camilaWT->getWorktableSheetId('REPORT');
 
 $camilaReport = new CamilaReport($lang, $camilaWT, CAMILA_HOMEDIR.'/plugins/'.basename(dirname(__FILE__)).'/reports', $_GET['report']);
+$camilaReport->shouldGenerateToc = true;
+$camilaReport->shouldGenerateHeader = true;
+$camilaReport->shouldGenerateFooter = true;
 
 if (isset($_REQUEST['gid'])) {	
 	$camilaReport->outputImageToBrowser($_REQUEST['rid'], $_REQUEST['gid'], $_REQUEST['report']);
