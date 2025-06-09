@@ -1,4 +1,8 @@
 <?php
+require_once(CAMILA_VENDOR_DIR . '/autoload.php');
+
+use PhpOffice\PhpWord\PhpWord;
+
 $camilaWT  = new CamilaWorkTable();
 $camilaWT->db = $_CAMILA['db'];
 $lang = 'it';
@@ -47,12 +51,39 @@ if (!isset($_REQUEST['format'])) {
 	$camilaUI->insertAutoRefresh(30000);
 }
 
-if (isset($_GET['format']) && $_GET['format'] == 'pdf') {
-	$camilaReport->outputPdfToBrowser();
-} elseif (isset($_GET['format']) && $_GET['format'] == 'docx') {
-	$camilaReport->outputDocxToBrowser();
-} elseif (isset($_GET['format']) && $_GET['format'] == 'odt') {
-	$camilaReport->outputOdtToBrowser();
+if (isset($_GET['format'])) {
+	$t = new CamilaTemplate($lang);
+	$params = $t->getParameters();
+	$logoPath = CAMILA_TMPL_DIR . '/images/'.$lang.'/'.$params['logo'];
+	$evento = htmlspecialchars($params['evento']);
+	$comune = htmlspecialchars($params['comune']);
+	$segreteria = htmlspecialchars($params['segreteriacampo'] . ' ' . $params['nomecampo']);
+	$headerHtml = '
+	<table width="100%" style="border:none;">
+	  <tr>
+		<td width="13%" style="vertical-align: middle;">
+		  <img src="' . $logoPath . '" style="width: 55px; height: auto">
+		</td>
+		<td width="87%" style="vertical-align: middle; font-size: 12pt; padding-left: 10px;">
+		  <div><strong>' . $evento . '</strong></div>
+		  <div><strong>' . $comune . '</strong></div>
+		  <div style="color: red;"><strong>' . $segreteria . '</strong></div>
+		</td>
+	  </tr>
+	  <tr>
+	  	<div style="height: 10px;"></div>
+	  </tr>
+	</table>';
+
+	if ($_GET['format'] == 'pdf') {
+		$camilaReport->headerHtml = $headerHtml;		
+		$camilaReport->outputPdfToBrowser();
+	} elseif ($_GET['format'] == 'docx') {
+		$camilaReport->headerHtml = $headerHtml;
+		$camilaReport->outputDocxToBrowser();
+	} elseif ($_GET['format'] == 'odt') {
+		$camilaReport->outputOdtToBrowser();
+	}
 }
 
 ?>
