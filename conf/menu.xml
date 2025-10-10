@@ -13,6 +13,12 @@
   <pages></pages>
  </tab>
  <tab>
+   <id>pre-accreditations-by-service</id>
+  <title>PREACCREDITAMENTI</title>
+  <url>?dashboard=pre-accreditations-by-service</url>
+  <pages>pre-accreditations-by-overnight-stay</pages>
+ </tab> 
+ <tab>
   <id>m7</id>
   <title>MAPPE</title>
   <url>?dashboard=m7</url>
