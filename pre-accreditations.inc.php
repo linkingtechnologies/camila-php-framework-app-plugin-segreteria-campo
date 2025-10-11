@@ -12,32 +12,6 @@ $sql = "SELECT DISTINCT \${VOLONTARI PREACCREDITATI.TURNO} FROM \${VOLONTARI PRE
 $r = $camilaWT->queryWorktableDatabase($sql);
 
 $camilaUI->openBox();
-$camilaUI->addGridSection(3, function ($colIndex) use ($camilaUI, $r, $r1Sheet) {
-	switch ($colIndex) {
-		case 0:
-			$camilaUI->insertTitle('Servizi', 'tools');
-			$camilaUI->insertButton('?dashboard=pre-accreditations-by-service', 'Riepilogo per turno', 'tools');
-			foreach($r as $k => $v) {
-				$camilaUI->insertButton('?dashboard=pre-accreditations-by-service&custom='.urlencode($k), $k, 'calendar');
-			}
-			break;
-		case 1:
-			$camilaUI->insertTitle('Pernottamenti', 'moon');
-			$camilaUI->insertButton('?dashboard=pre-accreditations-by-overnight-stay', 'Riepilogo per turno', 'moon');
-			foreach($r as $k => $v) {
-				$camilaUI->insertButton('?dashboard=pre-accreditations-by-overnight-stay&custom='.urlencode($k), $k, 'calendar');
-			}
-			break;
-		case 2:
-			$camilaUI->insertTitle('Volontari', 'user');
-			$camilaUI->insertButton('cf_worktable'.$r1Sheet.'.php','Elenco', 'user');
-			foreach($r as $k => $v) {
-				$camilaUI->insertButton('cf_worktable'.$r1Sheet.'.php?camila_w1f=_C_turno&camila_w1c=eq&camila_w1v='.urlencode($k),$k, 'calendar');
-			}			
-			break;
-	}
-});
-
 
 $turniCsv = implode(',',array_keys($r));
 
@@ -75,6 +49,33 @@ if ($_REQUEST['dashboard'] == 'pre-accreditations-by-service') {
 	$report->process();
 	$report->draw();
 }
+
+
+$camilaUI->addGridSection(3, function ($colIndex) use ($camilaUI, $r, $r1Sheet) {
+	switch ($colIndex) {
+		case 0:
+			$camilaUI->insertTitle('Servizi', 'tools');
+			$camilaUI->insertButton('?dashboard=pre-accreditations-by-service', 'Riepilogo per turno', 'tools');
+			foreach($r as $k => $v) {
+				$camilaUI->insertButton('?dashboard=pre-accreditations-by-service&custom='.urlencode($k), $k, 'calendar');
+			}
+			break;
+		case 1:
+			$camilaUI->insertTitle('Pernottamenti', 'moon');
+			$camilaUI->insertButton('?dashboard=pre-accreditations-by-overnight-stay', 'Riepilogo per turno', 'moon');
+			foreach($r as $k => $v) {
+				$camilaUI->insertButton('?dashboard=pre-accreditations-by-overnight-stay&custom='.urlencode($k), $k, 'calendar');
+			}
+			break;
+		case 2:
+			$camilaUI->insertTitle('Volontari', 'user');
+			$camilaUI->insertButton('cf_worktable'.$r1Sheet.'.php','Elenco', 'user');
+			foreach($r as $k => $v) {
+				$camilaUI->insertButton('cf_worktable'.$r1Sheet.'.php?camila_w1f=_C_turno&camila_w1c=eq&camila_w1v='.urlencode($k),$k, 'calendar');
+			}			
+			break;
+	}
+});
 
 $_CAMILA['page']->camila_export_enabled = true;
 
