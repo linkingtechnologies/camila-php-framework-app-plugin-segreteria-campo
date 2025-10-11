@@ -16,7 +16,7 @@
    <id>pre-accreditations-by-service</id>
   <title>PREACCREDITAMENTI</title>
   <url>?dashboard=pre-accreditations-by-service</url>
-  <pages>pre-accreditations-by-overnight-stay</pages>
+  <pages>pre-accreditations-by-overnight-stay,pre-accreditations-by-service</pages>
  </tab> 
  <tab>
   <id>m7</id>
