@@ -26,7 +26,7 @@ if ($_REQUEST['camila_custom']!='')
 			$query.= ', last_upd_by_name=' . $camilaWT->db->qstr($_CAMILA['user_name']);
 			$query.= ',${' .$resourceTable. '.DATA/ORA USCITA DEFINITIVA}=last_upd';
 			$query.= ',mod_num = mod_num + 1';
-			$query.= ' WHERE ${'.$resourceTable.'.servizio} = \'USCITA DEFINITIVA\' AND (${' .$resourceTable. '.DATA/ORA USCITA DEFINITIVA} IS NULL OR ${' .$resourceTable. '.DATA/ORA USCITA DEFINITIVA} = \'\') ';
+			$query.= ' WHERE ${'.$resourceTable.'.servizio} = \'USCITA DEFINITIVA\' AND (${' .$resourceTable. '.DATA/ORA USCITA DEFINITIVA} IS NULL) ';
 			$result = $camilaWT->startExecuteQuery($query,false);
 
 			if ($result === false) {
