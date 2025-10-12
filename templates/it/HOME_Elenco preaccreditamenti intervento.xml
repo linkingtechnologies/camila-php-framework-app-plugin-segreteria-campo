@@ -1,0 +1,53 @@
+<?xml version='1.0' standalone='yes' ?>
+<reports>
+	<report>
+		<id>1</id>
+		<query>SELECT ${VOLONTARI PREACCREDITATI.CODICE FISCALE} AS 'BARCODE',${VOLONTARI PREACCREDITATI.TURNO} AS 'TURNO',${VOLONTARI PREACCREDITATI.ORGANIZZAZIONE} AS 'ORGANIZZAZIONE',${VOLONTARI PREACCREDITATI.COGNOME} AS 'COGNOME',${VOLONTARI PREACCREDITATI.NOME} AS 'NOME',${VOLONTARI PREACCREDITATI.SERVIZIO} AS 'SERVIZIO',${VOLONTARI PREACCREDITATI.PERNOTTAMENTO} AS 'PERN.',${VOLONTARI PREACCREDITATI.BENEFICI DI LEGGE} AS 'BEN.' FROM ${VOLONTARI PREACCREDITATI} WHERE Id is not null ${Filtro addizionale figli 1} ORDER BY ${VOLONTARI PREACCREDITATI.TURNO},${VOLONTARI PREACCREDITATI.ORGANIZZAZIONE},${VOLONTARI PREACCREDITATI.COGNOME},${VOLONTARI PREACCREDITATI.NOME}</query>
+		<graphs>
+			<graph>
+				<id>1</id>
+				<type>table</type>
+				<style>font-size: 8pt</style>
+				<barcodeColumn>0</barcodeColumn>
+				<barcodeType>C39</barcodeType>
+				<barcodeSize>.5</barcodeSize>
+				<barcodeHeight>2</barcodeHeight>
+				<title>Volontari preaccreditati</title>
+				<columnWidths>100</columnWidths>
+				<sum>0</sum>
+			</graph>
+		</graphs>
+	</report>
+	<report>
+		<id>2</id>
+		<query>SELECT ${MEZZI PREACCREDITATI.TARGA} AS 'TARGA', ${MEZZI PREACCREDITATI.TURNO} AS 'TURNO',${MEZZI PREACCREDITATI.ORGANIZZAZIONE} AS 'ORGANIZZAZIONE',${MEZZI PREACCREDITATI.TIPOLOGIA} AS 'TIPOLOGIA', ${MEZZI PREACCREDITATI.MARCA} AS 'MARCA', ${MEZZI PREACCREDITATI.MODELLO} AS 'MODELLO' FROM ${MEZZI PREACCREDITATI} WHERE id is not null ${Filtro addizionale figli 2} ORDER BY ${MEZZI PREACCREDITATI.TURNO},${MEZZI PREACCREDITATI.ORGANIZZAZIONE},${MEZZI PREACCREDITATI.TARGA}</query>
+		<graphs>
+			<graph>
+				<id>1</id>
+				<type>table</type>
+				<style>font-size: 8pt</style>
+				<barcodeColumn>0</barcodeColumn>
+				<barcodeType>C39</barcodeType>
+				<barcodeSize>.5</barcodeSize>
+				<barcodeHeight>2</barcodeHeight>
+				<title>Mezzi preaccreditati</title>
+				<columnWidths>100</columnWidths>
+				<sum>0</sum>
+			</graph>
+		</graphs>
+	</report>
+	<report>
+		<id>3</id>
+		<query>SELECT ${MATERIALI PREACCREDITATI.TURNO} AS 'TURNO',${MATERIALI PREACCREDITATI.ORGANIZZAZIONE} AS 'ORGANIZZAZIONE',${MATERIALI PREACCREDITATI.CATEGORIA} AS 'CATEGORIA',${MATERIALI PREACCREDITATI.TIPOLOGIA} AS 'TIPOLOGIA', ${MATERIALI PREACCREDITATI.MARCA} AS 'MARCA', ${MATERIALI PREACCREDITATI.MODELLO} AS 'MODELLO' FROM ${MATERIALI PREACCREDITATI} WHERE ${MATERIALI PREACCREDITATI.EVENTO} Id IS NOT NULL ${Filtro addizionale figli 3} ORDER BY ${MATERIALI PREACCREDITATI.TURNO},${MATERIALI PREACCREDITATI.ORGANIZZAZIONE},${MATERIALI PREACCREDITATI.MARCA},${MATERIALI PREACCREDITATI.MODELLO}</query>
+		<graphs>
+			<graph>
+				<id>1</id>
+				<type>table</type>
+				<style>font-size: 8pt</style>
+				<title>Materiali preaccreditati</title>
+				<columnWidths>100</columnWidths>
+				<sum>0</sum>
+			</graph>
+		</graphs>
+	</report>
+</reports>
