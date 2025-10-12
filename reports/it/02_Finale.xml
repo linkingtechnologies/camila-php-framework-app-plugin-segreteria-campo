@@ -85,8 +85,23 @@ ORDER BY
 		</graphs>
 	</report>
 
+
 	<report>
 		<id>5</id>
+		<query>SELECT DISTINCT ${VOLONTARI.PROVINCIA} AS 'PROV.',${VOLONTARI.ORGANIZZAZIONE} AS 'ORGANIZZAZIONE',${VOLONTARI.CODICE FISCALE} AS 'CODICE FISCALE',${VOLONTARI.COGNOME} AS 'COGNOME', ${VOLONTARI.NOME} AS 'NOME' FROM ${VOLONTARI} ORDER BY ${VOLONTARI.PROVINCIA},${VOLONTARI.ORGANIZZAZIONE},${VOLONTARI.COGNOME}, ${VOLONTARI.NOME}</query>
+		<graphs>
+			<graph>
+				<id>1</id>
+				<type>table</type>
+				<title>Elenco volontari accreditati</title>
+				<sum>0</sum>
+			</graph>
+		</graphs>
+	</report>
+	
+
+	<report>
+		<id>6</id>
 		<query>SELECT ${DANNEGGIAMENTI.NUMERO SEGNALAZIONE} AS 'N.', ${DANNEGGIAMENTI.ORGANIZZAZIONE} AS 'ORGANIZZAZIONE', ${DANNEGGIAMENTI.MEZZO/ATTREZZATURA} AS 'MEZZO/ATTREZZATURA', ${DANNEGGIAMENTI.NOTE} AS 'NOTA' FROM ${DANNEGGIAMENTI}</query>
 		<graphs>
 			<graph>
@@ -100,7 +115,7 @@ ORDER BY
 	</report>
 
 	<report>
-		<id>6</id>
+		<id>7</id>
 		<query/>
 		<mysqlQuery>(SELECT ${BROGLIACCIO.Data/ora} AS TS,DATE_FORMAT(${BROGLIACCIO.Data/ora}, '%e/%c %H:%i') AS 'Data/ora', 'SEGRETERIA' AS 'Funzione',${BROGLIACCIO.descrizione} AS 'Descrizione' FROM ${brogliaccio}) UNION (SELECT ${COMUNICAZIONI RADIO.Data/ora} AS TS,DATE_FORMAT(${COMUNICAZIONI RADIO.Data/ora}, '%e/%c %H:%i') AS 'Data/ora', 'SALA RADIO' AS 'Funzione',CONCAT('Da ',${COMUNICAZIONI RADIO.chiamante},' a ',${COMUNICAZIONI RADIO.chiamato},': ',${COMUNICAZIONI RADIO.messaggio}) AS 'Descrizione' FROM ${COMUNICAZIONI RADIO}) ORDER BY TS </mysqlQuery>
 		<sqliteQuery>
