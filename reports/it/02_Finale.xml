@@ -99,9 +99,23 @@ ORDER BY
 		</graphs>
 	</report>
 	
-
 	<report>
 		<id>6</id>
+		<mysqlQuery>SELECT ${VISITATORI.ORGANIZZAZIONE/ENTE/SOCIETA'} AS 'ORG./ENTE/SOC.', ${VISITATORI.COGNOME} AS 'COGNOME', ${VISITATORI.NOME} AS 'NOME', DATE_FORMAT(${VISITATORI.ACCESSO DAL}, '%e/%c') AS 'DA',DATE_FORMAT(${VISITATORI.ACCESSO AL}, '%e/%c') AS 'A', ${VISITATORI.MOTIVAZIONE} AS 'MOTIVAZIONE' FROM ${VISITATORI} ORDER BY ${VISITATORI.ORGANIZZAZIONE/ENTE/SOCIETA'},${VISITATORI.COGNOME},${VISITATORI.NOME}</mysqlQuery>
+		<sqliteQuery>SELECT ${VISITATORI.ORGANIZZAZIONE/ENTE/SOCIETA'} AS 'ORG./ENTE/SOC.', ${VISITATORI.COGNOME} AS 'COGNOME', ${VISITATORI.NOME} AS 'NOME', strftime('%d/%m', date(${VISITATORI.ACCESSO DAL})) AS 'DA',strftime('%d/%m', date(${VISITATORI.ACCESSO DA})) AS 'A', ${VISITATORI.MOTIVAZIONE} AS 'MOTIVAZIONE' FROM ${VISITATORI} ORDER BY ${VISITATORI.ORGANIZZAZIONE/ENTE/SOCIETA'},${VISITATORI.COGNOME},${VISITATORI.NOME}</sqliteQuery>
+		<graphs>
+			<graph>
+				<id>1</id>
+				<type>table</type>
+				<title>Elenco visitatori</title>
+				<sum>0</sum>
+			</graph>
+		</graphs>
+	</report>	
+	
+
+	<report>
+		<id>7</id>
 		<query>SELECT ${DANNEGGIAMENTI.NUMERO SEGNALAZIONE} AS 'N.', ${DANNEGGIAMENTI.ORGANIZZAZIONE} AS 'ORGANIZZAZIONE', ${DANNEGGIAMENTI.MEZZO/ATTREZZATURA} AS 'MEZZO/ATTREZZATURA', ${DANNEGGIAMENTI.NOTE} AS 'NOTA' FROM ${DANNEGGIAMENTI}</query>
 		<graphs>
 			<graph>
@@ -115,7 +129,7 @@ ORDER BY
 	</report>
 
 	<report>
-		<id>7</id>
+		<id>8</id>
 		<query/>
 		<mysqlQuery>(SELECT ${BROGLIACCIO.Data/ora} AS TS,DATE_FORMAT(${BROGLIACCIO.Data/ora}, '%e/%c %H:%i') AS 'Data/ora', 'SEGRETERIA' AS 'Funzione',${BROGLIACCIO.descrizione} AS 'Descrizione' FROM ${brogliaccio}) UNION (SELECT ${COMUNICAZIONI RADIO.Data/ora} AS TS,DATE_FORMAT(${COMUNICAZIONI RADIO.Data/ora}, '%e/%c %H:%i') AS 'Data/ora', 'SALA RADIO' AS 'Funzione',CONCAT('Da ',${COMUNICAZIONI RADIO.chiamante},' a ',${COMUNICAZIONI RADIO.chiamato},': ',${COMUNICAZIONI RADIO.messaggio}) AS 'Descrizione' FROM ${COMUNICAZIONI RADIO}) ORDER BY TS </mysqlQuery>
 		<sqliteQuery>
