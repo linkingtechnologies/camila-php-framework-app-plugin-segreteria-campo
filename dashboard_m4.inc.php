@@ -8,9 +8,9 @@ $camilaUI->insertText('Versione del ' . date('d-m-Y', strtotime(CamilaPlugins::g
 $camilaUI->insertLineBreak();
 $camilaUI->insertLineBreak();
 
-$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="row columns">'));	
+$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="row columns">'));
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-4 column is-12-mobile is-4-desktop">'));
-$camilaUI->insertButton('plugins/segreteria-campo/docs/it/html/manual.html', 'Manuale','globe');
+$camilaUI->insertButton('plugins/segreteria-campo/docs.php', 'Manuale','globe',true,'','_blank');
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-4 column is-12-mobile is-4-desktop">'));
 $camilaUI->insertButton('?dashboard=iw', 'Importa dati esempio','upload');
