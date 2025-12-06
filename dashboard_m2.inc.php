@@ -24,7 +24,7 @@ $camilaUI->insertTitle('Server', 'hdd');
 
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="row columns">'));	
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-4 column is-12-mobile is-4-desktop">'));
-$camilaUI->insertButton('?dashboard=00', camila_get_translation('camila.serveraddress'),'globe');
+$camilaUI->insertButton('?dashboard=00', 'Info Server','globe');
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-4 column is-12-mobile is-4-desktop">'));
 $camilaUI->insertButton('?dashboard=30', 'Backup schede dati','download');
