@@ -34,6 +34,4 @@ $camilaUI->insertButton('?dashboard=31', 'Backup applicazione','download');
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
 $camilaUI->closeBox();
-
-
 ?>
