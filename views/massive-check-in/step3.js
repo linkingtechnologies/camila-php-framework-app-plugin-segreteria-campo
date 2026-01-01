@@ -221,8 +221,6 @@ export async function Step3({ state, client, goTo, html, render, root }) {
 
     return html`
       <div class="box">
-        <h2 class="subtitle">Step 3 — Conferma</h2>
-
         <p>
           <strong>${safe(org.name)}</strong>
           ${org.code ? html`<span class="tag ml-2">${safe(org.code)}</span>` : ""}

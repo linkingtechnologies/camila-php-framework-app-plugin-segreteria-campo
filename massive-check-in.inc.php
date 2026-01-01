@@ -1,7 +1,7 @@
 <?php
 
-$camilaAuth = new CamilaAuth();
-$sessionId = $camilaAuth->getSessionId();
+/*$camilaAuth = new CamilaAuth();
+$sessionId = $camilaAuth->getSessionId();*/
 
 $scheme = is_https() ? 'https' : 'http';
 $host = $_SERVER['HTTP_HOST'];
@@ -9,9 +9,7 @@ $dir = __DIR__;
 $pluginName = basename($dir);
 
 $config = [
-    'baseUrl' => $scheme.'://'.$host.'/app/'.CAMILA_APP_DIR.'/cf_api.php',
-    'apiKeyHeaderName' => 'X-API-Key',
-    'apiKeyHeaderValue' => $sessionId
+    'baseUrl' => $scheme.'://'.$host.'/app/'.CAMILA_APP_DIR.'/cf_api.php'
 ];
 
 global $_CAMILA;

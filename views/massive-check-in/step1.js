@@ -17,7 +17,6 @@ function norm(s) {
 }
 
 function makeKey(it) {
-  // chiave composta per deduplicare tra tabelle
   return [
     norm(it.org).toLowerCase(),
     norm(it.code).toLowerCase(),
@@ -25,9 +24,89 @@ function makeKey(it) {
   ].join("|");
 }
 
-/**
- * Estrae organizzazioni DISTINCT da una tabella
- */
+/* =========================
+   error handling
+   ========================= */
+
+function normalizeApiError(err) {
+  const raw = err?.payload ?? err?.response ?? err;
+
+  const status =
+    raw?.status ??
+    raw?.statusCode ??
+    err?.status ??
+    err?.statusCode ??
+    raw?.response?.status;
+
+  const code =
+    raw?.code ??
+    err?.code ??
+    raw?.error?.code;
+
+  const message =
+    raw?.message ??
+    err?.message ??
+    raw?.error?.message ??
+    (typeof raw === "string" ? raw : "Errore sconosciuto");
+
+  let kind = "unknown";
+  if (status === 401 || status === 403) kind = "auth";
+  else if (status === 404) kind = "not_found";
+  else if (status === 429) kind = "rate_limit";
+  else if (status >= 500) kind = "server";
+  else if (code === "ETIMEDOUT" || code === "ECONNABORTED") kind = "timeout";
+  else if (code === "ENETUNREACH" || code === "ECONNRESET") kind = "network";
+
+  return { status, code, message, kind, raw };
+}
+
+function userFriendlyErrorText(e) {
+  switch (e.kind) {
+    case "auth":
+      return "Sessione scaduta o permessi insufficienti. Ricarica la pagina o rifai login.";
+    case "rate_limit":
+      return "Troppe richieste in poco tempo. Attendi qualche secondo e riprova.";
+    case "timeout":
+    case "network":
+      return "Problema di connessione. Controlla la rete e riprova.";
+    case "server":
+      return "Il server sta avendo problemi. Riprova tra poco.";
+    case "not_found":
+      return "Risorsa non trovata (tabella o endpoint inesistente).";
+    default:
+      return "Si è verificato un errore durante il caricamento dei dati.";
+  }
+}
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function shouldRetry(e) {
+  return ["network", "timeout", "server", "rate_limit"].includes(e.kind);
+}
+
+async function withRetry(fn, { retries = 2, baseDelay = 400 } = {}) {
+  let last;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      last = normalizeApiError(err);
+      if (attempt === retries || !shouldRetry(last)) throw last;
+
+      const delay =
+        baseDelay * Math.pow(2, attempt) +
+        Math.floor(Math.random() * 150);
+
+      await sleep(delay);
+    }
+  }
+  throw last;
+}
+
+/* =========================
+   data loading
+   ========================= */
+
 async function loadDistinctOrganizations(client, tableName) {
   const API = client.table(tableName);
 
@@ -36,23 +115,20 @@ async function loadDistinctOrganizations(client, tableName) {
     size: 5000
   });
 
-  const rows = getRecords(res);
+  // TODO: se l'SDK supporta paginazione, ciclare qui
 
-  const map = new Map(); // key -> { org, code, provincia }
+  const rows = getRecords(res);
+  const map = new Map();
 
   for (const r of rows) {
     const org = norm(r["organizzazione"]);
     const code = norm(r["codice-organizzazione"]);
     const provincia = norm(r["provincia"]);
-
     if (!org) continue;
 
     const item = { org, code, provincia };
     const key = makeKey(item);
-
-    if (!map.has(key)) {
-      map.set(key, item);
-    }
+    if (!map.has(key)) map.set(key, item);
   }
 
   return Array.from(map.values());
@@ -64,35 +140,58 @@ async function loadDistinctOrganizations(client, tableName) {
 
 export async function Step1({ state, client, goTo, html, render, root }) {
   let loading = true;
+  let retrying = false;
   let error = null;
   let items = [];
   let q = "";
 
+  let cancelled = false;
+
   async function load() {
+    loading = true;
+    retrying = false;
+    error = null;
+    rerender();
+
     try {
-      const [attesi, preacc] = await Promise.all([
-        loadDistinctOrganizations(client, "volontari-attesi"),
-        loadDistinctOrganizations(client, "volontari-preaccreditati")
+      const results = await Promise.allSettled([
+        withRetry(() =>
+          loadDistinctOrganizations(client, "volontari-attesi")
+        ),
+        withRetry(() =>
+          loadDistinctOrganizations(client, "volontari-preaccreditati")
+        )
       ]);
 
-      // merge finale senza duplicati
+      const attesi =
+        results[0].status === "fulfilled" ? results[0].value : [];
+      const preacc =
+        results[1].status === "fulfilled" ? results[1].value : [];
+
       const merged = new Map();
       for (const it of [...attesi, ...preacc]) {
         const key = makeKey(it);
         if (!merged.has(key)) merged.set(key, it);
       }
 
-      items = Array.from(merged.values())
-        .sort((a, b) => a.org.localeCompare(b.org, "it"));
+      items = Array.from(merged.values()).sort((a, b) =>
+        a.org.localeCompare(b.org, "it")
+      );
+
+      const failures = results.filter(r => r.status === "rejected");
+      if (failures.length) {
+        error = normalizeApiError(failures[0].reason);
+      }
     } catch (e) {
-      error = e;
+      error = normalizeApiError(e);
     } finally {
       loading = false;
-      rerender();
+      if (!cancelled) rerender();
     }
   }
 
   function select(it) {
+    state.org = state.org || {};
     state.org.name = it.org;
     state.org.code = it.code;
     state.org.province = it.provincia;
@@ -100,37 +199,69 @@ export async function Step1({ state, client, goTo, html, render, root }) {
   }
 
   function view() {
-    const filtered = q
+    const needle = q ? q.toLocaleLowerCase("it-IT") : "";
+    const filtered = needle
       ? items.filter(it =>
           `${it.org} ${it.code} ${it.provincia}`
-            .toLowerCase()
-            .includes(q.toLowerCase())
+            .toLocaleLowerCase("it-IT")
+            .includes(needle)
         )
       : items;
 
     return html`
       <div class="box">
-        <h2 class="subtitle">Step 1 — Organizzazione</h2>
-
         <div class="field">
           <input
             class="input"
             placeholder="Cerca organizzazione…"
             .value=${q}
-            @input=${e => { q = e.target.value; rerender(); }}
+            @input=${e => {
+              q = e.target.value;
+              rerender();
+            }}
             ?disabled=${loading}
           />
         </div>
 
         ${loading
           ? html`<progress class="progress is-small is-primary"></progress>`
-          : ""}
+          : html`<p class="help">${filtered.length} risultati</p>`}
 
         ${error
           ? html`
               <article class="message is-danger">
                 <div class="message-body">
-                  ${String(error && (error.payload || error.message || error))}
+                  <p>${userFriendlyErrorText(error)}</p>
+
+                  <div class="buttons mt-2">
+                    <button
+                      class="button is-light"
+                      ?disabled=${loading || retrying}
+                      @click=${async () => {
+                        retrying = true;
+                        rerender();
+                        await load();
+                      }}
+                    >
+                      Riprova
+                    </button>
+                  </div>
+
+                  <details class="mt-2">
+                    <summary>Dettagli tecnici</summary>
+                    <pre style="white-space:pre-wrap;margin:0">
+${JSON.stringify(
+  {
+    status: error.status,
+    code: error.code,
+    message: error.message,
+    kind: error.kind
+  },
+  null,
+  2
+)}
+                    </pre>
+                  </details>
                 </div>
               </article>
             `
@@ -142,24 +273,33 @@ export async function Step1({ state, client, goTo, html, render, root }) {
         >
           <ul class="menu-list">
             ${(!loading && filtered.length === 0)
-              ? html`<li><a class="is-disabled">Nessun risultato</a></li>`
+              ? html`<li><span class="is-disabled">Nessun risultato</span></li>`
               : ""}
 
-            ${filtered.map(it => html`
-              <li>
-                <a @click=${() => select(it)}>
-                  <strong>${it.org}</strong>
+            ${filtered.map(
+              it => html`
+                <li>
+                  <button
+                    type="button"
+                    class="button is-white is-fullwidth"
+                    style="justify-content:flex-start;text-align:left;white-space:normal"
+                    @click=${() => select(it)}
+                  >
+                    <strong>${it.org}</strong>
 
-                  ${it.provincia
-                    ? html`<span class="tag is-light ml-2">${it.provincia}</span>`
-                    : ""}
+                    ${it.provincia
+                      ? html`<span class="tag is-light ml-2"
+                          >${it.provincia}</span
+                        >`
+                      : ""}
 
-                  ${it.code
-                    ? html`<span class="tag ml-2">${it.code}</span>`
-                    : ""}
-                </a>
-              </li>
-            `)}
+                    ${it.code
+                      ? html`<span class="tag ml-2">${it.code}</span>`
+                      : ""}
+                  </button>
+                </li>
+              `
+            )}
           </ul>
         </div>
       </div>
@@ -170,7 +310,10 @@ export async function Step1({ state, client, goTo, html, render, root }) {
     render(view(), root);
   }
 
-  // kick-off
   load();
+
+  // se il framework supporta cleanup:
+  // return () => { cancelled = true; }
+
   return view();
 }

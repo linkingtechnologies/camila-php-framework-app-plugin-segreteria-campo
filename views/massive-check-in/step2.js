@@ -372,7 +372,6 @@ export async function Step2({ state, client, goTo, html, render, root }) {
             </h3>
 
             <div class="field" style="margin-bottom:0; min-width:360px;">
-              <label class="label" style="margin-bottom:0.25rem;">Cerca</label>
               <div class="control">
                 <input class="input"
                   placeholder="Cerca per CF, cognome, nome, turno…"
@@ -390,7 +389,6 @@ export async function Step2({ state, client, goTo, html, render, root }) {
           ${kind === "pre" ? html`
             <div class="level-right" style="min-width:420px">
               <div class="field" style="margin-bottom:0;">
-                <label class="label" style="margin-bottom:0.25rem;">Filtro turno</label>
                 <div class="control">
                   <div class="select is-fullwidth">
                     <select
@@ -566,8 +564,6 @@ export async function Step2({ state, client, goTo, html, render, root }) {
   function view() {
     return html`
       <div class="box">
-        <h2 class="subtitle">Step 2 — Check-in</h2>
-
         <p>
           <strong>${state.org.name}</strong>
           ${state.org.code ? html`<span class="tag ml-2">${state.org.code}</span>` : ""}
