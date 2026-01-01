@@ -287,15 +287,16 @@ ${JSON.stringify(
                   >
                     <strong>${it.org}</strong>
 
+                    ${it.code
+                      ? html`<span class="tag ml-2">${it.code}</span>`
+                      : ""}
+
                     ${it.provincia
                       ? html`<span class="tag is-light ml-2"
                           >${it.provincia}</span
                         >`
                       : ""}
 
-                    ${it.code
-                      ? html`<span class="tag ml-2">${it.code}</span>`
-                      : ""}
                   </button>
                 </li>
               `

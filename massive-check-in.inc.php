@@ -44,6 +44,13 @@ $html = <<<HTML
   user-select: none;
 }
 
+tr.is-readonly {
+  opacity: 0.75;
+}
+tr.is-readonly select,
+tr.is-readonly input {
+  cursor: not-allowed;
+}
 
 
 </style>

@@ -389,14 +389,28 @@ export async function Step2({ state, client, goTo, html, render, root }) {
           ${kind === "pre" ? html`
             <div class="level-right" style="min-width:420px">
               <div class="field" style="margin-bottom:0;">
-                <div class="control">
-                  <div class="select is-fullwidth">
-                    <select
-                      .value=${turnoFilter}
-                      @change=${e => { turnoFilter = e.target.value; state.preTurnoFilter = turnoFilter; rerender(); }}>
-                      <option value="">Tutti i turni</option>
-                      ${turniOptions.map(t => html`<option value=${t}>${t}</option>`)}
-                    </select>
+                <!-- VARIANTE: select + button su stessa riga con gap -->
+                <div style="display:flex; gap:0.75rem; align-items:flex-end;">
+                  <div class="control" style="flex:1;">
+                    <div class="select is-fullwidth">
+                      <select
+                        .value=${turnoFilter}
+                        @change=${e => {
+                          turnoFilter = e.target.value;
+                          state.preTurnoFilter = turnoFilter;
+                          rerender();
+                        }}>
+                        <option value="">Tutti i turni</option>
+                        ${turniOptions.map(t => html`<option value=${t}>${t}</option>`)}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div class="control">
+                    <button class="button is-info is-small"
+                      @click=${openModal}>
+                      + Aggiungi volontario
+                    </button>
                   </div>
                 </div>
               </div>
@@ -571,27 +585,28 @@ export async function Step2({ state, client, goTo, html, render, root }) {
         </p>
 
         <div class="buttons mt-2">
+          <button class="button is-light is-small"
+                  @click=${() => goTo(1)}>
+            Indietro
+          </button>
+
           <button class="button is-small"
                   @click=${deselectAll}
                   ?disabled=${selected.size === 0}>
             Deseleziona tutto
           </button>
 
+          <button class="button is-small"
+                  @click=${() => goTo(4)}>
+            Passa direttamente a Check-in mezzi
+          </button>
+
           <button class="button is-primary is-small"
                   ?disabled=${selected.size === 0}
                   @click=${doCheckin}>
-            Check-in (${selected.size})
+            Check-in volontari selezionati (${selected.size})
           </button>
 
-          <button class="button is-info is-small"
-                  @click=${openModal}>
-            + Aggiungi volontario
-          </button>
-
-          <button class="button is-light is-small"
-                  @click=${() => goTo(1)}>
-            Indietro
-          </button>
         </div>
 
         ${loading ? html`<progress class="progress is-small is-primary"></progress>` : ""}
