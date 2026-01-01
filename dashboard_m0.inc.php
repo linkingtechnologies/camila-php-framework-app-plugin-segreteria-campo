@@ -6,6 +6,11 @@ $vSheet = $camilaWT->getWorktableSheetId('VOLONTARI');
 $mSheet = $camilaWT->getWorktableSheetId('MEZZI');
 $aSheet = $camilaWT->getWorktableSheetId('MATERIALI');
 
+$camilaUI = new CamilaUserInterface();
+$dir = __DIR__;
+$pluginName = basename($dir);
+$camilaUI->mountMiniApp($pluginName, '/app-smart-assistant.js', '/app.css');
+
 $camilaUI->openBox();
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="row columns">'));	
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-4 column is-12-mobile is-4-desktop">'));
