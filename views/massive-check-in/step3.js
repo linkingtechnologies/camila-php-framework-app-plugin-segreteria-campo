@@ -68,7 +68,7 @@ function buildVolontariInsertRow(selectionOrg, v) {
 
   // solo se benefici = SI
   if (benefici === "SI" && numGg) {
-    row["num.-gg.-ben.-legge"] = numGg;
+    row["num-gg-ben-legge"] = numGg;
   }
 
   return row;
