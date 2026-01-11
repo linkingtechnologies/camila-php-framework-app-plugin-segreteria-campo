@@ -4,7 +4,7 @@
   <id>m0</id>
   <title>GESTIONE RISORSE</title>
   <url>?dashboard=m0</url>
-  <pages>02,03,04,27,28,massive-check-in</pages>
+  <pages>02,03,04,27,28,massive-check-in,org-status,massive-check-out</pages>
  </tab>
  <tab>
    <id>m6</id>

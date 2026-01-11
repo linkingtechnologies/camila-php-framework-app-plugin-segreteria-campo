@@ -21,7 +21,7 @@ $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div><br/>'));
 
 $camilaUI->insertDivider();
 
-$camilaUI->insertText('Powered by Camila PHP Framework - Copyright (C) 2006-2025 Umberto Bresciani');
+$camilaUI->insertText('Powered by Camila PHP Framework - Copyright (C) 2006-2026 Umberto Bresciani');
 $camilaUI->insertText('Programma rilasciato sotto licenza GNU GPL');
 //$camilaUI->insertButton('https://it.wikipedia.org/wiki/GNU_General_Public_License', 'Licenza d\'uso','globe');
 

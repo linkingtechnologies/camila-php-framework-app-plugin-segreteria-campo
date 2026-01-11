@@ -417,7 +417,7 @@ export async function Step3({ state, client, goTo, html, render, root }) {
         <table class="table is-striped is-fullwidth is-hoverable">
           <thead>
             <tr>
-              ${selectable ? html`<th style="width:3.5rem">✓</th>` : ""}
+              ${selectable ? html`style="width:3.5rem">✓</th>` : ""}
               <th>Mezzo</th>
               <th>Servizio</th>
               <th>Km</th>

@@ -114,7 +114,7 @@ export async function Step2({ state, client, goTo, html, render, root }) {
             "autista",
             "cellulare",
             "benefici-di-legge",
-            "num.-gg.-ben.-legge",
+            "num-gg-ben-legge",
             "data-inizio-attestato",
             "data-fine-attestato",
             "data/ora-uscita-definitiva"
@@ -163,7 +163,7 @@ export async function Step2({ state, client, goTo, html, render, root }) {
           autista: safe(r["autista"]),
           cellulare: safe(r["cellulare"]),
           benefici: safe(r["benefici-di-legge"]),
-          numgg: safe(r["num.-gg.-ben.-legge"]),
+          numgg: safe(r["num-gg-ben-legge"]),
           inizio: safe(r["data-inizio-attestato"]),
           fine: safe(r["data-fine-attestato"])
         };
@@ -446,8 +446,6 @@ export async function Step2({ state, client, goTo, html, render, root }) {
 
     return html`
       <div class="box">
-        <h1 class="title is-5">Org Status — Step 2</h1>
-
         <p>
           <strong>${org.name}</strong>
           ${org.code ? html`<span class="tag ml-2">${org.code}</span>` : ""}
@@ -455,10 +453,10 @@ export async function Step2({ state, client, goTo, html, render, root }) {
         </p>
 
         <div class="buttons mt-3">
-          <button class="button is-light" ?disabled=${loading} @click=${() => goTo(1)}>
+          <button class="button is-light is-small" ?disabled=${loading} @click=${() => goTo(1)}>
             Cambia organizzazione
           </button>
-          <button class="button is-info" ?disabled=${loading} @click=${load}>
+          <button class="button is-info is-small" ?disabled=${loading} @click=${load}>
             Ricarica
           </button>
         </div>
@@ -474,10 +472,10 @@ export async function Step2({ state, client, goTo, html, render, root }) {
           : ""}
 
         <div class="columns is-multiline mt-3">
-          ${kpiCard("Volontari in servizio", vIn, "attestato iniziato, non chiuso")}
-          ${kpiCard("Volontari non in servizio", vNon, "attestato chiuso")}
-          ${kpiCard("Mezzi in servizio", mIn, "attestato iniziato, non chiuso")}
-          ${kpiCard("Mezzi non in servizio", mNon, "attestato chiuso")}
+          ${kpiCard("Volontari in servizio", vIn, "")}
+          ${kpiCard("Volontari non in servizio", vNon, "")}
+          ${kpiCard("Mezzi in servizio", mIn, "")}
+          ${kpiCard("Mezzi non in servizio", mNon, "")}
         </div>
 
         ${(volOther.length || mezOther.length) ? html`
@@ -487,7 +485,7 @@ export async function Step2({ state, client, goTo, html, render, root }) {
               ${volOther.length ? html`<span class="tag is-warning is-light mr-2">Volontari “dati incompleti”: ${volOther.length}</span>` : ""}
               ${mezOther.length ? html`<span class="tag is-warning is-light">Mezzi “dati incompleti”: ${mezOther.length}</span>` : ""}
               <div class="help mt-2">
-                Questi record non rispettano le regole (manca data-inizio-attestato oppure è incoerente) e non sono inclusi nei conteggi principali.
+                Questi record non rispettano le regole (manca data inizio attestato oppure è incoerente) e non sono inclusi nei conteggi principali.
               </div>
             </div>
           </article>

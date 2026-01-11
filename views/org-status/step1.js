@@ -184,8 +184,6 @@ export async function Step1({ state, client, goTo, html, render, root }) {
 
     return html`
       <div class="box">
-        <h1 class="title is-5">Org Status — Step 1</h1>
-
         <div class="field">
           <input
             class="input"
