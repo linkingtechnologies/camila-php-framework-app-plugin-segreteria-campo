@@ -274,7 +274,7 @@ export async function Step2({ state, client, goTo, html, render, root }) {
             <div class="field" style="margin-bottom:0; min-width:420px;">
               <div class="control">
                 <input
-                  class="input"
+                  class="input is-small"
                   placeholder="Cerca volontari..."
                   .value=${vq}
                   ?disabled=${loading}
@@ -374,7 +374,7 @@ export async function Step2({ state, client, goTo, html, render, root }) {
             <div class="field" style="margin-bottom:0; min-width:420px;">
               <div class="control">
                 <input
-                  class="input"
+                  class="input is-small"
                   placeholder="Cerca mezzi..."
                   .value=${mq}
                   ?disabled=${loading}

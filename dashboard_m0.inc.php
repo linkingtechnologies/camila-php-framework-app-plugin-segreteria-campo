@@ -12,7 +12,7 @@ $pluginName = basename($dir);
 $camilaUI->mountMiniApp($pluginName, '/app-smart-assistant.js', '/app.css');
 
 $camilaUI->openBox();
-$camilaUI->insertTitle('Gestione Organizzazioni (beta)', 'team');
+$camilaUI->insertTitle('Gestione Organizzazioni', 'team');
 $camilaUI->addGridSection(3, function ($colIndex) use ($camilaUI) {
 	switch ($colIndex) {
 		case 0:

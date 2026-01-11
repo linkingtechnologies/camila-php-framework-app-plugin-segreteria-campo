@@ -609,7 +609,7 @@ function cellMansioneServizio(r, rowReadOnly) {
             <div class="field" style="margin-bottom:0; min-width:420px;">
               <div class="control">
                 <input
-                  class="input"
+                  class="input is-small"
                   placeholder="Cerca volontari..."
                   .value=${qIn}
                   ?disabled=${loading || busyCheckout}
@@ -659,7 +659,7 @@ function cellMansioneServizio(r, rowReadOnly) {
             <div class="field" style="margin-bottom:0; min-width:420px;">
               <div class="control">
                 <input
-                  class="input"
+                  class="input is-small"
                   placeholder="Cerca volontari..."
                   .value=${qNon}
                   ?disabled=${loading || busyCheckout}

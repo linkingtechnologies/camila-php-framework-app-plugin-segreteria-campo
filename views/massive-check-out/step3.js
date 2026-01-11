@@ -417,7 +417,7 @@ export async function Step3({ state, client, goTo, html, render, root }) {
         <table class="table is-striped is-fullwidth is-hoverable">
           <thead>
             <tr>
-              ${selectable ? html`style="width:3.5rem">✓</th>` : ""}
+              ${selectable ? html`<th style="width:3.5rem">✓</th>` : ""}
               <th>Mezzo</th>
               <th>Servizio</th>
               <th>Km</th>
@@ -518,7 +518,7 @@ export async function Step3({ state, client, goTo, html, render, root }) {
             <div class="field" style="margin-bottom:0; min-width:420px;">
               <div class="control">
                 <input
-                  class="input"
+                  class="input is-small"
                   placeholder="Cerca mezzi..."
                   .value=${qIn}
                   ?disabled=${loading || busyCheckout}
@@ -575,7 +575,7 @@ export async function Step3({ state, client, goTo, html, render, root }) {
             <div class="field" style="margin-bottom:0; min-width:420px;">
               <div class="control">
                 <input
-                  class="input"
+                  class="input is-small"
                   placeholder="Cerca mezzi..."
                   .value=${qNon}
                   ?disabled=${loading || busyCheckout}

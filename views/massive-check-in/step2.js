@@ -373,7 +373,7 @@ export async function Step2({ state, client, goTo, html, render, root }) {
 
             <div class="field" style="margin-bottom:0; min-width:360px;">
               <div class="control">
-                <input class="input"
+                <input class="input is-small"
                   placeholder="Cerca per CF, cognome, nome, turno…"
                   .value=${searchValue}
                   @input=${e => {
@@ -392,7 +392,7 @@ export async function Step2({ state, client, goTo, html, render, root }) {
                 <!-- VARIANTE: select + button su stessa riga con gap -->
                 <div style="display:flex; gap:0.75rem; align-items:flex-end;">
                   <div class="control" style="flex:1;">
-                    <div class="select is-fullwidth">
+                    <div class="select is-fullwidth is-small">
                       <select
                         .value=${turnoFilter}
                         @change=${e => {
@@ -497,10 +497,10 @@ export async function Step2({ state, client, goTo, html, render, root }) {
               </article>
             ` : ""}
 
-            <div class="field">
+            <div class="field is-small">
               <label class="label">Codice fiscale</label>
               <div class="control">
-                <input class="input"
+                <input class="input is-small"
                   .value=${form.cf}
                   ?disabled=${modalBusy}
                   placeholder="RSSMRA80A01H501U"
@@ -596,15 +596,15 @@ export async function Step2({ state, client, goTo, html, render, root }) {
             Deseleziona tutto
           </button>
 
-          <button class="button is-small"
-                  @click=${() => goTo(4)}>
-            Passa direttamente a Check-in mezzi
-          </button>
-
           <button class="button is-primary is-small"
                   ?disabled=${selected.size === 0}
                   @click=${doCheckin}>
             Check-in volontari selezionati (${selected.size})
+          </button>
+
+          <button class="button is-small"
+                  @click=${() => goTo(4)}>
+            Passa direttamente a Check-in mezzi
           </button>
 
         </div>
@@ -617,8 +617,8 @@ export async function Step2({ state, client, goTo, html, render, root }) {
         ` : ""}
       </div>
 
-      ${section("Preaccreditati", "pre")}
-      ${section("Attesi", "att")}
+      ${section("Volontari preaccreditati", "pre")}
+      ${section("Volontari attesi", "att")}
 
       ${modal()}
     `;
