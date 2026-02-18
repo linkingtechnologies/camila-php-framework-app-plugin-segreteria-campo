@@ -156,7 +156,7 @@ export async function Step1({ state, client, goTo, html, render, root }) {
     try {
       const results = await Promise.allSettled([
         withRetry(() =>
-          loadDistinctOrganizations(client, "volontari-attesi")
+          loadDistinctOrganizations(client, "db-volontari")
         ),
         withRetry(() =>
           loadDistinctOrganizations(client, "volontari-preaccreditati")

@@ -196,7 +196,7 @@ export async function Step4({ state, client, goTo, html, render, root }) {
   let loadAllAttesi = state.loadAllAttesi;
 
   const Pre = client.table("mezzi-preaccreditati");
-  const Att = client.table("mezzi-attesi");
+  const Att = client.table("db-mezzi");
 
   /* ----------------- MODAL: dropdown values ----------------- */
 
@@ -789,7 +789,7 @@ export async function Step4({ state, client, goTo, html, render, root }) {
               .checked=${loadAllAttesi}
               ?disabled=${loading || modalBusy}
               @change=${e => toggleLoadAllAttesi(e.target.checked)}>
-            Carica tutti i mezzi attesi (ignora filtro organizzazione)
+            Carica tutti i mezzi nel database (ignora filtro organizzazione)
           </label>
         </div>
 
@@ -820,8 +820,8 @@ export async function Step4({ state, client, goTo, html, render, root }) {
         ` : ""}
       </div>
 
-      ${section("Preaccreditati", "pre")}
-      ${section("Attesi", "att")}
+      ${section("Mezzi preaccreditati", "pre")}
+      ${section("DB mezzi", "att")}
 
       ${modal()}
     `;

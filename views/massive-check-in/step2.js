@@ -159,7 +159,7 @@ export async function Step2({ state, client, goTo, html, render, root }) {
   let attSearch = state.attSearch;
 
   const Pre = client.table("volontari-preaccreditati");
-  const Att = client.table("volontari-attesi");
+  const Att = client.table("db-volontari");
 
   // Modal state for manual volunteer insertion
   let modalOpen = false;
@@ -187,7 +187,7 @@ export async function Step2({ state, client, goTo, html, render, root }) {
         }),
         Att.list({
           filters: [client.filter("organizzazione", "eq", state.org.name)],
-          include: ["codice-fiscale", "cognome", "nome", "turno"],
+          include: ["codice-fiscale", "cognome", "nome"],
           size: 5000
         })
       ]);
@@ -618,7 +618,7 @@ export async function Step2({ state, client, goTo, html, render, root }) {
       </div>
 
       ${section("Volontari preaccreditati", "pre")}
-      ${section("Volontari attesi", "att")}
+      ${section("DB Volontari", "att")}
 
       ${modal()}
     `;
