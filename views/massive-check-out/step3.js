@@ -511,8 +511,12 @@ export async function Step3({ state, client, goTo, html, render, root }) {
         <div class="level">
           <div class="level-left" style="gap:1rem; align-items:flex-end;">
             <h3 class="subtitle" style="margin-bottom:0;">
-              Mezzi in servizio
-              <span class="tag is-light ml-2">${rows.length}</span>
+			<span class="icon mr-2">
+    <i class="ri-truck-line ri-lg"></i>
+  </span>
+
+              <span>Mezzi in servizio
+              <span class="tag is-light ml-2">${rows.length}</span></span>
             </h3>
 
             <div class="field" style="margin-bottom:0; min-width:420px;">
@@ -568,8 +572,12 @@ export async function Step3({ state, client, goTo, html, render, root }) {
         <div class="level">
           <div class="level-left" style="gap:1rem; align-items:flex-end;">
             <h3 class="subtitle" style="margin-bottom:0;">
-              Mezzi non in servizio
-              <span class="tag is-light ml-2">${rows.length}</span>
+			<span class="icon mr-2">
+    <i class="ri-truck-line ri-lg"></i>
+  </span>
+
+              <span>Mezzi non più in servizio
+              <span class="tag is-light ml-2">${rows.length}</span></span>
             </h3>
 
             <div class="field" style="margin-bottom:0; min-width:420px;">
@@ -617,6 +625,10 @@ export async function Step3({ state, client, goTo, html, render, root }) {
             @click=${checkoutSelected}
           >
             ${busyCheckout ? "Check-out in corso…" : `Check-out mezzi selezionati (${selected.size})`}
+          </button>
+		  
+		  <button class="button is-small" ?disabled=${loading || busyCheckout} @click=${() => goTo(4)}>
+            Passa a Check-out materiali
           </button>
         </div>
 

@@ -154,18 +154,22 @@ export async function Step1({ state, client, goTo, html, render, root }) {
     rerender();
 
     try {
+      // ✅ aggiunta tabella "materiali"
       const results = await Promise.allSettled([
         withRetry(() => loadDistinctOrganizations(client, "volontari")),
-        withRetry(() => loadDistinctOrganizations(client, "mezzi"))
+        withRetry(() => loadDistinctOrganizations(client, "mezzi")),
+        withRetry(() => loadDistinctOrganizations(client, "materiali"))
       ]);
 
       const volontari =
         results[0].status === "fulfilled" ? results[0].value : [];
       const mezzi =
         results[1].status === "fulfilled" ? results[1].value : [];
+      const materiali =
+        results[2].status === "fulfilled" ? results[2].value : [];
 
       const merged = new Map();
-      for (const it of [...volontari, ...mezzi]) {
+      for (const it of [...volontari, ...mezzi, ...materiali]) {
         const key = makeKey(it);
         if (!merged.has(key)) merged.set(key, it);
       }

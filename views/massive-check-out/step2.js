@@ -11,8 +11,6 @@ function normSpaces(v) {
 }
 
 function normMansione(v) {
-  // Se vuoi mantenerla case-sensitive, togli toUpperCase().
-  // Io lo lascio, perché la tua lista è tutta maiuscola.
   return normSpaces(v).toUpperCase();
 }
 
@@ -24,7 +22,7 @@ function getRecords(res) {
 }
 
 /* =========================
-   Config (copiato da check-in UI)
+   Config
    ========================= */
 
 const DEFAULT_SERVIZIO = "IN ATTESA DI SERVIZIO";
@@ -602,8 +600,12 @@ function cellMansioneServizio(r, rowReadOnly) {
         <div class="level">
           <div class="level-left" style="gap:1rem; align-items:flex-end;">
             <h3 class="subtitle" style="margin-bottom:0;">
-              Volontari in servizio
-              <span class="tag is-light ml-2">${rows.length}</span>
+			<span class="icon mr-2">
+    <i class="ri-user-line ri-lg"></i>
+  </span>
+
+              <span>Volontari in servizio
+              <span class="tag is-light ml-2">${rows.length}</span></span>
             </h3>
 
             <div class="field" style="margin-bottom:0; min-width:420px;">
@@ -652,8 +654,12 @@ function cellMansioneServizio(r, rowReadOnly) {
         <div class="level">
           <div class="level-left" style="gap:1rem; align-items:flex-end;">
             <h3 class="subtitle" style="margin-bottom:0;">
-              Volontari non più in servizio
-              <span class="tag is-light ml-2">${rows.length}</span>
+			<span class="icon mr-2">
+    <i class="ri-user-line ri-lg"></i>
+  </span>
+
+              <span>Volontari non più in servizio
+              <span class="tag is-light ml-2">${rows.length}</span></span>
             </h3>
 
             <div class="field" style="margin-bottom:0; min-width:420px;">

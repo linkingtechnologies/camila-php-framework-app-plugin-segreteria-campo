@@ -1,4 +1,5 @@
 // ./views/org-status/step1.js
+
 function getRecords(res) {
   if (Array.isArray(res)) return res;
   if (res && Array.isArray(res.records)) return res.records;
@@ -135,16 +136,19 @@ export async function Step1({ state, client, goTo, html, render, root }) {
     rerender();
 
     try {
+      // ✅ aggiunta "materiali"
       const results = await Promise.allSettled([
         withRetry(() => loadDistinctOrganizations(client, "volontari")),
-        withRetry(() => loadDistinctOrganizations(client, "mezzi"))
+        withRetry(() => loadDistinctOrganizations(client, "mezzi")),
+        withRetry(() => loadDistinctOrganizations(client, "materiali"))
       ]);
 
       const vol = results[0].status === "fulfilled" ? results[0].value : [];
       const mez = results[1].status === "fulfilled" ? results[1].value : [];
+      const mat = results[2].status === "fulfilled" ? results[2].value : [];
 
       const merged = new Map();
-      for (const it of [...vol, ...mez]) {
+      for (const it of [...vol, ...mez, ...mat]) {
         const key = makeKey(it);
         if (!merged.has(key)) merged.set(key, it);
       }

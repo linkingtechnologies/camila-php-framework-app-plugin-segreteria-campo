@@ -86,6 +86,18 @@ async function mount() {
       return;
     }
 
+    if (state.step === 4) {
+      // Guard: must have org
+      if (!state.org || !state.org.name) {
+        state.step = 1;
+        return mount();
+      }
+
+      const { Step4 } = await loadStep(4);
+      render(await Step4({ state, client, goTo, html, render, root }), root);
+      return;
+    }
+
     // Fallback
     state.step = 1;
     const { Step1 } = await loadStep(1);
