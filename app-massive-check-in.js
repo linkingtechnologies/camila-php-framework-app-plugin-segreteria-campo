@@ -114,6 +114,17 @@ async function mount() {
       return;
     }
 
+    if (state.step === 6) {
+      const { Step6 } = await loadStep(6);
+      render(await Step6({ state, client, goTo, html, render, root }), root);
+      return;
+    }
+
+    if (state.step === 7) {
+      const { Step7 } = await loadStep(7);
+      render(await Step7({ state, client, goTo, html, render, root }), root);
+      return;
+    }
     // fallback
     state.step = 1;
     const { Step1 } = await loadStep(1);

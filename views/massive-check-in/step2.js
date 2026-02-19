@@ -368,13 +368,16 @@ export async function Step2({ state, client, goTo, html, render, root }) {
         <div class="level">
           <div class="level-left" style="gap:1rem; align-items:flex-end;">
             <h3 class="subtitle" style="margin-bottom:0;">
+			<span class="icon">
+				<i class="ri-user-line ri-lg"></i>
+			</span>
               ${title} <span class="tag is-light ml-2">${rows.length}</span>
             </h3>
 
             <div class="field" style="margin-bottom:0; min-width:360px;">
               <div class="control">
                 <input class="input is-small"
-                  placeholder="Cerca per CF, cognome, nome, turno…"
+                  placeholder="Cerca per CF, cognome, nome, turno..."
                   .value=${searchValue}
                   @input=${e => {
                     const v = e.target.value;
@@ -436,7 +439,7 @@ export async function Step2({ state, client, goTo, html, render, root }) {
                 <th>Codice fiscale</th>
                 <th>Cognome</th>
                 <th>Nome</th>
-                <th>Turno</th>
+                <th>Turni</th>
               </tr>
             </thead>
             <tbody>
@@ -599,12 +602,26 @@ export async function Step2({ state, client, goTo, html, render, root }) {
           <button class="button is-primary is-small"
                   ?disabled=${selected.size === 0}
                   @click=${doCheckin}>
-            Check-in volontari selezionati (${selected.size})
+			<span class="icon">
+				<i class="ri-user-line ri-lg"></i>
+			</span>
+			<span>Check-in volontari selezionati (${selected.size})</span>
           </button>
 
           <button class="button is-small"
                   @click=${() => goTo(4)}>
-            Passa direttamente a Check-in mezzi
+			<span class="icon">
+				<i class="ri-truck-line ri-lg"></i>
+			</span>
+            <span>Passa direttamente a Check-in mezzi</span>
+          </button>
+
+          <button class="button is-small"
+                  @click=${() => goTo(6)}>
+			<span class="icon">
+				<i class="ri-tools-line ri-lg"></i>
+			</span>
+			<span>Passa direttamente a Check-in materiali</span>
           </button>
 
         </div>
@@ -618,7 +635,7 @@ export async function Step2({ state, client, goTo, html, render, root }) {
       </div>
 
       ${section("Volontari preaccreditati", "pre")}
-      ${section("DB Volontari", "att")}
+      ${section("Database Volontari", "att")}
 
       ${modal()}
     `;

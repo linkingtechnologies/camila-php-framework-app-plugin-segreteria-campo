@@ -22,6 +22,19 @@ function sortByTarga(a, b) {
   return a.targa.localeCompare(b.targa, "it");
 }
 
+function parseTurniValue(v) {
+  // supporta stringhe o array; se arriva "T1,T2" la splitta
+  if (Array.isArray(v)) return v.map(x => norm(x)).filter(Boolean);
+
+  const s = norm(v);
+  if (!s) return [];
+
+  return s
+    .split(/[,;|/]+/g)
+    .map(x => norm(x))
+    .filter(Boolean);
+}
+
 function pickFields(r) {
   return {
     inventario: norm(r["codice-inventario"]),
@@ -29,7 +42,10 @@ function pickFields(r) {
     tipologia: norm(r["tipologia"]),
     marca: norm(r["marca"]),
     modello: norm(r["modello"]),
-    note: norm(r["note"])
+    note: norm(r["note"]),
+    turni: parseTurniValue(r["turno"] ?? r["turni"] ?? r.turno ?? r.turni),
+	organizzazione: norm(r["organizzazione"]),
+    codiceOrganizzazione: norm(r["codice-organizzazione"]),
   };
 }
 
@@ -37,11 +53,21 @@ function mergeField(dst, src, key) {
   if (!dst[key] && src[key]) dst[key] = src[key];
 }
 
+function mergeTurni(dst, src) {
+  const a = Array.isArray(dst.turni) ? dst.turni : [];
+  const b = Array.isArray(src.turni) ? src.turni : [];
+  if (b.length === 0) return;
+
+  const set = new Set([...a, ...b].map(norm).filter(Boolean));
+  dst.turni = Array.from(set);
+}
+
 /**
  * Merge per targa:
  * - una riga per targa
  * - priorità: se la targa è in preaccreditati, va nella sezione "Preaccreditati"
  * - se presente anche in "attesi", non duplica: merge (riempiendo i campi mancanti)
+ * - TURNI: aggregati su tutti i record della stessa targa (mezzi-preaccreditati può avere più record)
  */
 function mergeByTarga(preRecords, attRecords) {
   const preMap = new Map();
@@ -65,8 +91,12 @@ function mergeByTarga(preRecords, attRecords) {
     mergeField(cur, extra, "marca");
     mergeField(cur, extra, "modello");
     mergeField(cur, extra, "note");
+	mergeField(cur, extra, "organizzazione");
+	mergeField(cur, extra, "codiceOrganizzazione");
+    mergeTurni(cur, extra);
   }
 
+  // ✅ IMPORTANT: se ci sono più record con stessa targa, upsert li aggrega
   preRecords.forEach(r => upsert(preMap, r));
   attRecords.forEach(r => upsert(attMap, r));
 
@@ -82,6 +112,9 @@ function mergeByTarga(preRecords, attRecords) {
       mergeField(row, att, "marca");
       mergeField(row, att, "modello");
       mergeField(row, att, "note");
+	  mergeField(row, att, "organizzazione");
+	  mergeField(row, att, "codicOorganizzazione");
+      mergeTurni(row, att);
     }
     preRows.push(row);
   }
@@ -106,12 +139,21 @@ function rowMatchesQuery(r, q) {
     r.tipologia,
     r.marca,
     r.modello,
-    r.note
+    r.note,
+	r.organizzazione,
+	r.codiceOrganizzazione,
+    ...(Array.isArray(r.turni) ? r.turni : [])
   ]
     .filter(Boolean)
     .join(" ")
     .toLowerCase();
   return hay.includes(s);
+}
+
+function rowMatchesTurno(r, turno) {
+  if (!turno) return true;
+  const list = Array.isArray(r.turni) ? r.turni : [];
+  return list.includes(turno);
 }
 
 function validateTarga(targa) {
@@ -130,10 +172,6 @@ function csvToOptions(csv) {
     .filter(Boolean);
 }
 
-/**
- * Tipologie CSV supports group labels prefixed with "--".
- * Example: "--Veicoli,Autovettura,Furgone,--Rimorchi,Carrello"
- */
 function parseTipologieCsv(csv) {
   const tokens = csvToOptions(csv);
 
@@ -191,40 +229,35 @@ export async function Step4({ state, client, goTo, html, render, root }) {
   let preSearch = state.preMezziSearch;
   let attSearch = state.attMezziSearch;
 
-  // Toggle: carica TUTTI i mezzi attesi (persistito)
+  // Toggle: carica TUTTI i mezzi in DB (persistito) -> UI solo in sezione DB
   if (state.loadAllAttesi === undefined) state.loadAllAttesi = false;
   let loadAllAttesi = state.loadAllAttesi;
+
+  // TURNI: filtro SOLO per sezione PRE (persistito)
+  if (state.step4TurnoFilter === undefined) state.step4TurnoFilter = "";
+  let turnoFilter = state.step4TurnoFilter;
+  let turniOptions = [""]; // "" = Tutti
 
   const Pre = client.table("mezzi-preaccreditati");
   const Att = client.table("db-mezzi");
 
   /* ----------------- MODAL: dropdown values ----------------- */
 
-  // Valori mostrati nelle tendine (separati da virgola)
   let CATEGORIE_OPTS =
     "Non assegnata,Imbarcazioni,Mezzi aerei,Mezzi speciali,Rimorchi,Veicoli";
 
   let TIPOLOGIE_OPTS =
     "Non assegnata,--Imbarcazioni,Barca,Gommone,Hovercraft,Moto d'acqua,--Mezzi aerei,Aeroplano,Drone,Elicottero,Idrovolante,ULM (ultraleggero motorizzato),--Mezzi speciali,Battipista,Bobcat,Escavatore,Listo spazzola,Motoslitta,Muletto,Sollevatore idraulico,Spargi sabbia e sale,Spazzaneve,Terna,--Rimorchi,Biga,Carrello,Carrello Appendice,Rimorchio,Roulotte,Semirimorchio,--Veicoli,Ambulanza,Autobotte,Autobus,Autocarro,Autogru,Autoidroschiuma,Automedica,Autopompa serbatoio (APS),Autoscala,Autovettura,Camper,Carro attrezzi,Fuoristrada,Furgone,Motociclo,Motrice,Trattore agricolo,Trattore stradale";
 
-  // Pre-parse tipologie once
   const TIP = parseTipologieCsv(TIPOLOGIE_OPTS);
 
   function normalizeCategoriaLabel(s) {
     return norm(s);
   }
 
-  /**
-   * Se categoria è selezionata (e NON è "Non assegnata"),
-   * la tendina Tipologia mostra SOLO le tipologie di quella categoria,
-   * e "Non assegnata" sparisce (quindi la tipologia diventa di fatto obbligatoria/pertinente).
-   */
   function getTipologieForCategoria(categoria) {
     const cat = normalizeCategoriaLabel(categoria);
-
-    // show everything if categoria not selected or "Non assegnata"
     if (!cat || cat === "Non assegnata") return { mode: "all" };
-
     const items = TIP.groupToItems.get(cat) || [];
     return { mode: "filtered", group: cat, items: [...items] };
   }
@@ -253,12 +286,11 @@ export async function Step4({ state, client, goTo, html, render, root }) {
     if (g) form.categoria = g;
   }
 
-  // Modal state: aggiungi mezzo
+  // Modal state
   let modalOpen = false;
   let modalBusy = false;
   let modalError = null;
 
-  // NOTE: inventario rimosso dalla modale
   let form = {
     targa: "",
     categoria: "",
@@ -281,7 +313,10 @@ export async function Step4({ state, client, goTo, html, render, root }) {
         "tipologia",
         "marca",
         "modello",
-        "note"
+        "note",
+        "turno",
+		"organizzazione",
+		"codice-organizzazione"
       ];
 
       const preReq = Pre.list({
@@ -303,8 +338,29 @@ export async function Step4({ state, client, goTo, html, render, root }) {
       const merged = mergeByTarga(getRecords(resPre), getRecords(resAtt));
       preRows = merged.preRows;
       attRows = merged.attRows;
+
+      // ✅ opzioni turni SOLO dai PRE (per filtro nella sezione preaccreditati)
+      const all = new Set();
+      preRows.forEach(r => {
+        (Array.isArray(r.turni) ? r.turni : []).forEach(t => {
+          const v = norm(t);
+          if (v) all.add(v);
+        });
+      });
+
+      const sorted = Array.from(all).sort((a, b) =>
+        a.localeCompare(b, "it", { sensitivity: "base" })
+      );
+
+      turniOptions = ["", ...sorted];
+
+      if (turnoFilter && !turniOptions.includes(turnoFilter)) {
+        turnoFilter = "";
+        state.step4TurnoFilter = "";
+      }
     } catch (e) {
       error = e;
+      turniOptions = [""];
     } finally {
       loading = false;
 
@@ -331,6 +387,7 @@ export async function Step4({ state, client, goTo, html, render, root }) {
 
   function getPreFiltered() {
     let out = preRows;
+    if (turnoFilter) out = out.filter(r => rowMatchesTurno(r, turnoFilter));
     if (preSearch) out = out.filter(r => rowMatchesQuery(r, preSearch));
     return out;
   }
@@ -357,15 +414,28 @@ export async function Step4({ state, client, goTo, html, render, root }) {
     load();
   }
 
+  function setTurnoFilter(v) {
+    turnoFilter = v;
+    state.step4TurnoFilter = v;
+    rerender();
+  }
+
   function doCheckinMezzi() {
-    // Payload come Step2: org + mezzi selezionati
     const byTarga = new Map();
     [...preRows, ...attRows].forEach(r => r && r.targa && byTarga.set(r.targa, r));
+
+    const preSet = new Set(preRows.map(r => r.targa));
 
     const mezzi = [...selected]
       .map(targa => {
         const r = byTarga.get(targa);
         if (!r) return null;
+
+        const opts = Array.isArray(r.turni) ? r.turni : [];
+
+        let preset = "";
+        if (preSet.has(targa) && turnoFilter && opts.includes(turnoFilter)) preset = turnoFilter;
+        else if (opts.length === 1) preset = opts[0];
 
         return {
           targa: r.targa,
@@ -374,7 +444,9 @@ export async function Step4({ state, client, goTo, html, render, root }) {
           tipologia: r.tipologia || "",
           marca: r.marca || "",
           modello: r.modello || "",
-          note: r.note || ""
+          note: r.note || "",
+          turniOptions: opts,
+          turni: preset
         };
       })
       .filter(Boolean);
@@ -441,7 +513,6 @@ export async function Step4({ state, client, goTo, html, render, root }) {
       return;
     }
 
-    // Se categoria è selezionata (non "Non assegnata"), la tipologia è obbligatoria
     const catNorm = normalizeCategoriaLabel(form.categoria);
     if (catNorm && catNorm !== "Non assegnata") {
       if (!norm(form.tipologia)) {
@@ -470,21 +541,21 @@ export async function Step4({ state, client, goTo, html, render, root }) {
 
     try {
       const payload = {
-        "organizzazione": state.org.name || "",
+        organizzazione: state.org.name || "",
         "codice-organizzazione": state.org.code || "",
-        "provincia": state.org.province || "",
-        "targa": targa,
-        "marca": norm(form.marca),
-        "modello": norm(form.modello)
+        provincia: state.org.province || "",
+        targa: targa,
+        marca: norm(form.marca),
+        modello: norm(form.modello)
       };
 
       const cat = norm(form.categoria);
       const tip = norm(form.tipologia);
       const note = norm(form.note);
 
-      if (cat) payload["categoria"] = cat;
-      if (tip) payload["tipologia"] = tip;
-      if (note) payload["note"] = note;
+      if (cat) payload.categoria = cat;
+      if (tip) payload.tipologia = tip;
+      if (note) payload.note = note;
 
       await Pre.create(payload);
 
@@ -493,7 +564,6 @@ export async function Step4({ state, client, goTo, html, render, root }) {
 
       await load();
 
-      // Auto-select newly added vehicle
       selected.add(targa);
       state.step4Selected = [...selected];
       rerender();
@@ -576,7 +646,6 @@ export async function Step4({ state, client, goTo, html, render, root }) {
                         @change=${e => {
                           form.categoria = e.target.value;
 
-                          // se la tipologia non è più coerente con la nuova categoria, la resetto
                           if (norm(form.tipologia) && !isTipologiaAllowedForCategoria(form.tipologia, form.categoria)) {
                             form.tipologia = "";
                           }
@@ -607,10 +676,7 @@ export async function Step4({ state, client, goTo, html, render, root }) {
                         ?disabled=${modalBusy}
                         @change=${e => {
                           form.tipologia = e.target.value;
-
-                          // auto-set categoria dalla tipologia (se possibile)
                           autoSetCategoriaFromTipologia(form.tipologia);
-
                           rerender();
                         }}>
                         <option value="">Seleziona…</option>
@@ -677,102 +743,165 @@ export async function Step4({ state, client, goTo, html, render, root }) {
     `;
   }
 
-  /* ---------- UI sections ---------- */
-
-  function section(title, kind) {
-    const rows = kind === "pre" ? getPreFiltered() : getAttFiltered();
-    const searchValue = kind === "pre" ? preSearch : attSearch;
+  function renderTurniBadges(turniArr) {
+    const list = Array.isArray(turniArr) ? turniArr.map(norm).filter(Boolean) : [];
+    if (list.length === 0) return html`<span class="has-text-grey">—</span>`;
 
     return html`
-      <div class="box ${kind === "pre" ? "pre-section" : ""}">
-        <div class="level">
-          <div class="level-left" style="gap:1rem; align-items:flex-end;">
-            <h3 class="subtitle" style="margin-bottom:0;">
-              ${title} <span class="tag is-light ml-2">${rows.length}</span>
-            </h3>
-
-            <div class="field" style="margin-bottom:0; min-width:360px;">
-              <div class="control">
-                <input class="input"
-                  placeholder="Cerca per targa, inventario, marca, modello…"
-                  .value=${searchValue}
-                  ?disabled=${loading}
-                  @input=${e => {
-                    const v = e.target.value;
-                    if (kind === "pre") { preSearch = v; state.preMezziSearch = v; }
-                    else { attSearch = v; state.attMezziSearch = v; }
-                    rerender();
-                  }}>
-              </div>
-            </div>
-          </div>
-
-          ${kind === "pre" ? html`
-            <div class="level-right" style="gap:0.5rem;">
-              <button class="button is-small"
-                      @click=${selectVisiblePre}
-                      ?disabled=${loading || rows.length === 0}>
-                Seleziona preaccreditati visibili
-              </button>
-
-              <button class="button is-info is-small"
-                      @click=${openModal}
-                      ?disabled=${loading}>
-                + Aggiungi mezzo
-              </button>
-            </div>
-          ` : ""}
-        </div>
-
-        <div class="table-container">
-          <table class="table is-striped is-fullwidth is-hoverable">
-            <thead>
-              <tr>
-                <th style="width:3.5rem">✓</th>
-                <th>Targa</th>
-                <th>Codice inventario</th>
-                <th>Categoria</th>
-                <th>Tipologia</th>
-                <th>Marca</th>
-                <th>Modello</th>
-                <th>Note</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              ${(!loading && rows.length === 0) ? html`
-                <tr><td colspan="8"><em>Nessun mezzo.</em></td></tr>
-              ` : ""}
-
-              ${rows.map(r => {
-                const checked = selected.has(r.targa);
-
-                return html`
-                  <tr class=${checked ? "row-selected" : ""} style="cursor:pointer"
-                      @click=${() => toggle(r.targa, !checked)}>
-                    <td>
-                      <input type="checkbox"
-                        .checked=${checked}
-                        @click=${e => e.stopPropagation()}
-                        @change=${e => toggle(r.targa, e.target.checked)}>
-                    </td>
-
-                    <td><strong>${r.targa}</strong></td>
-                    <td>${r.inventario || ""}</td>
-                    <td>${r.categoria || ""}</td>
-                    <td>${r.tipologia || ""}</td>
-                    <td>${r.marca || ""}</td>
-                    <td>${r.modello || ""}</td>
-                    <td>${r.note || ""}</td>
-                  </tr>
-                `;
-              })}
-            </tbody>
-          </table>
-        </div>
+      <div class="tags" style="margin-bottom:0;">
+        ${list.map(t => html`<span class="tag is-info is-light">${t}</span>`)}
       </div>
     `;
   }
+
+function section(title, kind) {
+  const rows = kind === "pre" ? getPreFiltered() : getAttFiltered();
+  const searchValue = kind === "pre" ? preSearch : attSearch;
+
+  const hasTurniCol = kind === "pre";
+  const hasOrgCol = kind === "att";
+  const colCount = hasTurniCol ? 9 : 8;
+
+  return html`
+    <div class="box ${kind === "pre" ? "pre-section" : ""}">
+      <div class="level">
+        <div class="level-left" style="gap:1rem; align-items:center;">
+          <h3 class="subtitle" style="margin-bottom:0;">
+		    <span class="icon">
+				<i class="ri-truck-line ri-lg"></i>
+			</span>
+            <span>${title} <span class="tag is-light ml-2">${rows.length}</span></span>
+          </h3>
+
+          <div class="field" style="margin-bottom:0; min-width:420px;">
+            <div class="control">
+              <input
+                class="input is-small"
+                placeholder="Cerca per targa, inventario, marca, modello..."
+                .value=${searchValue}
+                ?disabled=${loading}
+                @input=${e => {
+                  const v = e.target.value;
+                  if (kind === "pre") { preSearch = v; state.preMezziSearch = v; }
+                  else { attSearch = v; state.attMezziSearch = v; }
+                  rerender();
+                }}
+              >
+            </div>
+          </div>
+        </div>
+
+        <div class="level-right" style="gap:0.75rem; align-items:center;">
+${kind === "pre" ? html`
+  <div class="control">
+    <div class="select is-small">
+      <select
+        .value=${turnoFilter}
+        ?disabled=${loading}
+        @change=${e => setTurnoFilter(e.target.value)}
+      >
+        <option value="">Tutti i turni</option>
+        ${turniOptions.filter(Boolean).map(t => html`<option value=${t}>${t}</option>`)}
+      </select>
+    </div>
+  </div>
+
+  <button class="button is-info is-small"
+          @click=${openModal}
+          ?disabled=${loading}>
+    + Aggiungi mezzo
+  </button>
+` : ""}
+
+          ${kind === "att" ? html`
+            <label class="checkbox" style="white-space:nowrap;">
+              <input type="checkbox"
+                .checked=${loadAllAttesi}
+                ?disabled=${loading || modalBusy}
+                @change=${e => toggleLoadAllAttesi(e.target.checked)}>
+              Carica tutti i mezzi presenti nel database
+            </label>
+          ` : ""}
+        </div>
+      </div>
+
+      <div class="table-container">
+	  ${kind === "pre" ? html`
+  <div class="buttons mb-2">
+    <button class="button is-small"
+            @click=${selectVisiblePre}
+            ?disabled=${loading || rows.length === 0}>
+      Seleziona preaccreditati visibili
+    </button>
+  </div>
+` : ""}
+
+        <table class="table is-striped is-fullwidth is-hoverable">
+          <thead>
+            <tr>
+              <th style="width:3.5rem">✓</th>
+${hasOrgCol ? html`<th>Organizzazione</th>` : ""}
+
+${hasTurniCol ? html`<th>Turni</th>` : ""}
+
+              <th>Targa</th>
+              <th>Codice inventario</th>
+              <th>Categoria</th>
+              <th>Tipologia</th>
+              <th>Marca</th>
+              <th>Modello</th>
+              <th>Note</th>
+              ${hasTurniCol ? html`<th>Turni</th>` : ""}
+            </tr>
+          </thead>
+
+          <tbody>
+            ${(!loading && rows.length === 0) ? html`
+              <tr><td colspan="${colCount}"><em>Nessun mezzo.</em></td></tr>
+            ` : ""}
+
+            ${rows.map(r => {
+              const checked = selected.has(r.targa);
+
+              return html`
+                <tr class=${checked ? "row-selected" : ""} style="cursor:pointer"
+                    @click=${() => toggle(r.targa, !checked)}>
+                  <td>
+                    <input type="checkbox"
+                      .checked=${checked}
+                      @click=${e => e.stopPropagation()}
+                      @change=${e => toggle(r.targa, e.target.checked)}>
+                  </td>
+
+${hasOrgCol ? html`
+  <td>
+    <span class="tag is-light">${r.organizzazione || ""}</span>
+    ${r.codiceOrganizzazione
+      ? html`<span class="tag is-info is-light ml-1">${r.codiceOrganizzazione}</span>`
+      : ""}
+  </td>
+` : ""}
+
+                  <td><strong>${r.targa}</strong></td>
+                  <td>${r.inventario || ""}</td>
+                  <td>${r.categoria || ""}</td>
+                  <td>${r.tipologia || ""}</td>
+                  <td>${r.marca || ""}</td>
+                  <td>${r.modello || ""}</td>
+                  <td>${r.note || ""}</td>
+				  ${hasTurniCol ? html`
+                    <td>${renderTurniBadges(r.turni)}</td>
+                  ` : ""}
+
+                </tr>
+              `;
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
 
   function view() {
     return html`
@@ -782,16 +911,6 @@ export async function Step4({ state, client, goTo, html, render, root }) {
           ${state.org.code ? html`<span class="tag ml-2">${state.org.code}</span>` : ""}
           ${state.org.province ? html`<span class="tag is-light ml-2">${state.org.province}</span>` : ""}
         </p>
-
-        <div class="field">
-          <label class="checkbox">
-            <input type="checkbox"
-              .checked=${loadAllAttesi}
-              ?disabled=${loading || modalBusy}
-              @change=${e => toggleLoadAllAttesi(e.target.checked)}>
-            Carica tutti i mezzi nel database (ignora filtro organizzazione)
-          </label>
-        </div>
 
         <div class="buttons mt-2">
           <button class="button is-light is-small" @click=${back} ?disabled=${modalBusy}>
@@ -807,7 +926,19 @@ export async function Step4({ state, client, goTo, html, render, root }) {
           <button class="button is-primary is-small"
                   ?disabled=${selected.size === 0 || loading}
                   @click=${doCheckinMezzi}>
-            Check-in mezzi (${selected.size})
+			<span class="icon">
+				<i class="ri-truck-line ri-lg"></i>
+			</span>
+            <span>Check-in mezzi (${selected.size})</span>
+          </button>
+
+          <button class="button is-small"
+				?disabled=${!(selected.size === 0 || loading)}
+                  @click=${() => goTo(6)}>
+			<span class="icon">
+				<i class="ri-tools-line ri-lg"></i>
+			</span>
+			<span>Passa direttamente a Check-in materiali</span>
           </button>
         </div>
 
@@ -821,7 +952,7 @@ export async function Step4({ state, client, goTo, html, render, root }) {
       </div>
 
       ${section("Mezzi preaccreditati", "pre")}
-      ${section("DB mezzi", "att")}
+      ${section("Database mezzi", "att")}
 
       ${modal()}
     `;

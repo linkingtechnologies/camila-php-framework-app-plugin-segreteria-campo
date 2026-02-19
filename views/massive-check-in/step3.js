@@ -34,6 +34,7 @@ function buildVolontariInsertRow(selectionOrg, v) {
 
   const dateOnly = dateTime.slice(0, 10);
 
+
   const row = {
     "codice-fiscale": safe(v.cf),
     "cognome": safe(v.cognome),
@@ -267,7 +268,6 @@ export async function Step3({ state, client, goTo, html, render, root }) {
       return;
     }
 
-    // ✅ Ora linkato a Step 4
     goTo(4);
   }
 
@@ -416,7 +416,10 @@ export async function Step3({ state, client, goTo, html, render, root }) {
             nPending === 0}
             @click=${confirm}
           >
-            ${submitting ? "Invio in corso…" : `Inserisci volontari (${nPending})`}
+		    <span class="icon">
+				<i class="ri-user-line ri-lg"></i>
+			</span>
+            <span>${submitting ? "Invio in corso…" : `Inserisci volontari (${nPending})`}</span>
           </button>
 
           <button
