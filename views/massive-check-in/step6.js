@@ -281,6 +281,45 @@ const TIP_MAT = parseTipologieCsv(TIPOLOGIE_MATERIALI);
   let modalBusy = false;
   let modalError = null;
 
+  // NEW: busy solo per prefill sequence (non blocca il submit)
+  let modalSeqBusy = false;
+
+function getSequenceValue(res) {
+  if (res === null || res === undefined) return "";
+  if (typeof res === "number") return String(res);
+  if (typeof res === "string") return res;
+
+  // ✅ forma confermata dal backend: { table, id }
+  if (res && (res.id !== undefined && res.id !== null)) return String(res.id);
+
+  // fallback (non dovrebbe servire, ma non fa male)
+  return String(res.sequence ?? res.value ?? res.next ?? res.seq ?? "");
+}
+
+  async function prefillNewMaterialeId() {
+    // non sovrascrivere se l'utente ha già iniziato a scrivere
+    if (norm(form["id-materiale"])) return;
+
+    modalSeqBusy = true;
+    rerender();
+
+    try {
+      // usa il metodo sequence della table API (stessa libreria)
+      const seqRes = await Pre.sequence();
+      const seq = norm(getSequenceValue(seqRes));
+
+      if (seq) {
+        form["id-materiale"] = `MAT${seq}`;
+      }
+    } catch (e) {
+      // non blocco la modale: al massimo non precompila
+      // (se vuoi, qui possiamo anche mostrare un warning discreto)
+      // modalError = "Impossibile generare l'ID automaticamente. Inseriscilo manualmente.";
+    } finally {
+      modalSeqBusy = false;
+      rerender();
+    }
+  }
   let form = {
     "id-materiale": "",
     "codice-inventario": "",
@@ -458,11 +497,11 @@ const TIP_MAT = parseTipologieCsv(TIPOLOGIE_MATERIALI);
     goTo(7);
   }
 
-  // Modal handlers
-  function openModal() {
+  async function openModal() {
     modalOpen = true;
     modalBusy = false;
     modalError = null;
+	
     form = {
       "id-materiale": "",
       "codice-inventario": "",
@@ -475,6 +514,9 @@ const TIP_MAT = parseTipologieCsv(TIPOLOGIE_MATERIALI);
       turno: ""
     };
     rerender();
+
+    // precompila id-materiale come MAT + sequence
+    prefillNewMaterialeId();
   }
 
   function closeModal() {
@@ -568,6 +610,8 @@ if (catNorm && catNorm !== "Non assegnata") {
 
   function modal() {
     if (!modalOpen) return "";
+	const turniList = (Array.isArray(turniOptions) ? turniOptions : [""]).filter(Boolean);
+	
 	const categorieList = csvToOptions(CATEGORIE_MATERIALI);
 const tipView = getTipologieForCategoria(TIP_MAT, form.categoria);
 
@@ -596,26 +640,33 @@ const tipView = getTipologieForCategoria(TIP_MAT, form.categoria);
                   <div class="control">
                     <input class="input"
                       .value=${form["id-materiale"]}
-                      ?disabled=${modalBusy}
+                      ?disabled=${modalBusy || modalSeqBusy}
                       @input=${e => { form["id-materiale"] = e.target.value; rerender(); }}>
                   </div>
                 </div>
               </div>
 
-              <div class="column is-half">
-                <div class="field">
-                  <label class="label">Turno</label>
-                  <div class="control">
-                    <input class="input"
-                      placeholder="es. T1"
-                      .value=${form.turno}
-                      ?disabled=${modalBusy}
-                      @input=${e => { form.turno = e.target.value; rerender(); }}>
-                  </div>
-                </div>
-              </div>
+<div class="column is-half">
+  <div class="field">
+    <label class="label">Turno</label>
 
+    <div class="control">
+      <input
+        class="input"
+        list="turni-datalist-step6"
+        placeholder="Seleziona o scrivi… (es. T1)"
+        .value=${form.turno}
+        ?disabled=${modalBusy || loading}
+        @input=${e => { form.turno = e.target.value; rerender(); }}
+      >
+      <datalist id="turni-datalist-step6">
+        ${turniList.map(t => html`<option value=${t}></option>`)}
+      </datalist>
+    </div>
 
+    <p class="help">Puoi scegliere un turno suggerito oppure inserirne uno nuovo.</p>
+  </div>
+</div>
 <div class="column is-half">
   <div class="field">
     <label class="label">Categoria</label>

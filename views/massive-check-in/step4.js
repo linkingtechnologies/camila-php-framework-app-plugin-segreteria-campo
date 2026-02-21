@@ -291,14 +291,15 @@ export async function Step4({ state, client, goTo, html, render, root }) {
   let modalBusy = false;
   let modalError = null;
 
-  let form = {
-    targa: "",
-    categoria: "",
-    tipologia: "",
-    marca: "",
-    modello: "",
-    note: ""
-  };
+let form = {
+  targa: "",
+  turno: "",
+  categoria: "",
+  tipologia: "",
+  marca: "",
+  modello: "",
+  note: ""
+};
 
   async function load() {
     try {
@@ -470,14 +471,15 @@ export async function Step4({ state, client, goTo, html, render, root }) {
     modalBusy = false;
     modalError = null;
 
-    form = {
-      targa: "",
-      categoria: "",
-      tipologia: "",
-      marca: "",
-      modello: "",
-      note: ""
-    };
+form = {
+  targa: "",
+  turno: "",
+  categoria: "",
+  tipologia: "",
+  marca: "",
+  modello: "",
+  note: ""
+};
 
     rerender();
   }
@@ -549,13 +551,15 @@ export async function Step4({ state, client, goTo, html, render, root }) {
         modello: norm(form.modello)
       };
 
-      const cat = norm(form.categoria);
-      const tip = norm(form.tipologia);
-      const note = norm(form.note);
+const cat = norm(form.categoria);
+const tip = norm(form.tipologia);
+const note = norm(form.note);
+const turno = norm(form.turno);
 
-      if (cat) payload.categoria = cat;
-      if (tip) payload.tipologia = tip;
-      if (note) payload.note = note;
+if (cat) payload.categoria = cat;
+if (tip) payload.tipologia = tip;
+if (note) payload.note = note;
+if (turno) payload.turno = turno;
 
       await Pre.create(payload);
 
@@ -579,6 +583,7 @@ export async function Step4({ state, client, goTo, html, render, root }) {
 
     const categorieList = csvToOptions(CATEGORIE_OPTS);
     const tipView = getTipologieForCategoria(form.categoria);
+	const turniList = (Array.isArray(turniOptions) ? turniOptions : [""]).filter(Boolean);
 
     return html`
       <div class="modal is-active">
@@ -597,16 +602,45 @@ export async function Step4({ state, client, goTo, html, render, root }) {
               </article>
             ` : ""}
 
-            <div class="field">
-              <label class="label">Targa *</label>
-              <div class="control">
-                <input class="input"
-                  .value=${form.targa}
-                  ?disabled=${modalBusy}
-                  placeholder="AB123CD"
-                  @input=${e => { form.targa = e.target.value; rerender(); }}>
-              </div>
-            </div>
+<div class="columns">
+  <div class="column">
+    <div class="field">
+      <label class="label">Targa *</label>
+      <div class="control">
+        <input class="input"
+          .value=${form.targa}
+          ?disabled=${modalBusy}
+          placeholder="AB123CD"
+          @input=${e => { form.targa = e.target.value; rerender(); }}>
+      </div>
+    </div>
+  </div>
+
+<div class="column">
+  <div class="field">
+    <label class="label">Turno</label>
+
+    <div class="control">
+      <input
+        class="input"
+        list="turni-datalist"
+        placeholder="es. T1"
+        .value=${form.turno}
+        ?disabled=${modalBusy || loading}
+        @input=${e => { form.turno = e.target.value; rerender(); }}
+      >
+      <datalist id="turni-datalist">
+        ${turniList.map(t => html`<option value=${t}></option>`)}
+      </datalist>
+    </div>
+
+    <p class="help">
+      Puoi scegliere un turno suggerito oppure inserirne uno nuovo.
+    </p>
+  </div>
+</div>
+  
+</div>
 
             <div class="columns">
               <div class="column">

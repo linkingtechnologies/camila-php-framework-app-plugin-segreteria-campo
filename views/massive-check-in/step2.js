@@ -482,6 +482,8 @@ export async function Step2({ state, client, goTo, html, render, root }) {
 
   function modal() {
     if (!modalOpen) return "";
+	
+	const turniList = collectPreTurni(preRows); // turni SOLO dai preaccreditati
 
     return html`
       <div class="modal is-active">
@@ -539,17 +541,23 @@ export async function Step2({ state, client, goTo, html, render, root }) {
               </div>
             </div>
 
-            <div class="field">
-              <label class="label">Turno (opzionale)</label>
-              <div class="control">
-                <input class="input"
-                  .value=${form.turno}
-                  ?disabled=${modalBusy}
-                  placeholder="es. Mattina / Pomeriggio / 08:00-12:00"
-                  @input=${e => { form.turno = e.target.value; rerender(); }}>
-              </div>
-              <p class="help">Se lasci vuoto, il volontario verrà inserito senza turno.</p>
-            </div>
+<div class="field">
+  <label class="label">Turno (opzionale)</label>
+  <div class="control">
+    <input
+      class="input"
+      list="turni-datalist-step2"
+      .value=${form.turno}
+      ?disabled=${modalBusy}
+      placeholder="Seleziona o scrivi… (es. T1)"
+      @input=${e => { form.turno = e.target.value; rerender(); }}
+    >
+    <datalist id="turni-datalist-step2">
+      ${turniList.map(t => html`<option value=${t}></option>`)}
+    </datalist>
+  </div>
+  <p class="help">Puoi scegliere un turno suggerito oppure inserirne uno nuovo.</p>
+</div>
 
             <article class="message is-info is-light">
               <div class="message-body">
