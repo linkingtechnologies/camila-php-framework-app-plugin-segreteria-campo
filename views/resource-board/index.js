@@ -1013,6 +1013,7 @@ export async function GOR({ state, client, html, render, root }) {
       : cards;
 
     const totalResources = allVolontari.length + allMezzi.length + allMateriali.length;
+    const nV = allVolontari.length, nM = allMezzi.length, nMat = allMateriali.length;
 
     return html`
       <style>
@@ -1188,8 +1189,12 @@ export async function GOR({ state, client, html, render, root }) {
         ` : ""}
 
         <!-- Contatore risorse -->
-        <span class="tag is-info is-light" style="white-space:nowrap">
-          ${totalResources} risorse attive
+        <span class="tag is-info is-light" style="white-space:nowrap;gap:6px;display:inline-flex;align-items:center">
+          <span title="Volontari"><i class="ri-user-line"></i> ${nV}</span>
+          <span style="opacity:.4">·</span>
+          <span title="Mezzi"><i class="ri-truck-line"></i> ${nM}</span>
+          <span style="opacity:.4">·</span>
+          <span title="Materiali"><i class="ri-tools-line"></i> ${nMat}</span>
         </span>
 
         <!-- Spacer -->
@@ -1219,7 +1224,8 @@ export async function GOR({ state, client, html, render, root }) {
             ${filterProvincia && filterOrg ? " · " : ""}
             ${filterOrg ? html`<strong>${filterOrg}</strong>` : ""}
             — stai vedendo ${cards.reduce((n, c) => n + c.volontari.length + c.mezzi.length + c.materiali.length, 0)}
-            di ${totalResources} risorse attive
+            di ${totalResources}
+            (<i class="ri-user-line"></i> ${nV} · <i class="ri-truck-line"></i> ${nM} · <i class="ri-tools-line"></i> ${nMat}) risorse attive
           </span>
           <button class="delete is-small" title="Rimuovi filtri"
             @click=${() => { filterOrg = ""; filterProvincia = ""; rebuildDerived(); rerender(); }}
