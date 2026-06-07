@@ -5,7 +5,7 @@
 Single-view SPA (nessun wizard). Tutti i dati vengono caricati al mount e ricaricati integralmente dopo ogni operazione di scrittura.
 
 ```
-[Toolbar: cerca · raggruppa per · filtro provincia · filtro org · contatore risorse · aggiorna]
+[Toolbar: cerca · raggruppa per · filtro provincia · filtro org · 👤 N · 🚚 N · 🛠 N · aggiorna]
 [Banner giallo — filtro attivo, "stai vedendo X di Y risorse" · ✕ rimuovi filtro]
 [Barra servizi: chip blu attivi (drop target) | +N ▼ chip gialli non assegnati (nascosti, auto-visibili durante drag)]
 [Kanban ──────────────────────────────────────────── scroll orizzontale →]
@@ -237,5 +237,6 @@ groupBy === "squadra"
 - **Combobox squadra**: `<input type="text" list="gor-squadre-list">` + `<datalist>`. Accetta testo libero per squadre nuove non ancora presenti nel sistema.
 - **`distinctSquadre`**: calcolato in `rebuildDerived()` dai dati già in memoria (nessuna chiamata API aggiuntiva), come `distinct` del campo `squadra` su tutte le risorse attive.
 - **Barra servizi**: sempre visibile sopra il kanban. I chip blu (attivi) sono anch'essi drop target (oltre alle colonne kanban): `dragover`/`dragleave`/`drop` reindirizzano al servizio corrispondente. I chip gialli (non assegnati) sono drop target attivi; appaiono solo dopo click sul bottone `+N ▼` (`showAvailable`) **oppure automaticamente durante un drag** (`dragPayload !== null`), così da rendere sempre raggiungibili i servizi non assegnati senza dover espandere prima.
-- **Filtro org/provincia**: `filterOrg` e `filterProvincia` sono filtri client-side applicati in `rebuildDerived()`. I valori distinti (`distinctOrgs`, `distinctProvince`) sono calcolati sull'intero dataset (pre-filtro) per popolare i dropdown. Quando almeno un filtro è attivo compare un banner giallo con il contatore "stai vedendo X di Y risorse" e un pulsante ✕ per rimuovere il filtro.
+- **Contatore risorse in toolbar**: la toolbar mostra tre contatori separati con le stesse icone delle card — `ri-user-line N · ri-truck-line N · ri-tools-line N` — calcolati sulle risorse filtrate (`allVolontari`, `allMezzi`, `allMateriali` dopo `rebuildDerived`). Il banner filtro attivo riporta lo stesso dettaglio per tipo accanto al totale.
+- **Filtro org/provincia**: `filterOrg` e `filterProvincia` sono filtri client-side applicati in `rebuildDerived()`. I valori distinti (`distinctOrgs`, `distinctProvince`) sono calcolati sull'intero dataset (pre-filtro) per popolare i dropdown. Quando almeno un filtro è attivo compare un banner giallo con il contatore "stai vedendo X di Y (👤 N · 🚚 N · 🛠 N) risorse" e un pulsante ✕ per rimuovere il filtro.
 - **Modale cambio-risorsa**: ogni riga del dettaglio espanso porta un pulsante icona `ri-swap-line` che apre la modale `cambio-risorsa` per spostare quella singola risorsa senza trascinare. Il pulsante ha `@dragstart stopPropagation` per non interferire con il drag di riga.
