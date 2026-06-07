@@ -984,9 +984,9 @@ export async function GOR({ state, client, html, render, root }) {
     if (loading) {
       return html`
         <section class="section">
-          <div class="container">
+          <div class="container has-text-centered">
             <p class="has-text-grey mb-2">Caricamento risorse…</p>
-            <progress class="progress is-primary" style="max-width:400px"></progress>
+            <progress class="progress is-primary" style="max-width:400px;margin:0 auto"></progress>
           </div>
         </section>
       `;
