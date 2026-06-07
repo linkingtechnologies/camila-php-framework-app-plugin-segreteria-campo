@@ -287,48 +287,127 @@ Do not introduce alternative API clients or abstraction layers unless explicitly
 
 ## Listing records
 
-Use:
-
 ```js
 client.table(tableName).list({
-  filters,
-  order,
-  page
+  include,    // string | string[]  — campi da restituire
+  exclude,    // string | string[]  — campi da escludere
+  filters,    // Array              — filtri AND (vedi §Filtering)
+  orFilters,  // Object             — filtri OR (vedi §Filtering)
+  order,      // Array              — ordinamento (vedi §Sorting)
+  size,       // number             — max righe senza paginazione
+  page,       // number | number[]  — paginazione (vedi §Pagination)
 })
 ```
 
-Additional supported parameters:
-
-| Parameter | Type | Description |
-|---|---|---|
-| `include` | string or array | Comma-separated or array of column names to fetch |
-| `size` | number | Max rows without pagination (use only when paging is not needed) |
-
-When backend pagination follows CAMILA format, use:
+### include / exclude
 
 ```js
-page: [pageNumber, pageSize]
+// array di nomi campo
+client.table("servizi").list({ include: ["nome", "ordine", "colore"] })
+
+// stringa separata da virgola (equivalente)
+client.table("servizi").list({ include: "nome,ordine,colore" })
+
+// escludere campi pesanti
+client.table("servizi").list({ exclude: ["note", "descrizione"] })
 ```
 
-which produces:
+### size
 
-```text
-?page=1,50
+Usare `size` solo quando la paginazione non serve. Imposta il massimo di righe restituite in una sola chiamata.
+
+```js
+client.table("servizi").list({ size: 9999 })   // tutti i record
+client.table("brogliaccio").list({ size: 1 })  // solo 1 record
 ```
 
-Expected paginated response shape:
+## Sorting
 
-```json
-{
-  "records": [],
-  "results": 0
+Usare l'ordinamento server-side tramite il parametro `order`.
+
+**Formato:** array di array `[campo, direzione]`
+
+```js
+// un solo campo
+order: [["data/ora", "desc"]]
+
+// più campi
+order: [["cognome", "asc"], ["nome", "asc"]]
+```
+
+Direzioni supportate: `"asc"` | `"desc"`
+
+**Esempio pratico — ultimo record inserito:**
+
+```js
+client.table("brogliaccio").list({
+  include: ["data/ora"],
+  size: 1,
+  order: [["data/ora", "desc"]]
+})
+```
+
+Se l'ordinamento server-side non è supportato dalla tabella, ordinare client-side con un sort stabile usando l'indice originale come tiebreaker.
+
+## Filtering
+
+Costruire filtri con `client.filter(column, operator, value)` che ritorna un array `[column, operator, value]`.
+
+Passare i filtri come array al parametro `filters` (AND logico):
+
+```js
+client.table("volontari").list({
+  filters: [client.filter("servizio", "eq", "TURNO A")]
+})
+```
+
+**⚠️ IMPORTANTE:** usare sempre `filters: [...]` — la sintassi `filter: { campo: valore }` è silenziosamente ignorata dal client.
+
+### Operatori confermati
+
+| Operatore | Significato |
+|---|---|
+| `eq` | uguale |
+| `neq` | diverso (`negate("eq")`) |
+| `cs` | contiene stringa (case-sensitive) |
+| `gt` | maggiore di |
+| `lt` | minore di |
+
+Per negare un operatore: `client.negate("eq")` → `"neq"`
+
+### Filtri OR
+
+Passare i filtri OR tramite il parametro `orFilters` (oggetto con chiavi `filter1`, `filter2`, ...):
+
+```js
+orFilters: {
+  filter1: ["campo", "eq", "valoreA"],
+  filter2: ["campo", "eq", "valoreB"],
 }
 ```
 
-`records` contains the current page.
-`results` contains the total number of records without pagination.
+## Pagination
 
-Always normalize the response with a helper to handle both array and paginated shapes:
+```js
+// pagina 1, 50 record per pagina → ?page=1,50
+page: [1, 50]
+
+// oppure solo numero di pagina
+page: 2
+```
+
+**Risposta paginata attesa:**
+
+```json
+{
+  "records": [...],
+  "results": 150
+}
+```
+
+`records` = record della pagina corrente. `results` = totale record senza paginazione.
+
+Normalizzare sempre la risposta con:
 
 ```js
 function getRecords(res) {
@@ -338,54 +417,17 @@ function getRecords(res) {
 }
 ```
 
-## Sorting
-
-Use server-side sorting when supported:
-
-```js
-order: [[field, direction]]
-```
-
-where direction is:
-
-```text
-asc | desc
-```
-
-Sorting must remain deterministic.
-
-If client-side sorting is required, it must be stable and must use original index as a tie-breaker.
-
-## Filtering
-
-Use WorkTable filters:
-
-```js
-client.filter(column, operator, value)
-```
-
-Typical filters:
-
-```js
-client.filter("codice-organizzazione", "eq", selectedOrgCode)
-client.filter("nome", "cs", searchValue)
-```
-
-Do not invent filter operators.
-
-If an operator is not confirmed, document it as unknown.
-
 ## Distinct values vs list with include
 
-Use `distinct()` when you need deduplicated values for a single column or a tightly related set:
+Usare `distinct()` per valori deduplicati su una singola colonna:
 
 ```js
-client.table("db-volontari").distinct("codice-organizzazione", {
+client.table("volontari").distinct("codice-organizzazione", {
   include: "codice-organizzazione,organizzazione"
 })
 ```
 
-Use `list()` with `include` and `size` when you need to load, merge, and deduplicate records from multiple tables or when the distinct API does not expose all required fields:
+Usare `list()` con `include` e `size` quando serve unire sorgenti multiple o il distinct non espone tutti i campi necessari:
 
 ```js
 client.table(tableName).list({
