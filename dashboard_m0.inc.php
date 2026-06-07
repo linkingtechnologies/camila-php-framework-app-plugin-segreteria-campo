@@ -19,6 +19,7 @@ $camilaUI->addGridSection(3, function ($colIndex) use ($camilaUI) {
 			$camilaUI->insertButton('?dashboard=massive-check-in', 'Check-in massivo', 'login-box');
 			break;
 		case 1:
+			$camilaUI->insertButton('?dashboard=resource-board', 'Gestione operativa', 'route');
 			$camilaUI->insertButton('?dashboard=org-status', 'Stato registrazione', 'file-list-3');
 			break;
 		case 2:

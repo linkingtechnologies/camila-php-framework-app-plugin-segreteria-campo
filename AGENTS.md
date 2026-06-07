@@ -2,11 +2,96 @@
 
 ## Purpose
 
-This repository contains lightweight Single Page Applications integrated with CAMILA WorkTable APIs.
+This directory contains the **Segreteria Campo** plugin — a set of lightweight Single Page Applications for managing field operations (check-in, monitoring, and check-out of volunteers, vehicles, and materials).
+
+The plugin is part of the **CAMILA WorkTable** ecosystem:
+
+- **Framework**: [camila-php-framework](https://github.com/linkingtechnologies/camila-php-framework) — the PHP backend that provides the WorkTable API, authentication, and table management.
+- **Plugin**: [camila-php-framework-app-plugin-segreteria-campo](https://github.com/linkingtechnologies/camila-php-framework-app-plugin-segreteria-campo) — this plugin, containing the SPAs in this directory.
+
+The SPAs run entirely in the browser and communicate with the backend exclusively via `WorkTableClient`, which wraps the CAMILA WorkTable REST API.
 
 AI agents working in this repository must generate and modify SPA modules that are deterministic, state-safe, backward-compatible, and easy to review.
 
 The primary goal is to evolve existing administrative tools without introducing unnecessary framework complexity or speculative architecture changes.
+
+## Operational context
+
+The three main SPAs implement a coordinated field management workflow:
+
+```
+Check-in massivo  →  Stato organizzazione  →  Check-out massivo
+(arrival)             (monitoring)              (departure)
+```
+
+1. **Check-in massivo**: registers the arrival of volunteers, vehicles, and materials for an organization. Sets `data-inizio-attestato = today`.
+2. **Stato organizzazione**: real-time dashboard showing in-service and out-of-service resources per organization.
+3. **Check-out massivo**: registers the departure. Sets `servizio = "USCITA DEFINITIVA"`, `data-fine-attestato = today`, `data/ora-uscita-definitiva`, and writes a movement record to `mov-risorse`.
+
+---
+
+## SPA Specifications
+
+Each SPA has a dedicated specification directory under `specs/`. Read the relevant spec before modifying a SPA.
+
+| SPA | Entry point | Spec |
+|---|---|---|
+| Massive Check-in | `app-massive-check-in.js` | [`specs/massive-check-in/`](specs/massive-check-in/) |
+| Massive Check-out | `app-massive-check-out.js` | [`specs/massive-check-out/`](specs/massive-check-out/) |
+| Org Status | `app-org-status.js` | [`specs/org-status/`](specs/org-status/) |
+| Smart Assistant | `app-smart-assistant.js` | [`specs/smart-assistant/`](specs/smart-assistant/) |
+
+Each spec directory contains:
+- `use-case.md` — comportamento atteso (il "cosa"): goal, attori, scenario principale, flussi alternativi in stile Cockburn
+- `design.md` — scelte tecniche (il "come"): state shape, tabelle coinvolte, logica di merge/verifica, payload
+
+If implementation and specification disagree, report the discrepancy. Do not silently change behavior.
+
+---
+
+## Specification Style
+
+When writing specs for a new or existing SPA, follow this exact structure.
+
+### use-case.md — il "cosa"
+
+Cockburn-style use case with the following sections, in order:
+
+1. **Identificativo** — short code (UC-XXX) and one-line description
+2. **Contesto di sistema** — where this SPA fits in the operational workflow (skip if standalone)
+3. **Goal** — one paragraph, user-facing outcome
+4. **Primary Actor** — who operates it
+5. **Stakeholders e interessi** — table: stakeholder | interest
+6. **Precondizioni** — bullet list
+7. **Postcondizioni — Successo** — what is true after success
+8. **Postcondizioni — Errore/Fallimento parziale** — what happens on partial failure
+9. **Classificazione stati** *(if applicable)* — table mapping data conditions to UI labels (e.g. in servizio / non in servizio / dati incompleti)
+10. **Main Success Scenario** — one sub-section per wizard step or view, with numbered steps describing actor actions and system responses
+11. **Extensions** — coded as `Na.` (step N, alternative a), covering: empty states, API errors, validation failures, navigation guards, partial failures
+
+Rules:
+- Steps describe observable behavior, not implementation details
+- Do not mention lit-html, state variables, or JS internals
+- Do mention WorkTable table names, field names, and business rules
+- Keep each step to one sentence where possible
+
+### design.md — il "come"
+
+Technical reference for implementors, with sections:
+
+1. **Struttura** — wizard steps or views with ASCII flow diagram
+2. **State shape** — full JS object with all keys and their types/defaults
+3. **Tabelle coinvolte** — table: operation | WorkTable table name
+4. **Logica di merge** *(if applicable)* — merge key, priority rules, field resolution strategy
+5. **Payload** — exact field names and values written to each table
+6. **Logica di classificazione** *(if applicable)* — code-level rules for categorizing records
+7. **Altre note tecniche** — anything else an agent needs to preserve: loading strategy (`allSettled` vs `all`), draft editing pattern, sequence API usage, filter strategy, non-obvious guard conditions
+
+Rules:
+- Use code blocks for state shape, payload examples, and classification logic
+- Use tables for tabelle coinvolte
+- Use WorkTable API field names (hyphenated, e.g. `data-fine-attestato`, not camelCase)
+- Note divergences from the general patterns documented in this AGENTS.md
 
 ---
 
