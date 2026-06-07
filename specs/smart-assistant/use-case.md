@@ -49,7 +49,7 @@ Il sistema esegue in parallelo tutti i controlli al mount e mostra i relativi av
 
 1. Il sistema legge l'ultimo record della tabella `brogliaccio` ordinando per `data/ora` discendente (`size: 1, order: [["data/ora", "desc"]]`).
 2. Confronta il timestamp con l'ora corrente.
-3. **Caso A — Ultima voce recente (< 2 ore):** nessun avviso mostrato. Viene mostrato un pulsante discreto "Inserisci messaggio nel brogliaccio".
+3. **Caso A — Ultima voce recente (< 2 ore):** nessun avviso mostrato.
 4. **Caso B — Ultima voce vecchia (≥ 2 ore):** il sistema mostra un banner arancione con:
    - Icona campanello
    - Testo: "Nessuna voce nel brogliaccio nelle ultime 2 ore."

@@ -118,14 +118,7 @@ export async function Home({ client, html, render, root }) {
               <span>Inserisci messaggio</span>
             </button>
           </div>
-        ` : html`
-          <div class="is-flex is-justify-content-flex-end mb-4">
-            <button class="button is-light is-small" @click=${openModal}>
-              <span class="icon"><i class="ri-edit-line"></i></span>
-              <span>Inserisci messaggio nel brogliaccio</span>
-            </button>
-          </div>
-        `}
+        ` : ""}
 
         ${!loading && !error && !hasServizi
           ? html`
