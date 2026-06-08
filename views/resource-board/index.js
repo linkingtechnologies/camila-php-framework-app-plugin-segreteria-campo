@@ -1274,6 +1274,10 @@ export async function GOR({ state, client, html, render, root }) {
           const isTarget  = dropTarget === service;
           const isWaiting = service === WAITING;
 
+          const colV   = colCards.reduce((s, c) => s + c.volontari.length, 0);
+          const colM   = colCards.reduce((s, c) => s + c.mezzi.length, 0);
+          const colMat = colCards.reduce((s, c) => s + c.materiali.length, 0);
+
           return html`
             <div
               class="gor-column ${isTarget ? "is-drop-target" : ""}"
@@ -1283,7 +1287,13 @@ export async function GOR({ state, client, html, render, root }) {
             >
               <div class="gor-col-header">
                 <span title="${service}">${isWaiting ? "⏳" : "📋"} ${service}</span>
-                <span class="tag is-light is-small" style="flex-shrink:0">${colCards.length}</span>
+                <span class="tag is-light is-small" style="flex-shrink:0;gap:4px"><i class="ri-team-line"></i> ${colCards.length}</span>
+              </div>
+              <div class="is-size-7 has-text-grey mb-2" style="display:flex;gap:10px;padding:0 2px">
+                ${colV   > 0 ? html`<span><i class="ri-user-line"></i> ${colV}</span>`   : ""}
+                ${colM   > 0 ? html`<span><i class="ri-truck-line"></i> ${colM}</span>`  : ""}
+                ${colMat > 0 ? html`<span><i class="ri-tools-line"></i> ${colMat}</span>` : ""}
+                ${colV + colM + colMat === 0 ? html`<span style="opacity:.5">—</span>` : ""}
               </div>
               ${colCards.length === 0
                 ? html`<p class="has-text-grey is-size-7 has-text-centered py-4">—</p>`

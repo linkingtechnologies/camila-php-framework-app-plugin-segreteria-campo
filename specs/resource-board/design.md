@@ -9,8 +9,9 @@ Single-view SPA (nessun wizard). Tutti i dati vengono caricati al mount e ricari
 [Banner giallo — filtro attivo, "stai vedendo X di Y risorse" · ✕ rimuovi filtro]
 [Barra servizi: chip blu attivi (drop target) | +N ▼ chip gialli non assegnati (nascosti, auto-visibili durante drag)]
 [Kanban ──────────────────────────────────────────── scroll orizzontale →]
-  [ ⏳ IN ATTESA ]  [ 📋 SERVIZIO A ]  [ 📋 SERVIZIO B ]  …
-  [  card gruppo ]  [   card gruppo ]  [   card gruppo ]
+  [ ⏳ IN ATTESA          👥 N ]  [ 📋 SERVIZIO A         👥 N ]  …
+  [  👤 N  🚛 N  🔧 N        ]  [  👤 N  🚛 N  🔧 N        ]
+  [  card gruppo              ]  [   card gruppo             ]
 [Modal cambio-servizio | Modal cambio-squadra | Modal cambio-risorsa]
 ```
 
@@ -230,6 +231,7 @@ groupBy === "squadra"
 - **Drag & Drop**: HTML5 native DnD API, senza librerie esterne. Il payload operativo è tenuto in memoria nella closure (`dragPayload`); il `dataTransfer` porta solo una stringa di fallback non usata dalla logica.
 - **Drag risorsa singola**: le righe `<tr>` nel dettaglio espanso sono `draggable="true"` con `stopPropagation()` sul `dragstart` per evitare che il drag propaghi alla card padre.
 - **Drag categoria**: l'header di sezione (`👤 Volontari ⠿`) è anch'esso `draggable="true"` con `stopPropagation()`.
+- **Header colonna kanban**: mostra nome servizio (con icona ⏳ o 📋) + badge `ri-team-line N` (numero di card/organizzazioni). Sotto l'header una riga secondaria con `ri-user-line N · ri-truck-line N · ri-tools-line N` riporta il totale delle risorse aggregate in quella colonna (calcolato con `reduce` su `colCards`, nessuna chiamata API aggiuntiva). I contatori a zero vengono omessi; se la colonna è vuota compare `—`.
 - **Colonna IN ATTESA DI SERVIZIO**: sempre presente come prima colonna, sempre drop target, mai inclusa in `availableServices`.
 - **USCITA DEFINITIVA**: esclusa sia dal filtro `isActive` che dalla lista `serviziTable`.
 - **`nowDateTime()`**: `new Date().toLocaleString("sv-SE", { hour12: false }).replace(",", "")` → formato `YYYY-MM-DD HH:MM:SS`, coerente con le altre SPA del progetto.
