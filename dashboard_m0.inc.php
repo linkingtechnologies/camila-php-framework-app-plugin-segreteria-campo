@@ -12,7 +12,7 @@ $pluginName = basename($dir);
 $camilaUI->mountMiniApp($pluginName, '/app-smart-assistant.js', '/app.css');
 
 $camilaUI->openBox();
-$camilaUI->insertTitle('Gestione risorse', 'team');
+$camilaUI->insertTitle('Risorse', 'team');
 $camilaUI->addGridSection(3, function ($colIndex) use ($camilaUI) {
 	switch ($colIndex) {
 		case 0:
@@ -30,15 +30,19 @@ $camilaUI->addGridSection(3, function ($colIndex) use ($camilaUI) {
 });
 $camilaUI->closeBox();
 $camilaUI->openBox();
-$camilaUI->insertTitle('Gestione attività', 'todo');
+$camilaUI->insertTitle('Attività', 'todo');
 $camilaUI->addGridSection(3, function ($colIndex) use ($camilaUI) {
 	switch ($colIndex) {
 		case 0:
 			$camilaUI->insertButton('?dashboard=service-manager', 'Gestione servizi', 'pushpin');
 			break;
 		case 1:
+			$camilaUI->insertButton('?dashboard=m1', 'Report situazione attuale', 'dashboard');
+			$camilaUI->insertButton('?dashboard=m6', 'Attività registrate', 'task');
 			break;
 		case 2:
+			$camilaUI->insertButton('?dashboard=12&mt=osm', 'Mappa servizi', 'globe');
+			$camilaUI->insertButton('?dashboard=m7', 'Tutte le mappe', 'map-2');
 			break;
 
 	}

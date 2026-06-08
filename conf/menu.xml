@@ -2,21 +2,9 @@
 <menu>
  <tab>
   <id>m0</id>
-  <title>GESTIONE RISORSE</title>
+  <title>GESTIONE EVENTO</title>
   <url>?dashboard=m0</url>
-  <pages>02,03,04,27,28,massive-check-in,org-status,massive-check-out,resource-board,service-manager</pages>
- </tab>
- <tab>
-   <id>m6</id>
-  <title>ATTIVITÀ</title>
-  <url>?dashboard=m6</url>
-  <pages></pages>
- </tab>
- <tab>
-  <id>m1</id>
-  <title>REPORT</title>
-  <url>?dashboard=m1</url>
-  <pages>01</pages>
+  <pages>02,03,04,27,28,massive-check-in,org-status,massive-check-out,resource-board,service-manager,m6,m1,01,m7,12,12l</pages>
  </tab>
  <tab>
    <id>pre-accreditations-by-service</id>
@@ -24,12 +12,6 @@
   <url>?dashboard=pre-accreditations-by-service</url>
   <pages>pre-accreditations-by-overnight-stay,pre-accreditations-by-service</pages>
  </tab> 
- <tab>
-  <id>m7</id>
-  <title>MAPPE</title>
-  <url>?dashboard=m7</url>
-  <pages>12,12l</pages>
- </tab>
  <tab>
   <id>m5</id>
   <title>VERIFICA DATI</title>
