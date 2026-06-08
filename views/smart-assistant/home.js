@@ -47,7 +47,7 @@ export async function Home({ client, html, render, root }) {
         brogliaccioAlert = diffMs > BROGLIACCIO_ALERT_HOURS * 60 * 60 * 1000;
       } else {
         brogliaccioLastTs = null;
-        brogliaccioAlert = true;
+        brogliaccioAlert = false;  // brogliaccio vuoto: nessun alert
       }
     } catch (e) {
       error = e;

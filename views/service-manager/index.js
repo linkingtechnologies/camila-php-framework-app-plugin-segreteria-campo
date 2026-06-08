@@ -16,6 +16,13 @@ const COLOR_MAP = {
   giallo:   "#d69e2e",
 };
 
+const LETTERE = [
+  "", // nessuna lettera
+  ..."ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+  ..."123456789",
+  ...["!", "#", "$", "%", "&", "+", "-", "=", "@"],
+];
+
 const INCLUDE = [
   "id","nome","ordine","lettera","colore","descrizione",
   "latitudine","longitudine","comune","provincia","indirizzo",
@@ -502,13 +509,20 @@ export async function ServiceManager({ state, client, html, render, root }) {
     if (!norm(form.nome)) { formError = "Il campo Nome è obbligatorio."; rerender(); return; }
     formBusy = true; formError = null; formSuccess = null; rerender();
     try {
+      // verifica duplicato nome (non bloccante)
+      const nomeLower = norm(form.nome).toLowerCase();
+      const duplicate = services.find(s =>
+        norm(s.nome).toLowerCase() === nomeLower &&
+        s.id !== (selected?.id)
+      );
+
       const payload = formToPayload(form);
       if (formMode === "new") {
         await client.table("servizi").create(payload);
-        formSuccess = "Servizio creato.";
+        formSuccess = "Servizio creato." + (duplicate ? " ⚠️ Attenzione: esiste già un altro servizio con lo stesso nome." : "");
       } else {
         await client.table("servizi").update(selected.id, payload);
-        formSuccess = "Servizio aggiornato.";
+        formSuccess = "Servizio aggiornato." + (duplicate ? " ⚠️ Attenzione: esiste già un altro servizio con lo stesso nome." : "");
       }
       await load();
       formDirty = false;
@@ -664,6 +678,12 @@ export async function ServiceManager({ state, client, html, render, root }) {
         .sm-field-row { display:grid; grid-template-columns:1fr 1fr; gap:.5rem; }
         .sm-field-row-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:.5rem; }
         .sm-protected-badge { font-size:.72rem; background:#fff3cd; color:#856404; border:1px solid #ffc107; border-radius:4px; padding:2px 6px; margin-left:.4rem; }
+        /* lettera picker */
+        .sm-lettera-grid { display:flex; flex-wrap:wrap; gap:3px; margin-top:.25rem; }
+        .sm-lettera-btn { width:26px; height:26px; border:1px solid #dbdbdb; border-radius:3px; background:#fff; cursor:pointer; font-size:.72rem; font-weight:600; display:flex; align-items:center; justify-content:center; color:#363636; padding:0; }
+        .sm-lettera-btn:hover { border-color:#3273dc; color:#3273dc; }
+        .sm-lettera-btn.is-selected { background:#3273dc; color:#fff; border-color:#3273dc; }
+        .sm-lettera-btn.is-empty { color:#aaa; font-size:.65rem; }
         /* custom color dropdown */
         .sm-color-drop { position:relative; flex:1; }
         .sm-color-trigger { display:flex; align-items:center; gap:.4rem; padding:.3rem .6rem; border:1px solid #dbdbdb; border-radius:4px; cursor:pointer; background:#fff; font-size:.85rem; user-select:none; }
@@ -948,10 +968,15 @@ export async function ServiceManager({ state, client, html, render, root }) {
                   </div>
                   <div class="field">
                     <label class="label is-small">Lettera</label>
-                    <div class="control">
-                      <input class="input is-small" type="text" maxlength="1"
-                        .value=${form.lettera}
-                        @input=${e => setField("lettera", e.target.value.slice(0,1).toUpperCase())} />
+                    <div class="sm-lettera-grid">
+                      ${LETTERE.map(l => html`
+                        <button type="button"
+                          class="sm-lettera-btn ${form.lettera === l ? 'is-selected' : ''} ${l === '' ? 'is-empty' : ''}"
+                          title="${l === '' ? 'Nessuna lettera' : l}"
+                          @click=${() => setField("lettera", l)}>
+                          ${l === '' ? '∅' : l}
+                        </button>
+                      `)}
                     </div>
                   </div>
                 </div>

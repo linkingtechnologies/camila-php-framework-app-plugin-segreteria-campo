@@ -79,7 +79,7 @@ Tabella: `servizi`
 | `id` | String | chiave primaria |
 | `nome` | String | obbligatorio, usato come chiave funzionale |
 | `ordine` | Number | determina l'ordinamento nella lista |
-| `lettera` | String | abbreviazione (1-2 caratteri) |
+| `lettera` | String | singolo carattere scelto da vocabolario fisso (vedi sotto) |
 | `colore` | String | nome colore da vocabolario fisso |
 | `descrizione` | String | testo libero |
 | `latitudine` | String | coordinata geografica |
@@ -93,6 +93,8 @@ Tabella: `servizi`
 | `note` | String | |
 
 Colori disponibili (`COLORI`): `rosso`, `nero`, `blu`, `verde`, `grigio`, `arancione`, `viola`, `bianco`, `giallo`
+
+Lettere disponibili (`LETTERE`): A–Z, 1–9, `! # $ % & + - = @`, oppure vuoto (nessuna lettera). Corrispondono ai file immagine `marker_<colore><lettera>.png` nella cartella `templates/images/en/`. Il campo è selezionabile tramite picker a griglia — non è un input libero.
 
 Servizi protetti (`PROTECTED`): `IN ATTESA DI SERVIZIO`, `USCITA DEFINITIVA`
 

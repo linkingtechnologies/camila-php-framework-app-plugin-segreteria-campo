@@ -55,7 +55,7 @@ Il sistema esegue in parallelo tutti i controlli al mount e mostra i relativi av
    - Testo: "Nessuna voce nel brogliaccio nelle ultime 2 ore."
    - Sottotesto: data/ora dell'ultima registrazione (formato locale italiano)
    - Pulsante **Inserisci messaggio** integrato nel banner
-5. **Caso C — Brogliaccio vuoto:** stesso banner del Caso B con sottotesto "Il brogliaccio è vuoto."
+5. **Caso C — Brogliaccio vuoto:** nessun alert mostrato. L'alert scatta solo se il brogliaccio è stato utilizzato almeno una volta.
 
 La soglia è configurabile tramite la costante `BROGLIACCIO_ALERT_HOURS` (default: `2`).
 

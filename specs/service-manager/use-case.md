@@ -113,6 +113,7 @@ Operatore di segreteria campo / responsabile configurazione.
 | Codice | Condizione | Comportamento |
 |---|---|---|
 | E01 | Nome servizio vuoto al salvataggio | Messaggio di errore in linea, salvataggio bloccato |
+| E01b | Nome servizio già usato da un altro servizio | Salvataggio eseguito normalmente; messaggio di successo include avviso ⚠️. Controllo client-side su lista già in memoria, nessuna chiamata API aggiuntiva |
 | E02 | Errore API in lettura | Messaggio di errore con dettagli tecnici espandibili |
 | E03 | Errore API in scrittura | Messaggio di errore in linea nel form |
 | E04 | Reverse geocoding non disponibile | `mapAddress` resta vuoto, il pulsante Conferma si sblocca comunque dopo timeout |
