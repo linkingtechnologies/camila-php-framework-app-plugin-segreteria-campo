@@ -51,7 +51,13 @@ function buildVolontariInsertRow(selectionOrg, v) {
   const servizio = safe(v.servizio) || DEFAULT_SERVIZIO;
   const responsabile = safe(v.responsabile) || "NO";
   const cellulare = safe(v.cellulare);
+  const email = safe(v.email);
+  const note = safe(v.note);
   const autista = safe(v.autista) || "NO";
+  const pernottamento = safe(v.pernottamento) || "NO";
+  const pranzo = safe(v.pranzo) || "NO";
+  const cena = safe(v.cena) || "NO";
+  const intolleranze = safe(v.intolleranze) || "NO";
   const benefici = safe(v.beneficiLegge) || "NO";
   const numGg = safe(v.numGgBenefici);
 
@@ -63,9 +69,15 @@ function buildVolontariInsertRow(selectionOrg, v) {
   // SI/NO default NO
   row["responsabile"] = responsabile;
   row["autista"] = autista;
+  row["pernottamento"] = pernottamento;
+  row["pranzo"] = pranzo;
+  row["cena"] = cena;
+  row["intolleranze"] = intolleranze;
   row["benefici-di-legge"] = benefici;
 
   if (cellulare) row["cellulare"] = cellulare;
+  if (email) row["email"] = email;
+  if (note) row["note"] = note;
 
   // solo se benefici = SI
   if (benefici === "SI" && numGg) {
@@ -130,11 +142,17 @@ export async function Step3({ state, client, goTo, html, render, root }) {
 
     mansione: "",
     servizio: safe(v.servizio) || DEFAULT_SERVIZIO,
-    responsabile: "NO",
-    autista: "NO",
-    cellulare: "",
-    beneficiLegge: "NO",
-    numGgBenefici: ""
+    responsabile: safe(v.responsabile) || "NO",
+    autista: safe(v.autista) || "NO",
+    pernottamento: safe(v.pernottamento) || "NO",
+    pranzo: safe(v.pranzo) || "NO",
+    cena: safe(v.cena) || "NO",
+    intolleranze: safe(v.intolleranze) || "NO",
+    cellulare: safe(v.cellulare) || "",
+    email: safe(v.email) || "",
+    note: safe(v.note) || "",
+    beneficiLegge: safe(v.beneficiLegge) || "NO",
+    numGgBenefici: safe(v.numGgBenefici) || ""
   }));
 
   const VolontariAPI = client.table("volontari");
@@ -519,7 +537,7 @@ export async function Step3({ state, client, goTo, html, render, root }) {
               <tr>
                 <th>Anagrafica</th>
                 <th>Mansione / Servizio</th>
-                <th>Resp. / Autista / Cellulare</th>
+                <th>Dati aggiuntivi</th>
                 <th>Benefici / Num. gg</th>
                 <th>Esito</th>
               </tr>
@@ -625,7 +643,59 @@ export async function Step3({ state, client, goTo, html, render, root }) {
                         )}
                       </div>
 
-                      <div class="field" style="margin-bottom:0;">
+                      <div class="field" style="margin-bottom:0.5rem">
+                        <label
+                          class="label"
+                          style="margin-bottom:0.25rem;font-size:0.75rem;color:#666;"
+                          >Pernottamento</label
+                        >
+                        ${siNoSelect(
+                          r.pernottamento || "NO",
+                          e => setRowField(r, "pernottamento", e.target.value),
+                          rowReadOnly
+                        )}
+                      </div>
+
+                      <div class="field" style="margin-bottom:0.5rem">
+                        <label
+                          class="label"
+                          style="margin-bottom:0.25rem;font-size:0.75rem;color:#666;"
+                          >Pranzo</label
+                        >
+                        ${siNoSelect(
+                          r.pranzo || "NO",
+                          e => setRowField(r, "pranzo", e.target.value),
+                          rowReadOnly
+                        )}
+                      </div>
+
+                      <div class="field" style="margin-bottom:0.5rem">
+                        <label
+                          class="label"
+                          style="margin-bottom:0.25rem;font-size:0.75rem;color:#666;"
+                          >Cena</label
+                        >
+                        ${siNoSelect(
+                          r.cena || "NO",
+                          e => setRowField(r, "cena", e.target.value),
+                          rowReadOnly
+                        )}
+                      </div>
+
+                      <div class="field" style="margin-bottom:0.5rem">
+                        <label
+                          class="label"
+                          style="margin-bottom:0.25rem;font-size:0.75rem;color:#666;"
+                          >Intolleranze</label
+                        >
+                        ${siNoSelect(
+                          r.intolleranze || "NO",
+                          e => setRowField(r, "intolleranze", e.target.value),
+                          rowReadOnly
+                        )}
+                      </div>
+
+                      <div class="field" style="margin-bottom:0.5rem">
                         <label
                           class="label"
                           style="margin-bottom:0.25rem;font-size:0.75rem;color:#666;"
@@ -636,8 +706,22 @@ export async function Step3({ state, client, goTo, html, render, root }) {
                           placeholder="es. 3331234567"
                           .value=${r.cellulare}
                           ?disabled=${rowReadOnly}
-                          @input=${e =>
-                            setRowField(r, "cellulare", e.target.value)}
+                          @input=${e => setRowField(r, "cellulare", e.target.value)}
+                        />
+                      </div>
+
+                      <div class="field" style="margin-bottom:0;">
+                        <label
+                          class="label"
+                          style="margin-bottom:0.25rem;font-size:0.75rem;color:#666;"
+                          >Email</label
+                        >
+                        <input
+                          class="input is-small"
+                          placeholder="es. mario@esempio.it"
+                          .value=${r.email}
+                          ?disabled=${rowReadOnly}
+                          @input=${e => setRowField(r, "email", e.target.value)}
                         />
                       </div>
                     </td>
@@ -656,7 +740,7 @@ export async function Step3({ state, client, goTo, html, render, root }) {
                         )}
                       </div>
 
-                      <div class="field" style="margin-bottom:0;">
+                      <div class="field" style="margin-bottom:0.5rem">
                         <label
                           class="label"
                           style="margin-bottom:0.25rem;font-size:0.75rem;color:#666;"
@@ -669,6 +753,21 @@ export async function Step3({ state, client, goTo, html, render, root }) {
                           ?disabled=${numDisabled}
                           @input=${e =>
                             setRowField(r, "numGgBenefici", e.target.value)}
+                        />
+                      </div>
+
+                      <div class="field" style="margin-bottom:0;">
+                        <label
+                          class="label"
+                          style="margin-bottom:0.25rem;font-size:0.75rem;color:#666;"
+                          >Note</label
+                        >
+                        <input
+                          class="input is-small"
+                          placeholder="Note"
+                          .value=${r.note}
+                          ?disabled=${rowReadOnly}
+                          @input=${e => setRowField(r, "note", e.target.value)}
                         />
                       </div>
                     </td>

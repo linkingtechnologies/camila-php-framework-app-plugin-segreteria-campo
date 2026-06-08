@@ -46,6 +46,17 @@ function mergeByCF(preRecords, attRecords) {
     const cognome = getCognome(r);
     const nome = getNome(r);
     const servizio = norm(r["servizio"]);
+    const beneficiLegge = norm(r["benefici-di-legge"]);
+    const numGgBenefici = norm(r["n-giorni-benefici-legge"]);
+    const cellulare = norm(r["cellulare"]);
+    const email = norm(r["email"]);
+    const note = norm(r["note"]);
+    const responsabile = norm(r["responsabile"]);
+    const autista = norm(r["autista"]);
+    const pernottamento = norm(r["pernottamento"]);
+    const pranzo = norm(r["pranzo"]);
+    const cena = norm(r["cena"]);
+    const intolleranze = norm(r["intolleranze"]);
 
     if (!map.has(cf)) {
       map.set(cf, {
@@ -53,6 +64,17 @@ function mergeByCF(preRecords, attRecords) {
         cognome,
         nome,
         servizio,
+        beneficiLegge,
+        numGgBenefici,
+        cellulare,
+        email,
+        note,
+        responsabile,
+        autista,
+        pernottamento,
+        pranzo,
+        cena,
+        intolleranze,
         turni: new Set(turno ? [turno] : [])
       });
       return;
@@ -62,6 +84,17 @@ function mergeByCF(preRecords, attRecords) {
     if (!cur.cognome && cognome) cur.cognome = cognome;
     if (!cur.nome && nome) cur.nome = nome;
     if (!cur.servizio && servizio) cur.servizio = servizio;
+    if (!cur.beneficiLegge && beneficiLegge) cur.beneficiLegge = beneficiLegge;
+    if (!cur.numGgBenefici && numGgBenefici) cur.numGgBenefici = numGgBenefici;
+    if (!cur.cellulare && cellulare) cur.cellulare = cellulare;
+    if (!cur.email && email) cur.email = email;
+    if (!cur.note && note) cur.note = note;
+    if (!cur.responsabile && responsabile) cur.responsabile = responsabile;
+    if (!cur.autista && autista) cur.autista = autista;
+    if (!cur.pernottamento && pernottamento) cur.pernottamento = pernottamento;
+    if (!cur.pranzo && pranzo) cur.pranzo = pranzo;
+    if (!cur.cena && cena) cur.cena = cena;
+    if (!cur.intolleranze && intolleranze) cur.intolleranze = intolleranze;
     if (turno) cur.turni.add(turno);
   }
 
@@ -185,7 +218,7 @@ export async function Step2({ state, client, goTo, html, render, root }) {
       const [resPre, resAtt] = await Promise.all([
         Pre.list({
           filters: [client.filter("organizzazione", "eq", state.org.name)],
-          include: ["codice-fiscale", "cognome", "nome", "turno", "servizio"],
+          include: ["codice-fiscale", "cognome", "nome", "turno", "servizio", "benefici-di-legge", "n-giorni-benefici-legge", "cellulare", "email", "note", "responsabile", "autista", "pernottamento", "pranzo", "cena", "intolleranze"],
           size: 5000
         }),
         Att.list({
@@ -257,6 +290,17 @@ export async function Step2({ state, client, goTo, html, render, root }) {
           cognome: r.cognome || "",
           nome: r.nome || "",
           servizio: r.servizio || "",
+          beneficiLegge: r.beneficiLegge || "",
+          numGgBenefici: r.numGgBenefici || "",
+          cellulare: r.cellulare || "",
+          email: r.email || "",
+          note: r.note || "",
+          responsabile: r.responsabile || "",
+          autista: r.autista || "",
+          pernottamento: r.pernottamento || "",
+          pranzo: r.pranzo || "",
+          cena: r.cena || "",
+          intolleranze: r.intolleranze || "",
           turni: Array.from(r.turni || [])
         };
       })

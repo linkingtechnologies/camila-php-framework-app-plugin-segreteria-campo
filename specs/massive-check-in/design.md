@@ -180,10 +180,29 @@ Il campo `servizio` viene letto dalla tabella preaccreditati e propagato fino ag
 
 | Step | Operazione |
 |---|---|
-| Step 2 — caricamento | `include` contiene `"servizio"` in `volontari-preaccreditati` |
-| Step 2 — merge | `mergeByCF` raccoglie `servizio` nell'entry di `preMap`; `mergeField` non sovrascrive se già valorizzato |
-| Step 2 → 3 | `doCheckin()` passa `servizio` nel payload `checkinSelection.volunteers` |
-| Step 3 — init righe | `servizio: safe(v.servizio) \|\| DEFAULT_SERVIZIO` |
+| Step 2 — caricamento | `include` contiene `"servizio"`, `"benefici-di-legge"`, `"n-giorni-benefici-legge"`, `"cellulare"`, `"email"`, `"note"` da `volontari-preaccreditati` |
+| Step 2 — merge | `mergeByCF` raccoglie tutti i campi nell'entry di `preMap`; non sovrascrive se già valorizzato |
+| Step 2 → 3 | `doCheckin()` passa `servizio`, `beneficiLegge`, `numGgBenefici`, `cellulare`, `email`, `note` nel payload `checkinSelection.volunteers` |
+| Step 3 — init righe | tutti i campi usano `safe(v.campo) \|\| default`; default `"NO"` per i SI/NO, `""` per i testi |
+
+⚠️ **Nomi campo diversi tra tabelle**: `volontari-preaccreditati` usa `n-giorni-benefici-legge`; la tabella operativa `volontari` usa `num-gg-ben-legge`. La mappatura avviene internamente nella variabile `numGgBenefici`.
+
+**Campi pre-popolati da `volontari-preaccreditati` → step3:**
+
+| Campo preaccreditati | Variabile interna | Campo in `volontari` |
+|---|---|---|
+| `servizio` | `servizio` | `servizio` |
+| `benefici-di-legge` | `beneficiLegge` | `benefici-di-legge` |
+| `n-giorni-benefici-legge` | `numGgBenefici` | `num-gg-ben-legge` |
+| `cellulare` | `cellulare` | `cellulare` |
+| `email` | `email` | `email` |
+| `note` | `note` | `note` |
+| `responsabile` | `responsabile` | `responsabile` |
+| `autista` | `autista` | `autista` |
+| `pernottamento` | `pernottamento` | `pernottamento` |
+| `pranzo` | `pranzo` | `pranzo` |
+| `cena` | `cena` | `cena` |
+| `intolleranze` | `intolleranze` | `intolleranze` |
 | Step 4 — caricamento | `include` contiene `"servizio"` in `mezzi-preaccreditati` |
 | Step 4 — merge | `mergeByTarga` propaga `servizio` con `mergeField` |
 | Step 4 → 5 | `doCheckinMezzi()` passa `servizio` nel payload `mezziSelection.mezzi` |
