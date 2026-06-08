@@ -132,7 +132,7 @@ export async function Step5({ state, client, goTo, html, render, root }) {
       status: "pending",
       message: "",
 
-      servizio: DEFAULT_SERVIZIO,
+      servizio: safe(m.servizio) || DEFAULT_SERVIZIO,
       kmInizioMissione: "",
       kmAllArrivo: "",
       kmAllaPartenza: "",
@@ -501,11 +501,10 @@ export async function Step5({ state, client, goTo, html, render, root }) {
                     <td>
                       <div class="select is-small is-fullwidth">
                         <select
-                          .value=${current}
                           ?disabled=${rowReadOnly || loadingServizi || submitting}
                           @change=${e => setRowField(r, "servizio", e.target.value)}
                         >
-                          ${options.map(opt => html`<option value=${opt}>${opt}</option>`)}
+                          ${options.map(opt => html`<option value=${opt} ?selected=${current === opt}>${opt}</option>`)}
                         </select>
                       </div>
                     </td>

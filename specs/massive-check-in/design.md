@@ -169,3 +169,56 @@ Il pulsante **Check-in mezzi** è bloccato se esistono record in stato `pending`
 ## Salto diretto a materiali (step 2, step 5)
 
 L'operatore può saltare la selezione di mezzi (step 4/5) e andare direttamente ai materiali (step 6). Non è richiesto aver completato step 5.
+
+---
+
+## Pre-popolamento servizio dai preaccreditati
+
+Il campo `servizio` viene letto dalla tabella preaccreditati e propagato fino agli step di inserimento.
+
+**Catena di propagazione:**
+
+| Step | Operazione |
+|---|---|
+| Step 2 — caricamento | `include` contiene `"servizio"` in `volontari-preaccreditati` |
+| Step 2 — merge | `mergeByCF` raccoglie `servizio` nell'entry di `preMap`; `mergeField` non sovrascrive se già valorizzato |
+| Step 2 → 3 | `doCheckin()` passa `servizio` nel payload `checkinSelection.volunteers` |
+| Step 3 — init righe | `servizio: safe(v.servizio) \|\| DEFAULT_SERVIZIO` |
+| Step 4 — caricamento | `include` contiene `"servizio"` in `mezzi-preaccreditati` |
+| Step 4 — merge | `mergeByTarga` propaga `servizio` con `mergeField` |
+| Step 4 → 5 | `doCheckinMezzi()` passa `servizio` nel payload `mezziSelection.mezzi` |
+| Step 5 — init righe | `servizio: safe(m.servizio) \|\| DEFAULT_SERVIZIO` |
+| Step 6 — caricamento | `include` contiene `"servizio"` in `materiali-preaccreditati` |
+| Step 6 — merge | `mergeById` propaga `servizio` con `mergeField` |
+| Step 6 → 7 | `doCheckinMateriali()` passa `servizio` nel payload `materialiSelection.materiali` |
+| Step 7 — init righe | `servizio: safe(m.servizio) \|\| DEFAULT_SERVIZIO` |
+
+Se il preaccreditato non ha `servizio` valorizzato si usa il default `IN ATTESA DI SERVIZIO`. Il valore è sempre modificabile dall'operatore prima dell'inserimento.
+
+**Guard "valore non in lista":** se il servizio del preaccreditato non è nella tabella `servizi` attiva, viene aggiunto come opzione extra nella select così non scompare silenziosamente (stessa logica in step 3, 5, 7).
+
+---
+
+## Pattern lit-html — `<select>` con valore dinamico
+
+### Problema
+
+In lit-html il binding `.value` su un `<select>` **non è affidabile** quando le opzioni sono dinamiche o caricate in modo asincrono. Il browser applica `.value` solo se l'opzione corrispondente è già nel DOM in quel momento; se le opzioni vengono aggiunte dopo (es. al termine di una chiamata API), il select ricade sul primo elemento senza errori visibili.
+
+### Soluzione
+
+Usare sempre `?selected` su ogni `<option>` invece di `.value` sul `<select>`:
+
+```js
+// ❌ SBAGLIATO — fragile con opzioni dinamiche
+html`<select .value=${current}>
+  ${opts.map(o => html`<option value=${o}>${o}</option>`)}
+</select>`
+
+// ✅ CORRETTO
+html`<select @change=${e => onchange(e.target.value)}>
+  ${opts.map(o => html`<option value=${o} ?selected=${current === o}>${o}</option>`)}
+</select>`
+```
+
+Questa regola si applica a **tutti i `<select>` le cui opzioni o il cui valore selezionato dipendono da stato asincrono** (servizi, mansioni, turni, ecc.).

@@ -118,6 +118,8 @@ export async function Step3({ state, client, goTo, html, render, root }) {
   let mezziBlockMsg = null;
 
   // status: "pending" | "exists" | "inserted" | "failed"
+  console.log("[step3] inputVolunteers servizio:", inputVolunteers.map(v => ({ cf: v.cf, servizio: v.servizio })));
+
   let rows = inputVolunteers.map(v => ({
     cf: safe(v.cf),
     cognome: safe(v.cognome),
@@ -127,7 +129,7 @@ export async function Step3({ state, client, goTo, html, render, root }) {
     message: "",
 
     mansione: "",
-    servizio: DEFAULT_SERVIZIO,
+    servizio: safe(v.servizio) || DEFAULT_SERVIZIO,
     responsabile: "NO",
     autista: "NO",
     cellulare: "",
@@ -362,11 +364,12 @@ export async function Step3({ state, client, goTo, html, render, root }) {
   }
 
   function siNoSelect(value, onChange, disabled = false) {
+    const v = value || "NO";
     return html`
       <div class="select is-small is-fullwidth">
-        <select .value=${value} @change=${onChange} ?disabled=${disabled}>
-          <option value="NO">NO</option>
-          <option value="SI">SI</option>
+        <select @change=${onChange} ?disabled=${disabled}>
+          <option value="NO" ?selected=${v === "NO"}>NO</option>
+          <option value="SI" ?selected=${v === "SI"}>SI</option>
         </select>
       </div>
     `;
@@ -562,13 +565,11 @@ export async function Step3({ state, client, goTo, html, render, root }) {
                         >
                         <div class="select is-small is-fullwidth">
                           <select
-                            .value=${r.mansione}
-                            @change=${e =>
-                              setRowField(r, "mansione", e.target.value)}
+                            @change=${e => setRowField(r, "mansione", e.target.value)}
                             ?disabled=${rowReadOnly}
                           >
-                            <option value="">—</option>
-                            ${MANSIONI.map(m => html`<option value=${m}>${m}</option>`)}
+                            <option value="" ?selected=${!r.mansione}>—</option>
+                            ${MANSIONI.map(m => html`<option value=${m} ?selected=${r.mansione === m}>${m}</option>`)}
                           </select>
                         </div>
                       </div>
@@ -580,16 +581,19 @@ export async function Step3({ state, client, goTo, html, render, root }) {
                           >Servizio</label
                         >
                         <div class="select is-small is-fullwidth">
-                          <select
-                            .value=${safe(r.servizio) || DEFAULT_SERVIZIO}
-                            @change=${e =>
-                              setRowField(r, "servizio", e.target.value)}
-                            ?disabled=${rowReadOnly ||
-                            loadingServizi ||
-                            !!serviziError}
-                          >
-                            ${serviziOptions.map(s => html`<option value=${s}>${s}</option>`)}
-                          </select>
+                          ${(() => {
+                            const current = safe(r.servizio) || DEFAULT_SERVIZIO;
+                            const hasCurrent = serviziOptions.includes(current);
+                            const opts = hasCurrent
+                              ? serviziOptions
+                              : [DEFAULT_SERVIZIO, current, ...serviziOptions.filter(x => x !== DEFAULT_SERVIZIO)];
+                            return html`<select
+                              @change=${e => setRowField(r, "servizio", e.target.value)}
+                              ?disabled=${rowReadOnly || loadingServizi || !!serviziError}
+                            >
+                              ${opts.map(s => html`<option value=${s} ?selected=${current === s}>${s}</option>`)}
+                            </select>`;
+                          })()}
                         </div>
                       </div>
                     </td>

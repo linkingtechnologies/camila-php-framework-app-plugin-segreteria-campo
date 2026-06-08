@@ -45,12 +45,14 @@ function mergeByCF(preRecords, attRecords) {
     const turno = getTurno(r);
     const cognome = getCognome(r);
     const nome = getNome(r);
+    const servizio = norm(r["servizio"]);
 
     if (!map.has(cf)) {
       map.set(cf, {
         cf,
         cognome,
         nome,
+        servizio,
         turni: new Set(turno ? [turno] : [])
       });
       return;
@@ -59,6 +61,7 @@ function mergeByCF(preRecords, attRecords) {
     const cur = map.get(cf);
     if (!cur.cognome && cognome) cur.cognome = cognome;
     if (!cur.nome && nome) cur.nome = nome;
+    if (!cur.servizio && servizio) cur.servizio = servizio;
     if (turno) cur.turni.add(turno);
   }
 
@@ -182,7 +185,7 @@ export async function Step2({ state, client, goTo, html, render, root }) {
       const [resPre, resAtt] = await Promise.all([
         Pre.list({
           filters: [client.filter("organizzazione", "eq", state.org.name)],
-          include: ["codice-fiscale", "cognome", "nome", "turno"],
+          include: ["codice-fiscale", "cognome", "nome", "turno", "servizio"],
           size: 5000
         }),
         Att.list({
@@ -253,6 +256,7 @@ export async function Step2({ state, client, goTo, html, render, root }) {
           cf: r.cf,
           cognome: r.cognome || "",
           nome: r.nome || "",
+          servizio: r.servizio || "",
           turni: Array.from(r.turni || [])
         };
       })
@@ -266,6 +270,8 @@ export async function Step2({ state, client, goTo, html, render, root }) {
       },
       volunteers
     };
+
+    console.log("[step2→3] volunteers servizio:", volunteers.map(v => ({ cf: v.cf, servizio: v.servizio })));
 
     goTo(3);
   }

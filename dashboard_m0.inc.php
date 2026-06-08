@@ -12,18 +12,33 @@ $pluginName = basename($dir);
 $camilaUI->mountMiniApp($pluginName, '/app-smart-assistant.js', '/app.css');
 
 $camilaUI->openBox();
-$camilaUI->insertTitle('Gestione Organizzazioni', 'team');
+$camilaUI->insertTitle('Gestione risorse', 'team');
 $camilaUI->addGridSection(3, function ($colIndex) use ($camilaUI) {
 	switch ($colIndex) {
 		case 0:
-			$camilaUI->insertButton('?dashboard=massive-check-in', 'Check-in massivo', 'login-box');
+			$camilaUI->insertButton('?dashboard=massive-check-in', 'Check-in massivo Organizzazione', 'login-box');
 			break;
 		case 1:
-			$camilaUI->insertButton('?dashboard=resource-board', 'Gestione operativa', 'route');
-			$camilaUI->insertButton('?dashboard=org-status', 'Stato registrazione', 'file-list-3');
+			$camilaUI->insertButton('?dashboard=resource-board', 'Gestione operativa evento', 'route');
+			$camilaUI->insertButton('?dashboard=org-status', 'Stato registrazione Organizzazione', 'file-list-3');
 			break;
 		case 2:
-			$camilaUI->insertButton('?dashboard=massive-check-out', 'Check-out massivo', 'logout-box');
+			$camilaUI->insertButton('?dashboard=massive-check-out', 'Check-out massivo Organizzazione', 'logout-box');
+			break;
+
+	}
+});
+$camilaUI->closeBox();
+$camilaUI->openBox();
+$camilaUI->insertTitle('Gestione attività', 'todo');
+$camilaUI->addGridSection(3, function ($colIndex) use ($camilaUI) {
+	switch ($colIndex) {
+		case 0:
+			$camilaUI->insertButton('?dashboard=service-manager', 'Gestione servizi', 'pushpin');
+			break;
+		case 1:
+			break;
+		case 2:
 			break;
 
 	}

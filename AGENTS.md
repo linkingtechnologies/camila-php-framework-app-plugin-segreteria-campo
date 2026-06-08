@@ -166,6 +166,26 @@ Do not introduce:
 
 Templates should be pure functions of state wherever possible.
 
+## lit-html — `<select>` con valore dinamico
+
+Il binding `.value` su un `<select>` **non è affidabile** in lit-html quando le opzioni sono dinamiche o caricate in modo asincrono. Il browser applica `.value` solo se l'opzione corrispondente esiste già nel DOM; se le opzioni arrivano dopo (es. fine chiamata API), il select ricade silenziosamente sul primo elemento.
+
+**Regola:** usare sempre `?selected` su ogni `<option>`.
+
+```js
+// ❌ SBAGLIATO
+html`<select .value=${current}>
+  ${opts.map(o => html`<option value=${o}>${o}</option>`)}
+</select>`
+
+// ✅ CORRETTO
+html`<select @change=${e => onChange(e.target.value)}>
+  ${opts.map(o => html`<option value=${o} ?selected=${current === o}>${o}</option>`)}
+</select>`
+```
+
+Questa regola si applica a tutti i `<select>` il cui valore o le cui opzioni dipendono da stato asincrono (servizi, mansioni, turni, categorie, ecc.).
+
 ## Styling
 
 Use:

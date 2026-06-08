@@ -43,6 +43,7 @@ function pickFields(r) {
     marca: norm(r["marca"]),
     modello: norm(r["modello"]),
     note: norm(r["note"]),
+    servizio: norm(r["servizio"]),
     turni: parseTurniValue(r["turno"] ?? r["turni"] ?? r.turno ?? r.turni),
 	organizzazione: norm(r["organizzazione"]),
     codiceOrganizzazione: norm(r["codice-organizzazione"]),
@@ -91,6 +92,7 @@ function mergeByTarga(preRecords, attRecords) {
     mergeField(cur, extra, "marca");
     mergeField(cur, extra, "modello");
     mergeField(cur, extra, "note");
+    mergeField(cur, extra, "servizio");
 	mergeField(cur, extra, "organizzazione");
 	mergeField(cur, extra, "codiceOrganizzazione");
     mergeTurni(cur, extra);
@@ -112,6 +114,7 @@ function mergeByTarga(preRecords, attRecords) {
       mergeField(row, att, "marca");
       mergeField(row, att, "modello");
       mergeField(row, att, "note");
+      mergeField(row, att, "servizio");
 	  mergeField(row, att, "organizzazione");
 	  mergeField(row, att, "codicOorganizzazione");
       mergeTurni(row, att);
@@ -316,6 +319,7 @@ let form = {
         "modello",
         "note",
         "turno",
+        "servizio",
 		"organizzazione",
 		"codice-organizzazione"
       ];
@@ -446,6 +450,7 @@ let form = {
           marca: r.marca || "",
           modello: r.modello || "",
           note: r.note || "",
+          servizio: r.servizio || "",
           turniOptions: opts,
           turni: preset
         };
@@ -875,8 +880,6 @@ ${kind === "pre" ? html`
             <tr>
               <th style="width:3.5rem">✓</th>
 ${hasOrgCol ? html`<th>Organizzazione</th>` : ""}
-
-${hasTurniCol ? html`<th>Turni</th>` : ""}
 
               <th>Targa</th>
               <th>Codice inventario</th>

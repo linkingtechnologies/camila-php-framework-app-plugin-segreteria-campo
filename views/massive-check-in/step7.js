@@ -96,8 +96,8 @@ export async function Step7({ state, client, goTo, html, render, root }) {
     note: safe(m.note),
     "note-ulteriori": safe(m["note-ulteriori"]),
 
-    // ✅ servizio editabile
-    servizio: DEFAULT_SERVIZIO,
+    // ✅ servizio editabile (pre-popolato dal preaccreditamento se disponibile)
+    servizio: safe(m.servizio) || DEFAULT_SERVIZIO,
 
     // turni
     turniOptions: Array.isArray(m.turniOptions) ? m.turniOptions.map(safe).filter(Boolean) : [],
@@ -398,11 +398,10 @@ export async function Step7({ state, client, goTo, html, render, root }) {
                     <td>
                       <div class="select is-small is-fullwidth">
                         <select
-                          .value=${current}
                           ?disabled=${rowReadOnly || loadingServizi || submitting}
                           @change=${e => setRowField(r, "servizio", e.target.value)}
                         >
-                          ${optionsServ.map(opt => html`<option value=${opt}>${opt}</option>`)}
+                          ${optionsServ.map(opt => html`<option value=${opt} ?selected=${current === opt}>${opt}</option>`)}
                         </select>
                       </div>
                     </td>
