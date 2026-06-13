@@ -2,12 +2,13 @@
 
 const WAITING         = "IN ATTESA DI SERVIZIO";
 const SERVIZI_FITTIZI = ["IN ATTESA DI SERVIZIO", "USCITA DEFINITIVA"];
+const COLORI_SERVIZI  = ["rosso","blu","verde","arancione","viola","giallo","grigio","nero","bianco"];
 
 const INCLUDE_MOV = [
   "id","data/ora","tipologia","articolo","quantita",
   "unita-di-misura","magazzino-origine","magazzino-destinazione","servizio","operatore","note"
 ];
-const INCLUDE_SRV = ["nome","latitudine","longitudine","colore","lettera"];
+const INCLUDE_SRV = ["id","nome","latitudine","longitudine","colore","lettera"];
 const INCLUDE_MAG = ["nome","latitudine","longitudine","colore","lettera"];
 const INCLUDE_V   = ["id","cognome","nome","codice-fiscale","organizzazione","provincia","squadra",
                      "servizio","data-inizio-attestato","data-fine-attestato"];
@@ -210,12 +211,20 @@ export async function MapCenter({ state, client, html, render, root }) {
 
   // mappa (shared)
   let leafletMap      = null;
+  let markersByName   = new Map();
   let mapResizeHandler= null;
   let mapSidebarOpen  = true;
   let mapFullscreen   = false;
   let autoRefresh     = false;
   let autoRefreshTimer= null;
   let countdownSec    = 60;
+
+  // posizioni (tab editor)
+  let posEditMode  = false;
+  let selectedSrv  = null;
+  let pendingPlace = null;
+  let posSaveBusy  = false;
+  let posSaveError = null;
 
   function rerender() { render(view(), root); }
 
@@ -326,35 +335,39 @@ export async function MapCenter({ state, client, html, render, root }) {
   }
 
   function addMarkersConsumabili(L) {
+    markersByName.clear();
     const bounds = new L.LatLngBounds();
     for (const r of magazzini) {
       const lat = parseFloat(r.latitudine), lon = parseFloat(r.longitudine);
       if (!lat || !lon) continue;
       const nome = norm(r.nome);
-      L.marker([lat, lon], { icon: makeIcon(L, r.colore, r.lettera) })
+      const m = L.marker([lat, lon], { icon: makeIcon(L, r.colore, r.lettera) })
         .addTo(leafletMap)
         .bindPopup(`<div style="min-width:180px"><strong>${nome}</strong>
           <span style="background:#dbeafe;color:#1d4ed8;border-radius:4px;padding:0 5px;font-size:.7rem;margin-left:4px">Magazzino</span>
           ${popupGiacenze(nome, "magazzino", movimentazioni)}
         </div>`);
+      markersByName.set(nome, { marker: m, lat, lon });
       bounds.extend([lat, lon]);
     }
     for (const r of servizi) {
       const lat = parseFloat(r.latitudine), lon = parseFloat(r.longitudine);
       if (!lat || !lon) continue;
       const nome = norm(r.nome);
-      L.marker([lat, lon], { icon: makeIcon(L, r.colore, r.lettera) })
+      const m = L.marker([lat, lon], { icon: makeIcon(L, r.colore, r.lettera) })
         .addTo(leafletMap)
         .bindPopup(`<div style="min-width:180px"><strong>${nome}</strong>
           <span style="background:#dcfce7;color:#15803d;border-radius:4px;padding:0 5px;font-size:.7rem;margin-left:4px">Servizio</span>
           ${popupGiacenze(nome, "servizio", movimentazioni)}
         </div>`);
+      markersByName.set(nome, { marker: m, lat, lon });
       bounds.extend([lat, lon]);
     }
     if (bounds.isValid()) leafletMap.fitBounds(bounds, { padding: [40, 40] });
   }
 
   function addMarkersRisorse(L) {
+    markersByName.clear();
     const cards = buildCards(volontari, mezzi, materiali, groupBy);
     const byService = new Map();
     for (const c of cards) {
@@ -368,25 +381,121 @@ export async function MapCenter({ state, client, html, render, root }) {
       if (!lat || !lon) continue;
       const nome     = norm(r.nome);
       const srvCards = byService.get(nome) || [];
-      L.marker([lat, lon], { icon: makeIcon(L, r.colore, r.lettera) })
+      const m = L.marker([lat, lon], { icon: makeIcon(L, r.colore, r.lettera) })
         .addTo(leafletMap)
         .bindPopup(popupRisorse(nome, srvCards), { maxWidth: 320 });
+      markersByName.set(nome, { marker: m, lat, lon });
       bounds.extend([lat, lon]);
     }
     if (bounds.isValid()) leafletMap.fitBounds(bounds, { padding: [40, 40] });
   }
 
   function addMarkersOrganizzazioni(L) {
+    markersByName.clear();
     const bounds = new L.LatLngBounds();
     for (const o of organizzazioni) {
       const lat = parseFloat(o.latitudine), lon = parseFloat(o.longitudine);
       if (!lat || !lon) continue;
-      L.marker([lat, lon], { icon: makeIcon(L, norm(o.colore) || "grigio", norm(o.lettera)) })
+      const nome = norm(o.denominazione);
+      const m = L.marker([lat, lon], { icon: makeIcon(L, norm(o.colore) || "grigio", norm(o.lettera)) })
         .addTo(leafletMap)
         .bindPopup(popupOrg(o), { maxWidth: 280 });
+      markersByName.set(nome, { marker: m, lat, lon });
       bounds.extend([lat, lon]);
     }
     if (bounds.isValid()) leafletMap.fitBounds(bounds, { padding: [40, 40] });
+  }
+
+  function addMarkersServizi(L) {
+    markersByName.clear();
+    const bounds = new L.LatLngBounds();
+
+    if (posEditMode) {
+      leafletMap.on('click', e => {
+        if (!pendingPlace) return;
+        const r = pendingPlace;
+        savePosition(r, e.latlng.lat, e.latlng.lng);
+      });
+    }
+
+    for (const r of servizi) {
+      if (SERVIZI_FITTIZI.includes(norm(r.nome))) continue;
+      const lat = parseFloat(r.latitudine), lon = parseFloat(r.longitudine);
+      if (!lat || !lon) continue;
+      const nome = norm(r.nome);
+      const m = L.marker([lat, lon], {
+        icon: makeIcon(L, r.colore, r.lettera),
+        draggable: posEditMode
+      }).addTo(leafletMap);
+
+      if (posEditMode) {
+        m.on('click', () => {
+          selectedSrv = { ...r };
+          pendingPlace = null;
+          posSaveError = null;
+          rerender();
+        });
+        m.on('dragend', e => {
+          const latlng = e.target.getLatLng();
+          savePosition(r, latlng.lat, latlng.lng);
+        });
+      } else {
+        m.bindPopup(`<strong>${nome}</strong>`);
+      }
+
+      markersByName.set(nome, { marker: m, lat, lon });
+      bounds.extend([lat, lon]);
+    }
+    if (bounds.isValid()) leafletMap.fitBounds(bounds, { padding: [40, 40] });
+  }
+
+  function flyToLocation(nome) {
+    const entry = markersByName.get(nome);
+    if (!entry || !leafletMap) return;
+    leafletMap.flyTo([entry.lat, entry.lon], 14);
+    entry.marker.openPopup();
+  }
+
+  function togglePosEditMode() {
+    posEditMode = !posEditMode;
+    selectedSrv = null;
+    pendingPlace = null;
+    if (leafletMap) { leafletMap.remove(); leafletMap = null; }
+    rerender();
+    setTimeout(initMap, 0);
+  }
+
+  async function savePosition(r, lat, lon) {
+    try {
+      await client.table("servizi").update(r.id, {
+        latitudine: String(lat), longitudine: String(lon)
+      });
+      r.latitudine = String(lat); r.longitudine = String(lon);
+    } catch(e) {
+      posSaveError = normalizeError(e);
+    }
+    pendingPlace = null;
+    if (leafletMap) { leafletMap.remove(); leafletMap = null; }
+    rerender();
+    setTimeout(initMap, 0);
+  }
+
+  async function saveProp() {
+    if (!selectedSrv) return;
+    posSaveBusy = true; posSaveError = null; rerender();
+    try {
+      await client.table("servizi").update(selectedSrv.id, {
+        colore: selectedSrv.colore, lettera: selectedSrv.lettera
+      });
+      const r = servizi.find(s => s.id === selectedSrv.id);
+      if (r) { r.colore = selectedSrv.colore; r.lettera = selectedSrv.lettera; }
+      selectedSrv = null;
+      if (leafletMap) { leafletMap.remove(); leafletMap = null; }
+      setTimeout(initMap, 0);
+    } catch(e) {
+      posSaveError = normalizeError(e);
+    }
+    posSaveBusy = false; rerender();
   }
 
   async function initMap() {
@@ -398,6 +507,7 @@ export async function MapCenter({ state, client, html, render, root }) {
     leafletMap = makeBaseMap(L, container);
     if (activeTab === "consumabili")    addMarkersConsumabili(L);
     else if (activeTab === "risorse")   addMarkersRisorse(L);
+    else if (activeTab === "posizioni") addMarkersServizi(L);
     else                                addMarkersOrganizzazioni(L);
     setTimeout(fitMapHeight, 0);
     if (!mapResizeHandler) {
@@ -409,6 +519,7 @@ export async function MapCenter({ state, client, html, render, root }) {
   function switchTab(tab) {
     if (tab === activeTab) return;
     activeTab = tab;
+    selectedSrv = null; pendingPlace = null; posSaveError = null;
     if (leafletMap) { leafletMap.remove(); leafletMap = null; }
     rerender();
     setTimeout(initMap, 0);
@@ -439,7 +550,8 @@ export async function MapCenter({ state, client, html, render, root }) {
       const g = byLoc.get(nome); if (!g) return "";
       const rows = Array.from(g.entries()).filter(([, q]) => q !== 0);
       if (!rows.length) return "";
-      return html`<div style="margin-bottom:.6rem">
+      return html`<div style="margin-bottom:.6rem;cursor:pointer" title="Centra sulla mappa"
+        @click=${() => flyToLocation(nome)}>
         <div style="font-size:.78rem;font-weight:600;margin-bottom:1px">
           ${badge} ${nome}
         </div>
@@ -497,7 +609,8 @@ export async function MapCenter({ state, client, html, render, root }) {
           const totM   = srvCards.reduce((s, c) => s + c.mezzi.length, 0);
           const totMat = srvCards.reduce((s, c) => s + c.materiali.length, 0);
           if (!totV && !totM && !totMat) return "";
-          return html`<div style="margin-bottom:.5rem">
+          return html`<div style="margin-bottom:.5rem;cursor:pointer" title="Centra sulla mappa"
+            @click=${() => flyToLocation(nome)}>
             <div style="font-size:.78rem;font-weight:600">${nome}</div>
             <div style="font-size:.73rem;color:#555;padding-left:8px">
               ${totV   > 0 ? html`<span><i class="ri-user-line"></i> ${totV} &nbsp;</span>` : ""}
@@ -523,10 +636,114 @@ export async function MapCenter({ state, client, html, render, root }) {
           ${senzaCoord > 0 ? html`· <span class="has-text-warning-dark">${senzaCoord} senza coordinate</span>` : ""}
         </div>
         ${conCoord.map(o => html`
-          <div style="margin-bottom:.5rem">
+          <div style="margin-bottom:.5rem;cursor:pointer" title="Centra sulla mappa"
+            @click=${() => flyToLocation(norm(o.denominazione))}>
             <div style="font-size:.78rem;font-weight:600">${norm(o.denominazione)}</div>
             <div style="font-size:.72rem;color:#888">${norm(o.comune)} (${norm(o.provincia)})</div>
           </div>`)}
+      </div>`;
+  }
+
+  function renderSidebarServizi() {
+    const visibili = servizi.filter(r => !SERVIZI_FITTIZI.includes(norm(r.nome)));
+    const conPos   = visibili.filter(r => parseFloat(r.latitudine) && parseFloat(r.longitudine));
+    const senzaPos = visibili.filter(r => !parseFloat(r.latitudine) || !parseFloat(r.longitudine));
+
+    return html`
+      <div id="mc-map-sidebar" style="width:260px;flex-shrink:0;overflow-y:auto;
+           border-right:1px solid #e8e8e8;padding:.75rem;background:#fafafa">
+
+        <div style="display:flex;gap:6px;margin-bottom:.75rem">
+          <button class="button is-small is-fullwidth ${posEditMode ? 'is-warning' : 'is-light'}"
+            @click=${togglePosEditMode}>
+            <span class="icon is-small"><i class="${posEditMode ? 'ri-pencil-fill' : 'ri-pencil-line'}"></i></span>
+            <span>${posEditMode ? 'Modifica attiva' : 'Modifica'}</span>
+          </button>
+          <a class="button is-small is-light" href="?dashboard=service-manager" title="Vai a Gestione servizi">
+            <span class="icon is-small"><i class="ri-settings-3-line"></i></span>
+          </a>
+        </div>
+
+        ${posEditMode ? html`
+          <p style="font-size:.72rem;color:#6b7280;margin-bottom:.75rem">
+            <i class="ri-drag-move-line"></i> Trascina i marker per spostare la posizione.
+          </p>
+        ` : ""}
+
+        ${posSaveError ? html`
+          <div class="notification is-danger is-light py-2 px-3 mb-3" style="font-size:.75rem">
+            ${posSaveError}
+            <button class="delete is-small" @click=${() => { posSaveError = null; rerender(); }}></button>
+          </div>
+        ` : ""}
+
+        ${selectedSrv ? html`
+          <div style="background:#eff6ff;border:1px solid #93c5fd;border-radius:6px;
+                      padding:.6rem;margin-bottom:.75rem">
+            <div style="font-weight:600;font-size:.82rem;margin-bottom:.5rem;
+                        white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+              <i class="ri-pencil-line"></i> ${norm(selectedSrv.nome)}
+            </div>
+
+            <label style="font-size:.75rem;display:block;margin-bottom:.2rem">Colore</label>
+            <div class="select is-small is-fullwidth" style="margin-bottom:.5rem">
+              <select @change=${e => { selectedSrv = { ...selectedSrv, colore: e.target.value }; rerender(); }}>
+                ${COLORI_SERVIZI.map(c => html`
+                  <option value=${c} ?selected=${norm(selectedSrv.colore) === c}>${c}</option>`)}
+              </select>
+            </div>
+
+            <label style="font-size:.75rem;display:block;margin-bottom:.2rem">Lettera</label>
+            <input class="input is-small" type="text" maxlength="1"
+              style="margin-bottom:.5rem;text-transform:uppercase;width:60px"
+              .value=${norm(selectedSrv.lettera)}
+              @input=${e => { selectedSrv = { ...selectedSrv, lettera: e.target.value.toUpperCase().slice(0,1) }; rerender(); }}
+            />
+
+            <div style="display:flex;gap:6px">
+              <button class="button is-small is-primary ${posSaveBusy ? 'is-loading' : ''}"
+                ?disabled=${posSaveBusy} @click=${saveProp}>Salva</button>
+              <button class="button is-small is-light" ?disabled=${posSaveBusy}
+                @click=${() => { selectedSrv = null; rerender(); }}>Annulla</button>
+            </div>
+          </div>
+        ` : ""}
+
+        ${senzaPos.length > 0 ? html`
+          <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;
+                      letter-spacing:.05em;color:#888;margin-bottom:.4rem">
+            Senza posizione (${senzaPos.length})
+          </div>
+          ${senzaPos.map(r => {
+            const nome = norm(r.nome);
+            const isPending = pendingPlace && norm(pendingPlace.nome) === nome;
+            return html`
+              <div style="margin-bottom:.4rem;padding:.3rem .5rem;border-radius:4px;cursor:pointer;
+                          background:${isPending ? '#fef3c7' : '#f3f4f6'};
+                          border:1px solid ${isPending ? '#f59e0b' : '#e5e7eb'}"
+                @click=${() => { pendingPlace = isPending ? null : r; rerender(); }}>
+                <div style="font-size:.78rem;font-weight:500">${nome}</div>
+                <div style="font-size:.7rem;color:${isPending ? '#92400e' : '#9ca3af'}">
+                  ${isPending
+                    ? html`<i class="ri-crosshair-line"></i> Clicca sulla mappa per posizionare`
+                    : 'Clicca per posizionare'}
+                </div>
+              </div>`;
+          })}
+        ` : ""}
+
+        ${conPos.length > 0 ? html`
+          <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;
+                      letter-spacing:.05em;color:#888;
+                      margin:${senzaPos.length > 0 ? '.75rem' : '0'} 0 .4rem">
+            Posizionati (${conPos.length})
+          </div>
+          ${conPos.map(r => html`
+            <div style="margin-bottom:.35rem;cursor:pointer" title="Centra sulla mappa"
+              @click=${() => flyToLocation(norm(r.nome))}>
+              <div style="font-size:.78rem;font-weight:500">${norm(r.nome)}</div>
+            </div>`)}
+        ` : ""}
       </div>`;
   }
 
@@ -536,6 +753,7 @@ export async function MapCenter({ state, client, html, render, root }) {
     const sidebar =
       activeTab === "consumabili"    ? renderSidebarConsumabili()  :
       activeTab === "risorse"        ? renderSidebarRisorse()       :
+      activeTab === "posizioni"      ? renderSidebarServizi()       :
                                        renderSidebarOrganizzazioni();
 
     const toggleSidebar = () => {
@@ -585,7 +803,7 @@ export async function MapCenter({ state, client, html, render, root }) {
             <i class="${mapSidebarOpen ? 'ri-arrow-left-s-line' : 'ri-arrow-right-s-line'}"></i>
           </div>
 
-          <div id="mc-map-container" style="flex:1;min-width:0;min-height:300px"></div>
+          <div id="mc-map-container" style="flex:1;min-width:0;min-height:300px${activeTab === 'posizioni' && pendingPlace ? ';cursor:crosshair' : ''}"></div>
         </div>
       </div>`;
   }
@@ -630,6 +848,12 @@ export async function MapCenter({ state, client, html, render, root }) {
                 <span>Consumabili</span>
               </a>
             </li>
+            <li class="${activeTab === "posizioni" ? "is-active" : ""}">
+              <a @click=${() => switchTab("posizioni")}>
+                <span class="icon is-small"><i class="ri-pushpin-line"></i></span>
+                <span>Servizi</span>
+              </a>
+            </li>
             <li class="${activeTab === "organizzazioni" ? "is-active" : ""}">
               <a @click=${() => switchTab("organizzazioni")}>
                 <span class="icon is-small"><i class="ri-building-2-line"></i></span>
@@ -638,14 +862,16 @@ export async function MapCenter({ state, client, html, render, root }) {
             </li>
           </ul>
           <div style="position:absolute;right:.75rem;top:50%;transform:translateY(-50%);display:flex;gap:6px;align-items:center">
-            <button class="button is-small ${autoRefresh ? 'is-success' : 'is-light'}"
-              @click=${toggleAutoRefresh}
-              title="${autoRefresh ? 'Auto-refresh attivo — click per disattivare' : 'Attiva auto-refresh ogni minuto'}">
-              <span class="icon is-small"><i class="ri-refresh-line ${autoRefresh ? 'ri-spin' : ''}"></i></span>
-              <span>${autoRefresh
-                ? html`Live <span style="opacity:.7;font-size:.85em">${countdownSec}s</span>`
-                : 'Auto-refresh'}</span>
-            </button>
+            ${activeTab !== 'posizioni' ? html`
+              <button class="button is-small ${autoRefresh ? 'is-success' : 'is-light'}"
+                @click=${toggleAutoRefresh}
+                title="${autoRefresh ? 'Auto-refresh attivo — click per disattivare' : 'Attiva auto-refresh ogni minuto'}">
+                <span class="icon is-small"><i class="ri-refresh-line ${autoRefresh ? 'ri-spin' : ''}"></i></span>
+                <span>${autoRefresh
+                  ? html`Live <span style="opacity:.7;font-size:.85em">${countdownSec}s</span>`
+                  : 'Auto-refresh'}</span>
+              </button>
+            ` : ""}
             <button class="button is-small is-light" @click=${toggleFullscreen}
               title="${mapFullscreen ? 'Esci da schermo intero' : 'Schermo intero'}">
               <span class="icon is-small">

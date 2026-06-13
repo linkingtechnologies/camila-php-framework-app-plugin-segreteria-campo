@@ -138,6 +138,7 @@ export async function StockManager({ state, client, html, render, root }) {
   // mappa
   let leafletMap      = null;
   let mapMarkers      = [];
+  let markersByName   = new Map();
   let mapSidebarOpen  = true;
   let mapFullscreen   = false;
   let autoRefresh     = false;
@@ -643,6 +644,7 @@ export async function StockManager({ state, client, html, render, root }) {
     const L = window.L;
 
     if (leafletMap) { leafletMap.remove(); leafletMap = null; }
+    markersByName.clear();
 
     const osmLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,
@@ -678,7 +680,8 @@ export async function StockManager({ state, client, html, render, root }) {
       if (!lat || !lon) continue;
       const nome = norm(r.nome);
       const icon = L.icon({ iconUrl: markerIconUrl(norm(r.colore), norm(r.lettera)), iconSize: [25,41], iconAnchor: [12,41], popupAnchor: [1,-34] });
-      L.marker([lat, lon], { icon }).addTo(leafletMap).bindPopup(popupHtml(nome, "magazzino"));
+      const mMag = L.marker([lat, lon], { icon }).addTo(leafletMap).bindPopup(popupHtml(nome, "magazzino"));
+      markersByName.set(nome, { marker: mMag, lat, lon });
       bounds.extend([lat, lon]);
     }
 
@@ -687,7 +690,8 @@ export async function StockManager({ state, client, html, render, root }) {
       if (!lat || !lon) continue;
       const nome = norm(r.nome);
       const icon = L.icon({ iconUrl: markerIconUrl(norm(r.colore), norm(r.lettera)), iconSize: [25,41], iconAnchor: [12,41], popupAnchor: [1,-34] });
-      L.marker([lat, lon], { icon }).addTo(leafletMap).bindPopup(popupHtml(nome, "servizio"));
+      const mSrv = L.marker([lat, lon], { icon }).addTo(leafletMap).bindPopup(popupHtml(nome, "servizio"));
+      markersByName.set(nome, { marker: mSrv, lat, lon });
       bounds.extend([lat, lon]);
     }
 
@@ -699,6 +703,13 @@ export async function StockManager({ state, client, html, render, root }) {
       mapResizeHandler = () => fitMapHeight();
       window.addEventListener("resize", mapResizeHandler);
     }
+  }
+
+  function flyToLocation(nome) {
+    const entry = markersByName.get(nome);
+    if (!entry || !leafletMap) return;
+    leafletMap.flyTo([entry.lat, entry.lon], 14);
+    entry.marker.openPopup();
   }
 
   function pivotByLocation(giacenze) {
@@ -724,7 +735,8 @@ export async function StockManager({ state, client, html, render, root }) {
       const rows = Array.from(g.entries()).filter(([, q]) => q !== 0);
       if (!rows.length) return "";
       return html`
-        <div style="margin-bottom:.75rem">
+        <div style="margin-bottom:.75rem;cursor:pointer" title="Centra sulla mappa"
+          @click=${() => flyToLocation(nome)}>
           <div style="font-size:.8rem;font-weight:600;margin-bottom:2px">
             ${badge} ${nome}
           </div>
