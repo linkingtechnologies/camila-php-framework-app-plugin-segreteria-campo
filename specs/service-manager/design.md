@@ -1,5 +1,7 @@
 # Design — service-manager
 
+**Pulsante dashboard:** "Gestione servizi"
+
 ## 1. Struttura
 
 SPA a pannello diviso (lista + form laterale). Nessun wizard. I dati vengono caricati al mount e ricaricati dopo ogni operazione di scrittura.

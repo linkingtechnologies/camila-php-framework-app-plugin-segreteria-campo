@@ -20,7 +20,7 @@ $camilaUI->addGridSection(3, function ($colIndex) use ($camilaUI) {
 			break;
 		case 1:
 			$camilaUI->insertButton('?dashboard=resource-board', 'Gestione operativa evento', 'route');
-			$camilaUI->insertButton('?dashboard=org-status', 'Stato registrazione Organizzazione', 'file-list-3');
+			$camilaUI->insertButton('?dashboard=stock-manager', 'Gestione consumabili', 'exchange-box');
 			break;
 		case 2:
 			$camilaUI->insertButton('?dashboard=massive-check-out', 'Check-out massivo Organizzazione', 'logout-box');
@@ -35,14 +35,15 @@ $camilaUI->addGridSection(3, function ($colIndex) use ($camilaUI) {
 	switch ($colIndex) {
 		case 0:
 			$camilaUI->insertButton('?dashboard=service-manager', 'Gestione servizi', 'pushpin');
+			$camilaUI->insertButton('?dashboard=warehouse-manager', 'Gestione magazzini', 'home-gear');
 			break;
 		case 1:
 			$camilaUI->insertButton('?dashboard=m1', 'Report situazione attuale', 'dashboard');
 			$camilaUI->insertButton('?dashboard=m6', 'Attività registrate', 'task');
 			break;
 		case 2:
-			$camilaUI->insertButton('?dashboard=12&mt=osm', 'Mappa servizi', 'globe');
-			$camilaUI->insertButton('?dashboard=m7', 'Tutte le mappe', 'map-2');
+			$camilaUI->insertButton('?dashboard=map-center', 'Mappe', 'map-2');
+			$camilaUI->insertButton('?dashboard=org-status', 'Stato registrazione Organizzazione', 'file-list-3');
 			break;
 
 	}

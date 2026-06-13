@@ -1,5 +1,7 @@
 # Design: Org Status
 
+**Pulsante dashboard:** "Stato registrazione Organizzazione"
+
 ## Struttura
 
 2 step: selezione organizzazione → dashboard presenti.

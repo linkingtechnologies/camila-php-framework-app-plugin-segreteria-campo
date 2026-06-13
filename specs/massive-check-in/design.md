@@ -1,5 +1,7 @@
 # Design: Massive Check-in
 
+**Pulsante dashboard:** "Check-in massivo Organizzazione"
+
 ## Struttura wizard
 
 7 step numerati, navigazione via `state.step` + `goTo(n)`.

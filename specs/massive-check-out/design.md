@@ -1,5 +1,7 @@
 # Design: Massive Check-out
 
+**Pulsante dashboard:** "Check-out massivo Organizzazione"
+
 ## Struttura wizard
 
 4 step numerati, navigazione via `state.step` + `goTo(n)`.

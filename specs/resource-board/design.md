@@ -1,5 +1,7 @@
 # Design — resource-board
 
+**Pulsante dashboard:** "Gestione operativa evento"
+
 ## 1. Struttura
 
 Single-view SPA (nessun wizard). Tutti i dati vengono caricati al mount e ricaricati integralmente dopo ogni operazione di scrittura.
