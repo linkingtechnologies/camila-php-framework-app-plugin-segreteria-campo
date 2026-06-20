@@ -210,6 +210,12 @@ export async function Step7({ state, client, goTo, html, render, root }) {
     goTo(6);
   }
 
+  function finish() {
+    // reset completo: pulisce tutte le chiavi dello state e torna allo step 1
+    for (const key of Object.keys(state)) delete state[key];
+    goTo(1);
+  }
+
   function setRowField(r, field, value) {
     if (r.exists || r.status === "exists") return;
     r[field] = value;
@@ -335,6 +341,13 @@ export async function Step7({ state, client, goTo, html, render, root }) {
           >
             ${submitting ? "Invio in corso…" : `Inserisci materiali (${nPending})`}
           </button>
+
+          ${!loadingExisting && !submitting ? html`
+            <button class="button is-success is-small" @click=${finish}>
+              <span class="icon"><i class="ri-check-double-line"></i></span>
+              <span>Fine</span>
+            </button>
+          ` : ""}
         </div>
 
         ${loadingServizi ? html`

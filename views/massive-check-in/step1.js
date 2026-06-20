@@ -147,6 +147,202 @@ export async function Step1({ state, client, goTo, html, render, root }) {
 
   let cancelled = false;
 
+  /* =========================
+     modalità totem
+     ========================= */
+
+  const totemMode = new URLSearchParams(window.location.search).get("totem") === "1";
+  let totemCode    = "";
+  let totemLoading = false;
+  let totemError   = null;
+
+  // scanner QR (jsQR — funziona su tutti i browser desktop/mobile)
+  let scanMode    = false;
+  let scanStream  = null;
+  let scanError   = null;
+  let _scanning   = false;
+  let _jsQR       = null;       // caricato on-demand
+  let _scanCanvas = null;
+  let _scanCtx    = null;
+  let _lastScan   = 0;          // throttle ~10fps
+
+  async function loadJsQR() {
+    if (_jsQR) return _jsQR;
+    await new Promise((resolve, reject) => {
+      if (window.jsQR) { resolve(); return; }
+      const s = document.createElement("script");
+      s.src = "/camila/js/jsQR/jsQR.js";
+      s.onload = resolve;
+      s.onerror = () => reject(new Error("Impossibile caricare il decoder QR."));
+      document.head.appendChild(s);
+    });
+    _jsQR = window.jsQR;
+    return _jsQR;
+  }
+
+  async function openScanner() {
+    scanError = null;
+    try {
+      const jsqr = await loadJsQR();
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+      scanStream  = stream;
+      scanMode    = true;
+      _scanning   = true;
+      _jsQR       = jsqr;
+      _scanCanvas = document.createElement("canvas");
+      _scanCtx    = _scanCanvas.getContext("2d", { willReadFrequently: true });
+      rerender();
+      requestAnimationFrame(scanLoop);
+    } catch (e) {
+      scanError = e?.message || "Fotocamera o decoder QR non disponibili.";
+      rerender();
+    }
+  }
+
+  function closeScanner() {
+    _scanning   = false;
+    if (scanStream) scanStream.getTracks().forEach(t => t.stop());
+    scanStream  = null;
+    scanMode    = false;
+    _scanCanvas = null;
+    _scanCtx    = null;
+    rerender();
+  }
+
+  function scanLoop(ts) {
+    if (!_scanning) return;
+    const video = document.getElementById("wt-totem-scanner");
+    if (!video || video.readyState < 2) { requestAnimationFrame(scanLoop); return; }
+
+    // throttle a ~10fps per non saturare la CPU
+    if (ts - _lastScan >= 100) {
+      _lastScan = ts;
+      try {
+        const w = video.videoWidth, h = video.videoHeight;
+        if (w && h) {
+          _scanCanvas.width  = w;
+          _scanCanvas.height = h;
+          _scanCtx.drawImage(video, 0, 0, w, h);
+          const img  = _scanCtx.getImageData(0, 0, w, h);
+          const code = _jsQR(img.data, img.width, img.height, { inversionAttempts: "dontInvert" });
+          if (code?.data) {
+            const raw = code.data.trim();
+            closeScanner();
+            totemCode = raw;
+            lookupTotem();
+            return;
+          }
+        }
+      } catch (_) {}
+    }
+
+    if (_scanning) requestAnimationFrame(scanLoop);
+  }
+
+  async function lookupTotem() {
+    const code = totemCode.trim();
+    if (!code) { totemError = "Inserisci il codice totem."; rerender(); return; }
+
+    totemLoading = true;
+    totemError   = null;
+    rerender();
+
+    try {
+      const res  = await client.call("GET", "/segreteria-campo/totem/organization-codes");
+      const list = Array.isArray(res?.data) ? res.data : [];
+      const match = list.find(item => String(item.cod) === String(code));
+
+      if (!match) {
+        totemError   = "Codice non riconosciuto. Verifica e riprova.";
+        totemLoading = false;
+        rerender();
+        return;
+      }
+
+      state.org          = state.org || {};
+      state.org.name     = match.org;
+      state.org.code     = String(match.cod);
+      state.org.province = "";
+      goTo(2);
+    } catch (e) {
+      totemError   = userFriendlyErrorText(normalizeApiError(e));
+      totemLoading = false;
+      rerender();
+    }
+  }
+
+  function viewTotem() {
+    return html`
+      <div class="box">
+        <p class="mb-4 has-text-grey is-size-7">
+          Inserisci il codice assegnato alla tua organizzazione.
+        </p>
+
+        ${totemError ? html`
+          <div class="notification is-danger is-light is-small mb-3">
+            <i class="ri-error-warning-line mr-1"></i> ${totemError}
+          </div>
+        ` : ""}
+
+        <div class="field has-addons">
+          <div class="control is-expanded">
+            <input
+              class="input is-medium"
+              type="text"
+              inputmode="numeric"
+              pattern="[0-9]*"
+              placeholder="Codice organizzazione"
+              .value=${totemCode}
+              ?disabled=${totemLoading}
+              @input=${e => { totemCode = e.target.value; totemError = null; rerender(); }}
+              @keydown=${e => { if (e.key === "Enter") lookupTotem(); }}
+            />
+          </div>
+          <div class="control">
+            <button
+              class="button is-primary is-medium ${totemLoading ? "is-loading" : ""}"
+              ?disabled=${totemLoading}
+              @click=${lookupTotem}
+            >
+              <span class="icon"><i class="ri-arrow-right-line"></i></span>
+              <span>Conferma</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="mt-3">
+          <button class="button is-light is-fullwidth"
+            ?disabled=${totemLoading}
+            @click=${openScanner}>
+            <span class="icon"><i class="ri-qr-scan-2-line"></i></span>
+            <span>Scansiona QR code</span>
+          </button>
+        </div>
+      </div>
+
+      ${scanMode ? html`
+        <div style="position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:1200;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;padding:1rem">
+          ${scanError ? html`
+            <div class="notification is-danger is-light is-small">
+              <i class="ri-error-warning-line mr-1"></i> ${scanError}
+            </div>
+          ` : html`
+            <p style="color:rgba(255,255,255,0.7);font-size:0.85rem;margin:0;text-align:center">
+              <i class="ri-qr-code-line"></i> Inquadra il QR code dell'organizzazione
+            </p>
+          `}
+          <video id="wt-totem-scanner" autoplay playsinline muted
+            style="max-width:min(480px,90vw);max-height:60vh;border-radius:8px;background:#000;box-shadow:0 4px 32px rgba(0,0,0,0.5)">
+          </video>
+          <button class="button is-light" @click=${closeScanner}>
+            <span class="icon"><i class="ri-close-line"></i></span>
+            <span>Annulla</span>
+          </button>
+        </div>
+      ` : ""}
+    `;
+  }
+
   async function load() {
     loading = true;
     retrying = false;
@@ -199,6 +395,16 @@ export async function Step1({ state, client, goTo, html, render, root }) {
   }
 
   function view() {
+    const titleEl = html`
+      <h3 class="title is-4">
+        <span class="icon is-medium" style="vertical-align:middle;margin-right:.4rem">
+          <i class="ri-login-box-line ri-lg"></i>
+        </span>Check-in
+      </h3>
+    `;
+
+    if (totemMode) return html`${titleEl}${viewTotem()}`;
+
     const needle = q ? q.toLocaleLowerCase("it-IT") : "";
     const filtered = needle
       ? items.filter(it =>
@@ -209,6 +415,7 @@ export async function Step1({ state, client, goTo, html, render, root }) {
       : items;
 
     return html`
+      ${titleEl}
       <div class="box">
         <div class="field">
           <input
@@ -309,9 +516,11 @@ ${JSON.stringify(
 
   function rerender() {
     render(view(), root);
+    const sv = document.getElementById("wt-totem-scanner");
+    if (sv && scanStream && !sv.srcObject) sv.srcObject = scanStream;
   }
 
-  load();
+  if (!totemMode) load();
 
   // se il framework supporta cleanup:
   // return () => { cancelled = true; }

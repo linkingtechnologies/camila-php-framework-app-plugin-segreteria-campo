@@ -53,13 +53,23 @@ Operatore di segreteria campo
 
 ## Main Success Scenario
 
-### Step 1 — Selezione organizzazione
+### Step 1 — Selezione organizzazione (modalità standard)
 
-1. L'operatore apre la dashboard del Massive Check-in.
+1. L'operatore apre la dashboard del Massive Check-in (senza `?totem=1`).
 2. Il sistema carica in parallelo le organizzazioni distinte dalle tabelle `volontari-preaccreditati` e `db-volontari`, le unisce per chiave composta (organizzazione + codice + provincia) e le ordina alfabeticamente.
 3. L'operatore filtra per nome, codice o provincia tramite campo di ricerca.
 4. L'operatore seleziona l'organizzazione desiderata.
 5. Il sistema memorizza `{ name, code, province }` in `state.org` e avanza allo Step 2.
+
+### Step 1 — Inserimento codice totem (modalità totem, `?totem=1`)
+
+1. L'operatore apre la dashboard con il parametro `?totem=1`.
+2. Il sistema mostra un campo di inserimento codice numerico e un pulsante "Scansiona QR code" (sempre visibile; usa jsQR, compatibile con tutti i browser).
+3. **Inserimento manuale**: l'operatore digita il codice e clicca "Conferma" (o preme Invio).
+4. **Scansione QR**: l'operatore clicca "Scansiona QR code" → il sistema carica jsQR, attiva la fotocamera e avvia il rilevamento automatico (~10fps via canvas); al riconoscimento del QR procede come al punto seguente.
+5. Il sistema chiama `GET /segreteria-campo/totem/organization-codes` e cerca l'entry con il codice inserito.
+6. Se trovata: memorizza `{ name, code, province: "" }` in `state.org` e avanza allo Step 2.
+7. Se non trovata: mostra "Codice non riconosciuto. Verifica e riprova."
 
 ### Step 2 — Selezione volontari
 
@@ -106,20 +116,45 @@ Operatore di segreteria campo
 3. Il modale di aggiunta materiale precompila l'ID con `MAT` + sequence dalla tabella, se disponibile.
 4. L'operatore clicca **Check-in materiali selezionati** e avanza allo Step 7.
 
+### Step 6 — Selezione materiali (fine sessione)
+
+Il pulsante **Fine** è sempre visibile nella toolbar di step 6, indipendentemente dalla selezione. Permette di concludere la sessione senza inserire materiali: azzera lo state e torna allo Step 1.
+
 ### Step 7 — Configurazione e inserimento materiali
 
 1. Flusso analogo agli Step 3/5 ma per la tabella `materiali`.
 2. Campi aggiuntivi: servizio, turno per ogni materiale.
-3. Completato l'inserimento, la sessione è conclusa. Non esiste una schermata di riepilogo finale; l'operatore può tornare allo Step 1 per un nuovo gruppo.
+3. Quando non c'è un inserimento in corso, compare il pulsante **Fine**: azzera lo state e torna allo Step 1 per una nuova sessione.
 
 ---
 
 ## Extensions (flussi alternativi / errori)
 
-### 1a. Nessuna organizzazione disponibile
+### 1a. Nessuna organizzazione disponibile (modalità standard)
 
 - Il sistema mostra lo stato vuoto: "Nessun risultato".
 - Il pulsante di avanzamento rimane disabilitato.
+
+### 1b. Codice totem non riconosciuto
+
+- Il sistema mostra "Codice non riconosciuto. Verifica e riprova." sopra l'input.
+- Il campo rimane modificabile per un nuovo tentativo.
+
+### 1c. Errore API endpoint totem
+
+- Il sistema mostra il messaggio user-friendly corrispondente al `kind` dell'errore (stesso `normalizeApiError` della modalità standard).
+
+### 1d. Fotocamera non disponibile (scansione QR)
+
+- Il sistema mostra "Fotocamera non disponibile: \<messaggio\>" nell'overlay scanner.
+- L'overlay rimane aperto con il pulsante "Annulla".
+- L'operatore può chiudere e procedere con inserimento manuale.
+
+### 1e. jsQR non caricabile
+
+- Se il file `/camila/js/jsQR/jsQR.js` non è raggiungibile, `openScanner()` cattura l'errore e mostra "Impossibile caricare il decoder QR." nell'overlay scanner.
+- L'overlay rimane aperto con il pulsante "Annulla".
+- L'operatore può chiudere e procedere con inserimento manuale.
 
 ### 2a. Errore di caricamento organizzazioni
 

@@ -445,6 +445,11 @@ function getSequenceValue(res) {
     goTo(5);
   }
 
+  function finish() {
+    for (const key of Object.keys(state)) delete state[key];
+    goTo(1);
+  }
+
   function toggleLoadAllDb(v) {
     loadAllDb = v;
     state.loadAllMaterialiDb = v;
@@ -1020,6 +1025,11 @@ ${hasOrgCol ? html`
 				<i class="ri-tools-line ri-lg"></i>
 			</span>
             <span>Check-in materiali (${selected.size})</span>
+          </button>
+
+          <button class="button is-success is-small" @click=${finish}>
+            <span class="icon"><i class="ri-check-double-line"></i></span>
+            <span>Fine</span>
           </button>
         </div>
 

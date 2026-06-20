@@ -1,6 +1,6 @@
 <?php
 /*  This File is part of Camila PHP Framework
-    Copyright (C) 2006-2022 Umberto Bresciani
+    Copyright (C) 2006-2026 Umberto Bresciani
 
     Camila PHP Framework is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -19,14 +19,19 @@ $camilaUI = new CamilaUserInterface();
 
 $_CAMILA['page']->camila_export_enabled = false;
 
+$_isTotemUser = strncasecmp($_CAMILA['user'] ?? '', 'totem', 5) === 0;
+$_menuXml = CAMILA_HOMEDIR.'/plugins/'.basename(dirname(__FILE__)).'/conf/menu.xml';
+$_pluginBase = 'plugins/'.basename(dirname(__FILE__));
 
 if (isset($_REQUEST['dashboard'])) {
-	$currentTab = $camilaUI->printHomeMenu(CAMILA_HOMEDIR.'/plugins/'.basename(dirname(__FILE__)).'/conf/menu.xml');
-    require('plugins/'.basename(dirname(__FILE__)).'/dashboard_' . $_REQUEST['dashboard'] . '.inc.php');
+	if (!$_isTotemUser)
+		$currentTab = $camilaUI->printHomeMenu($_menuXml);
+    require($_pluginBase . '/dashboard_' . $_REQUEST['dashboard'] . '.inc.php');
 } else {
 	$defaultId = 'm0';
-	$currentTab = $camilaUI->printHomeMenu(CAMILA_HOMEDIR.'/plugins/'.basename(dirname(__FILE__)).'/conf/menu.xml', $defaultId);
-	require('plugins/'.basename(dirname(__FILE__)).'/dashboard_' . $defaultId . '.inc.php');
+	if (!$_isTotemUser)
+		$currentTab = $camilaUI->printHomeMenu($_menuXml, $defaultId);
+	require($_pluginBase . '/dashboard_' . $defaultId . '.inc.php');
 }
 
 ?>

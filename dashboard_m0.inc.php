@@ -2,6 +2,10 @@
 $camilaWT  = new CamilaWorkTable();
 $camilaWT->db = $_CAMILA['db'];
 
+$_isTotemUser = strncasecmp($_CAMILA['user'] ?? '', 'totem', 5) === 0;
+
+if (!$_isTotemUser):
+
 $vSheet = $camilaWT->getWorktableSheetId('VOLONTARI');
 $mSheet = $camilaWT->getWorktableSheetId('MEZZI');
 $aSheet = $camilaWT->getWorktableSheetId('MATERIALI');
@@ -74,5 +78,18 @@ $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
 //$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
 $camilaUI->closeBox();
+
+else:
+
+$camilaUI = new CamilaUserInterface();
+$camilaUI->openBox();
+$camilaUI->insertTitle('Check-in', 'login-box');
+$camilaUI->addGridSection(1, function ($colIndex) use ($camilaUI) {
+	if ($colIndex === 0)
+		$camilaUI->insertButton('?dashboard=massive-check-in&totem=1', 'Check-in massivo Organizzazione', 'login-box');
+});
+$camilaUI->closeBox();
+
+endif;
 
 ?>

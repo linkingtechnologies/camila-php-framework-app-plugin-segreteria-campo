@@ -2,12 +2,27 @@
 
 **Pulsante dashboard:** "Check-in massivo Organizzazione"
 
+## Modalità operative
+
+La SPA supporta due modalità, selezionate tramite parametro URL:
+
+| Modalità | URL | Step 1 |
+|---|---|---|
+| **Standard** | (nessun parametro) | Lista organizzazioni con ricerca testuale |
+| **Totem** | `?totem=1` | Inserimento codice numerico (o scansione QR) |
+
+Gli step 2-7 sono identici in entrambe le modalità.
+
+---
+
 ## Struttura wizard
 
 7 step numerati, navigazione via `state.step` + `goTo(n)`.
 
 ```
-step 1  →  Selezione organizzazione
+step 1  →  Selezione organizzazione  (modalità standard)
+           — oppure —
+           Inserimento codice totem  (modalità totem)
 step 2  →  Selezione volontari
 step 3  →  Inserimento volontari
 step 4  →  Selezione mezzi
@@ -165,6 +180,26 @@ Se la chiamata fallisce, il campo rimane vuoto e l'operatore inserisce manualmen
 
 ---
 
+## Pulsante "Fine" (step 6 e step 7)
+
+Il pulsante **Fine** (`is-success is-small`, icona `ri-check-double-line`) è presente in:
+
+- **Step 6** — sempre visibile nella toolbar, indipendentemente dai materiali selezionati. Permette di concludere senza inserire materiali.
+- **Step 7** — visibile quando `!loadingExisting && !submitting` (cioè non appena la verifica iniziale è completata e non c'è un inserimento in corso).
+
+Al click chiama `finish()`:
+
+```js
+function finish() {
+  for (const key of Object.keys(state)) delete state[key];
+  goTo(1);
+}
+```
+
+Questo azzera completamente lo state condiviso e riporta allo Step 1, pronto per una nuova sessione.
+
+---
+
 ## Navigazione da step 3 a step 4
 
 Il pulsante **Check-in mezzi** è bloccato se esistono record in stato `pending` o se `loadingExisting` è attivo. Messaggio esplicito con conteggio dei pendenti.
@@ -220,6 +255,101 @@ Il campo `servizio` viene letto dalla tabella preaccreditati e propagato fino ag
 Se il preaccreditato non ha `servizio` valorizzato si usa il default `IN ATTESA DI SERVIZIO`. Il valore è sempre modificabile dall'operatore prima dell'inserimento.
 
 **Guard "valore non in lista":** se il servizio del preaccreditato non è nella tabella `servizi` attiva, viene aggiunto come opzione extra nella select così non scompare silenziosamente (stessa logica in step 3, 5, 7).
+
+---
+
+## Step 1 — UI comune
+
+Entrambe le modalità mostrano in cima allo step 1 il titolo:
+
+```html
+<h3 class="title is-4">
+  <span class="icon is-medium"><i class="ri-login-box-line ri-lg"></i></span>
+  Check-in
+</h3>
+```
+
+---
+
+## Step 1 — Modalità totem
+
+### Attivazione
+
+`new URLSearchParams(window.location.search).get("totem") === "1"`.
+
+In modalità totem `load()` (caricamento organizzazioni) non viene eseguita. Lo step 1 mostra una UI alternativa (`viewTotem()`); tutto il resto del wizard rimane invariato.
+
+### UI
+
+```
+[ input numerico "Codice organizzazione" ] [ Conferma → ]
+[ Scansiona QR code ]   ← solo se BarcodeDetector supportato
+```
+
+### Flusso inserimento manuale
+
+1. L'operatore digita il codice numerico e clicca "Conferma" (o preme Invio).
+2. `lookupTotem()` chiama `client.call("GET", "/segreteria-campo/totem/organization-codes")`.
+3. Cerca in `res.data` l'entry con `String(item.cod) === String(code)`.
+4. Se trovata: imposta `state.org = { name: match.org, code: String(match.cod), province: "" }` e chiama `goTo(2)`.
+5. Se non trovata: mostra "Codice non riconosciuto. Verifica e riprova."
+6. In caso di errore API: usa `normalizeApiError` + `userFriendlyErrorText` (stesso pattern step 1 standard).
+
+### Formato risposta `/segreteria-campo/totem/organization-codes`
+
+```json
+{
+  "data": [
+    { "org": "Nome Organizzazione", "cod": 123456 },
+    ...
+  ]
+}
+```
+
+Il confronto codice usa `String()` su entrambi i lati (robusto a number/string).
+
+### Flusso scansione QR
+
+Il pulsante "Scansiona QR code" è sempre visibile. Il decoder QR usato è **jsQR** (libreria JS pura, compatibile con tutti i browser desktop e mobile), servita localmente da `/camila/js/jsQR/jsQR.js`.
+
+1. `openScanner()`:
+   - Chiama `loadJsQR()` che inietta un `<script src="/camila/js/jsQR/jsQR.js">` una sola volta (se `window.jsQR` è già presente salta l'iniezione).
+   - `getUserMedia({ video: { facingMode: "environment" } })` (fotocamera posteriore su mobile, disponibile su desktop).
+   - Salva stream in `scanStream`, `scanMode = true`, crea canvas offscreen (`_scanCanvas` + `_scanCtx`).
+   - `rerender()` → mostra overlay scanner (z-index 1200).
+   - Avvia `scanLoop()` via `requestAnimationFrame`.
+
+2. `scanLoop(ts)`:
+   - Aspetta `video.readyState >= 2`.
+   - Throttle a ~10fps (`ts - _lastScan >= 100ms`): disegna il frame su `_scanCanvas`, chiama `jsQR(imageData)`.
+   - Se trova un codice: `closeScanner()` → popola `totemCode` → chiama `lookupTotem()`.
+   - Se nessun codice: si riprogramma con `requestAnimationFrame` finché `_scanning = true`.
+
+3. `closeScanner()`: ferma `_scanning`, ferma i track, azzera `scanStream / scanMode / _scanCanvas / _scanCtx`.
+
+4. `rerender()` assegna `srcObject` al `<video id="wt-totem-scanner">` dopo ogni render (stesso pattern worktable-explorer/camera).
+
+### Stato scanner
+
+```js
+let scanMode    = false;
+let scanStream  = null;      // MediaStream
+let scanError   = null;
+let _scanning   = false;     // flag per uscire dal loop
+let _jsQR       = null;      // riferimento a window.jsQR dopo il caricamento
+let _scanCanvas = null;      // canvas offscreen per cattura frame
+let _scanCtx    = null;
+let _lastScan   = 0;         // timestamp ultimo frame analizzato (throttle)
+```
+
+### Overlay scanner
+
+```
+position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:1200
+  [ messaggio "Inquadra il QR code" ]
+  [ <video id="wt-totem-scanner"> ]
+  [ Annulla ]
+```
 
 ---
 
