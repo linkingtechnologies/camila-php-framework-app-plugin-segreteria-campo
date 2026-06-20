@@ -1,6 +1,269 @@
 <?php
+define('SC_WT_COMUNICAZIONI', 'Com. Digitali');
+
+function sc_radio_config(): array {
+    static $cfg = null;
+    if ($cfg === null) {
+        $file = rtrim(CAMILA_VAR_ROOTDIR, '/\\') . '/segreteria-campo-radio.json';
+        $cfg  = is_file($file) ? (json_decode(file_get_contents($file), true) ?? []) : [];
+    }
+    return $cfg;
+}
+
+function sc_telegram_config(): array {
+    static $cfg = null;
+    if ($cfg === null) {
+        $file = rtrim(CAMILA_VAR_ROOTDIR, '/\\') . '/segreteria-campo.json';
+        $cfg  = is_file($file) ? (json_decode(file_get_contents($file), true) ?? []) : [];
+    }
+    return $cfg;
+}
+
+function sc_telegram_send(int $chatId, string $text): void {
+    $token = sc_telegram_config()['bot_token'] ?? '';
+    if ($token === '') return;
+    $url = 'https://api.telegram.org/bot' . $token . '/sendMessage';
+    $ctx = stream_context_create(['http' => [
+        'method'  => 'POST',
+        'header'  => 'Content-Type: application/json',
+        'content' => json_encode(['chat_id' => $chatId, 'text' => $text]),
+        'timeout' => 5,
+    ]]);
+    @file_get_contents($url, false, $ctx);
+}
+
 return [
+
+    // -------------------------------------------------------------------------
+    // PUBLIC: Telegram webhook receiver
+    // POST /segreteria-campo/telegram/webhook
+    // -------------------------------------------------------------------------
+    'POST /telegram/webhook' => [
+        'public'  => true,
+        'handler' => function(array $params, ?array $body, array $path): array {
+            global $_CAMILA;
+
+            if (empty($body)) {
+                return ['ok' => true];
+            }
+
+            if (isset($body['message'])) {
+                $msg        = $body['message'];
+                $updateType = 'message';
+            } elseif (isset($body['edited_message'])) {
+                $msg        = $body['edited_message'];
+                $updateType = 'edited_message';
+            } else {
+                return ['ok' => true];
+            }
+
+            $from = $msg['from'] ?? [];
+            $chat = $msg['chat'] ?? [];
+            $loc  = $msg['location'] ?? null;
+
+            $isAttachment = isset($msg['photo']) || isset($msg['document']) || isset($msg['voice'])
+                         || isset($msg['video']) || isset($msg['audio']) || isset($msg['sticker'])
+                         || isset($msg['animation']) || isset($msg['video_note']);
+            if ($isAttachment) {
+                sc_telegram_send((int) ($chat['id'] ?? 0),
+                    "Grazie per il messaggio. Al momento non è possibile ricevere allegati tramite questo canale. Ti chiediamo di inviare solo messaggi di testo.");
+                return ['ok' => true];
+            }
+
+            $contentType = 'Testo';
+            $fileId      = '';
+            if (isset($msg['location'])) { $contentType = 'Posizione'; }
+
+            $fields = [
+                'Data/ora', 'Num. Messaggio', 'Chiamante', 'Chiamato',
+                'Messaggio', 'Servizio', 'Necessaria risposta', 'Priorità',
+                'Canale origine', 'Tipo Contenuto', 'Latitudine', 'Longitudine',
+                'Note', 'Stato elaborazione',
+                'Update Id', 'Message Id', 'Chat Id', 'User Id', 'Username',
+                'Update Type', 'File Id', 'Received Date', 'Payload',
+            ];
+            $values = [
+                isset($msg['date']) ? date('Y-m-d H:i:s', $msg['date']) : date('Y-m-d H:i:s'),
+                (string) ($msg['message_id'] ?? ''),
+                trim(($from['first_name'] ?? '') . ' ' . ($from['last_name'] ?? '')),
+                sc_telegram_config()['bot_name'] ?? 'Bot Telegram',
+                $msg['text'] ?? '',
+                '', '', '',
+                'Telegram',
+                $contentType,
+                $loc ? (string) $loc['latitude']  : '',
+                $loc ? (string) $loc['longitude'] : '',
+                '', '',
+                (string) ($body['update_id'] ?? ''),
+                (string) ($msg['message_id'] ?? ''),
+                (string) ($chat['id']         ?? ''),
+                (string) ($from['id']         ?? ''),
+                $from['username'] ?? ($from['first_name'] ?? ''),
+                $updateType,
+                $fileId,
+                date('Y-m-d H:i:s'),
+                json_encode($body, JSON_UNESCAPED_UNICODE),
+            ];
+
+            $wt     = new CamilaWorkTable();
+            $wt->db = $_CAMILA['db'];
+
+            $updateId = (string) ($body['update_id'] ?? '');
+            if ($updateId !== '' && $wt->getWorktableRecordIdByKeyColumn(SC_WT_COMUNICAZIONI, 'Update Id', $updateId) !== '') {
+                return ['ok' => true]; // duplicate, already processed
+            }
+
+            $wt->insertRow(SC_WT_COMUNICAZIONI, CAMILA_LANG, $fields, $values, 'telegram-bot');
+
+            $recordId = $updateId !== ''
+                ? $wt->getWorktableRecordIdByKeyColumn(SC_WT_COMUNICAZIONI, 'Update Id', $updateId)
+                : '';
+            if ($recordId !== '' && isset($chat['id'])) {
+                sc_telegram_send((int) $chat['id'],
+                    "Messaggio ricevuto e registrato (ID: {$recordId}). Grazie.");
+            }
+
+            return ['ok' => true];
+        },
+    ],
+
+    // -------------------------------------------------------------------------
+    // PRIVATE: Token codes by organisation
+    // GET /segreteria-campo/codici-totem
+    // -------------------------------------------------------------------------
+    'GET /totem/organization-codes' => function(array $params, ?array $body, array $path): array {
+        global $_CAMILA;
+
+        $sql = <<<'SQL'
+SELECT DISTINCT
+    organizzazione AS org,
+    (
+        LENGTH(u) * 7919
+      + INSTR(r, SUBSTR(u, 1, 1))  * 101
+      + INSTR(r, SUBSTR(u, 3, 1))  * 211
+      + INSTR(r, SUBSTR(u, 6, 1))  * 307
+      + INSTR(r, SUBSTR(u, 10, 1)) * 401
+      + INSTR(r, SUBSTR(u, 15, 1)) * 503
+      + INSTR(r, SUBSTR(u, LENGTH(u), 1)) * 601
+      + 888
+    ) % 2147483629 AS cod
+FROM (
+    SELECT ${VOLONTARI PREACCREDITATI.ORGANIZZAZIONE} AS organizzazione,
+           UPPER(TRIM(COALESCE(${VOLONTARI PREACCREDITATI.ORGANIZZAZIONE}, ''))) AS u,
+           ' ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-&/' AS r
+    FROM ${VOLONTARI PREACCREDITATI}
+    WHERE Id IS NOT NULL
+) AS t
+SQL;
+
+        $wt     = new CamilaWorkTable();
+        $wt->db = $_CAMILA['db'];
+
+        $result = $wt->startExecuteQuery($sql, true, ADODB_FETCH_ASSOC);
+        $rows   = [];
+        while (!$result->EOF) {
+            $rows[] = [
+                'org' => $result->fields['org'],
+                'cod'   => (int) $result->fields['cod'],
+            ];
+            $result->MoveNext();
+        }
+        $wt->endExecuteQuery();
+
+        return ['data' => $rows];
+    },
+
+    // -------------------------------------------------------------------------
+    // PUBLIC (own Basic Auth): Radio messages upsert (Sparviere dispatcher)
+    // PUT /segreteria-campo/radio/messages
+    // Payload: {"messagesPayload":[{"id","timestamp","from","to","text"},…]}
+    // -------------------------------------------------------------------------
+    'PUT /radio/messages' => [
+        'public'  => true,
+        'handler' => function(array $params, ?array $body, array $path): array {
+        global $_CAMILA;
+
+        $authUser = $_SERVER['PHP_AUTH_USER'] ?? null;
+        $authPw   = $_SERVER['PHP_AUTH_PW']   ?? null;
+
+        if ($authUser === null) {
+            return ['__status' => 401, 'status' => 'error', 'message' => 'Autenticazione richiesta'];
+        }
+        $radioCfg = sc_radio_config();
+        if ($authUser !== ($radioCfg['username'] ?? '') || $authPw !== ($radioCfg['password'] ?? '')) {
+            return ['__status' => 403, 'status' => 'error', 'message' => 'Autenticazione fallita'];
+        }
+
+        if (empty($body['messagesPayload']) || !is_array($body['messagesPayload'])) {
+            return ['__status' => 400, 'status' => 'error', 'message' => 'Payload non valido'];
+        }
+
+        $wt     = new CamilaWorkTable();
+        $wt->db = $_CAMILA['db'];
+
+        $fields = [
+            'Data/ora', 'Num. Messaggio', 'Chiamante', 'Chiamato',
+            'Messaggio', 'Servizio', 'Necessaria risposta', 'Priorità',
+            'Canale origine', 'Tipo Contenuto', 'Latitudine', 'Longitudine',
+            'Note', 'Stato elaborazione',
+            'Update Id', 'Message Id', 'Chat Id', 'User Id', 'Username',
+            'Update Type', 'File Id', 'Received Date', 'Payload',
+        ];
+
+        $processedCount = 0;
+        $insertedCount  = 0;
+        $updatedCount   = 0;
+        $errorCount     = 0;
+
+        foreach ($body['messagesPayload'] as $entry) {
+            $msgId    = (string) ($entry['id'] ?? '');
+            $dataOra  = isset($entry['timestamp']) ? date('Y-m-d H:i:s', $entry['timestamp']) : date('Y-m-d H:i:s');
+            $esisteId = $msgId !== '' ? $wt->getWorktableRecordIdByKeyColumn(SC_WT_COMUNICAZIONI, 'Num. Messaggio', $msgId) : '';
+
+            if ($esisteId !== '') {
+                $db  = $_CAMILA['db'];
+                $upd = "UPDATE \${" . SC_WT_COMUNICAZIONI . "}"
+                     . " SET \${" . SC_WT_COMUNICAZIONI . ".Data/ora}="     . $db->qstr($dataOra)
+                     . ", \${"    . SC_WT_COMUNICAZIONI . ".Chiamante}="    . $db->qstr($entry['from'] ?? '')
+                     . ", \${"    . SC_WT_COMUNICAZIONI . ".Chiamato}="     . $db->qstr($entry['to']   ?? '')
+                     . ", \${"    . SC_WT_COMUNICAZIONI . ".Messaggio}="    . $db->qstr($entry['text'] ?? '')
+                     . ", \${"    . SC_WT_COMUNICAZIONI . ".Payload}="      . $db->qstr(json_encode($entry, JSON_UNESCAPED_UNICODE))
+                     . " WHERE id=" . $db->qstr($esisteId);
+                $result = $wt->startExecuteQuery($upd, false);
+                $result === false ? $errorCount++ : $updatedCount++;
+            } else {
+                $values = [
+                    $dataOra,
+                    $msgId,
+                    $entry['from'] ?? '',
+                    $entry['to']   ?? '',
+                    $entry['text'] ?? '',
+                    'Sala Radio', '', '',
+                    'Radio', 'Testo',
+                    '', '', '', '',
+                    '', $msgId, '', '', '',
+                    'radio', '', date('Y-m-d H:i:s'),
+                    json_encode($entry, JSON_UNESCAPED_UNICODE),
+                ];
+                $result = $wt->insertRow(SC_WT_COMUNICAZIONI, CAMILA_LANG, $fields, $values, 'sala-radio');
+                $result === false ? $errorCount++ : $insertedCount++;
+            }
+
+            $processedCount++;
+        }
+
+        return [
+            'status'         => 'success',
+            'message'        => 'Dati elaborati con successo',
+            'inserted_count' => $insertedCount,
+            'updated_count'  => $updatedCount,
+            'error_count'    => $errorCount,
+        ];
+    }],
+
+    // -------------------------------------------------------------------------
     'GET /status' => function(array $params, ?array $body, array $path): array {
         return ['status' => 'ok'];
     },
+
 ];
