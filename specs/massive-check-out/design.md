@@ -99,11 +99,19 @@ Dopo ogni `update` riuscito, viene inserito un record in `mov-risorse`:
 {
   "data/ora": dateTime,
   "gruppo": org.name,
-  "risorsa": identificativo (nome+cognome / targa+marca / id-materiale),
+  "risorsa": identificativo (vedi sotto),
   "tipo-risorsa": "VOLONTARIO" | "MEZZO" | "MATERIALE",
   "da": servizio precedente,
   "a": "USCITA DEFINITIVA"
 }
+```
+
+```js
+// risorsa:
+//   volontario → "nome cognome"
+//   mezzo      → "targa marca"
+//   materiale  → "id-materiale - tipologia (codice-inventario)"
+//                tipologia e codice-inventario inclusi solo se valorizzati
 ```
 
 Il movimento non è in transazione con l'update: se `create` su `mov-risorse` fallisce dopo un `update` già riuscito, il record operativo è comunque aggiornato.

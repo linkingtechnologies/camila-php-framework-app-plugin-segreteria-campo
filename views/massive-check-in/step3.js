@@ -157,6 +157,18 @@ export async function Step3({ state, client, goTo, html, render, root }) {
 
   const VolontariAPI = client.table("volontari");
   const ServiziAPI = client.table("servizi");
+  const MovAPI = client.table("mov-risorse");
+
+  async function writeMov({ dateTime, gruppo, risorsa, tiporisorsa, da, a1 }) {
+    await MovAPI.create({
+      "data/ora": dateTime,
+      gruppo: safe(gruppo),
+      risorsa: safe(risorsa),
+      "tipo-risorsa": safe(tiporisorsa),
+      da: safe(da),
+      a: safe(a1)
+    });
+  }
 
   async function loadServizi() {
     loadingServizi = true;
@@ -336,6 +348,16 @@ export async function Step3({ state, client, goTo, html, render, root }) {
       try {
         const insertRow = buildVolontariInsertRow(org, r);
         await VolontariAPI.create(insertRow);
+
+        const dateTime = new Date().toLocaleString("sv-SE", { hour12: false }).replace(",", "");
+        writeMov({
+          dateTime,
+          gruppo: org?.name || "",
+          risorsa: safe(r.nome) + " " + safe(r.cognome),
+          tiporisorsa: "VOLONTARIO",
+          da: "",
+          a1: insertRow["servizio"]
+        }).catch(() => {});
 
         inserted += 1;
         r.status = "inserted";

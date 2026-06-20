@@ -110,6 +110,18 @@ export async function Step7({ state, client, goTo, html, render, root }) {
 
   const MaterialiAPI = client.table("materiali");
   const ServiziAPI = client.table("servizi");
+  const MovAPI = client.table("mov-risorse");
+
+  async function writeMov({ dateTime, gruppo, risorsa, tiporisorsa, da, a1 }) {
+    await MovAPI.create({
+      "data/ora": dateTime,
+      gruppo: safe(gruppo),
+      risorsa: safe(risorsa),
+      "tipo-risorsa": safe(tiporisorsa),
+      da: safe(da),
+      a: safe(a1)
+    });
+  }
 
   async function loadServizi() {
     loadingServizi = true;
@@ -234,6 +246,19 @@ export async function Step7({ state, client, goTo, html, render, root }) {
       try {
         const insertRow = buildMaterialiInsertRow(org, r);
         await MaterialiAPI.create(insertRow);
+
+        const dateTime = new Date().toLocaleString("sv-SE", { hour12: false }).replace(",", "");
+        const idMat = safe(r["id-materiale"]);
+        const tip = safe(r["tipologia"]);
+        const inv = safe(r["codice-inventario"]);
+        writeMov({
+          dateTime,
+          gruppo: org?.name || "",
+          risorsa: idMat + (tip ? " - " + tip : "") + (inv ? " (" + inv + ")" : ""),
+          tiporisorsa: "MATERIALE",
+          da: "",
+          a1: insertRow["servizio"]
+        }).catch(() => {});
 
         inserted += 1;
         r.status = "inserted";

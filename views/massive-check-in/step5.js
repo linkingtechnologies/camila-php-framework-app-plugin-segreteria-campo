@@ -154,6 +154,18 @@ export async function Step5({ state, client, goTo, html, render, root }) {
 
   const MezziAPI = client.table("mezzi");
   const ServiziAPI = client.table("servizi");
+  const MovAPI = client.table("mov-risorse");
+
+  async function writeMov({ dateTime, gruppo, risorsa, tiporisorsa, da, a1 }) {
+    await MovAPI.create({
+      "data/ora": dateTime,
+      gruppo: safe(gruppo),
+      risorsa: safe(risorsa),
+      "tipo-risorsa": safe(tiporisorsa),
+      da: safe(da),
+      a: safe(a1)
+    });
+  }
 
   async function loadServizi() {
     loadingServizi = true;
@@ -296,6 +308,16 @@ export async function Step5({ state, client, goTo, html, render, root }) {
       try {
         const insertRow = buildMezziInsertRow(org, r);
         await MezziAPI.create(insertRow);
+
+        const dateTime = new Date().toLocaleString("sv-SE", { hour12: false }).replace(",", "");
+        writeMov({
+          dateTime,
+          gruppo: org?.name || "",
+          risorsa: [safe(r.targa), safe(r.marca), safe(r.modello)].filter(Boolean).join(" "),
+          tiporisorsa: "MEZZO",
+          da: "",
+          a1: insertRow["servizio"]
+        }).catch(() => {});
 
         inserted += 1;
         r.status = "inserted";

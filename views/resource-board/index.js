@@ -255,7 +255,57 @@ export async function GOR({ state, client, html, render, root }) {
 
   // ---
 
-  function rerender() { render(view(), root); }
+  function rerender() {
+    render(view(), root);
+    attachKanbanScroll();
+  }
+
+  function kanbanScrollBy(delta) {
+    const kanban = root.querySelector(".gor-kanban");
+    kanban?.scrollBy({ left: delta, behavior: "smooth" });
+  }
+
+  function attachKanbanScroll() {
+    const wrap   = root.querySelector(".gor-kanban-wrap");
+    const kanban = wrap?.querySelector(".gor-kanban");
+    if (!kanban) return;
+
+    function update() {
+      const scrollLeft  = kanban.scrollLeft;
+      const clientWidth = kanban.clientWidth;
+      const scrollWidth = kanban.scrollWidth;
+      const hasMore  = scrollLeft + clientWidth < scrollWidth - 4;
+      const hasPrev  = scrollLeft > 4;
+
+      wrap.classList.toggle("has-more", hasMore);
+
+      const btnLeft  = root.querySelector("#gor-scroll-left");
+      const btnRight = root.querySelector("#gor-scroll-right");
+      const badge    = root.querySelector("#gor-scroll-badge");
+
+      if (btnLeft)  btnLeft.style.visibility  = hasPrev ? "visible" : "hidden";
+      if (btnRight) btnRight.style.visibility = hasMore ? "visible" : "hidden";
+
+      if (badge) {
+        if (hasMore) {
+          const colW   = 270 + 12;
+          const hidden = Math.round((scrollWidth - clientWidth - scrollLeft) / colW);
+          badge.style.visibility = "visible";
+          badge.textContent      = hidden > 0 ? `+${hidden} →` : "→";
+        } else {
+          badge.style.visibility = "hidden";
+          badge.textContent      = "";
+        }
+      }
+    }
+
+    if (!kanban._scrollBound) {
+      kanban._scrollBound = true;
+      kanban.addEventListener("scroll", update);
+      new ResizeObserver(update).observe(kanban);
+    }
+    update();
+  }
 
   function rebuildDerived() {
     const all = [...allVolontari, ...allMezzi, ...allMateriali];
@@ -1079,12 +1129,47 @@ export async function GOR({ state, client, html, render, root }) {
           outline: 2px dashed #3273dc;
           color: #3273dc;
         }
+        .gor-kanban-wrap {
+          position: relative;
+        }
+        .gor-kanban-wrap::after {
+          content: "▶▶";
+          position: absolute;
+          top: 50%; right: 6px;
+          transform: translateY(-50%);
+          font-size: 0.7rem;
+          color: #888;
+          letter-spacing: -2px;
+          pointer-events: none;
+          opacity: 0;
+          transition: opacity 0.2s;
+          z-index: 1;
+        }
+        .gor-kanban-wrap::before {
+          content: "";
+          position: absolute;
+          top: 0; right: 0; bottom: 16px;
+          width: 100px;
+          background: linear-gradient(to left, rgba(255,255,255,1) 20%, transparent);
+          pointer-events: none;
+          opacity: 0;
+          transition: opacity 0.2s;
+          z-index: 1;
+        }
+        .gor-kanban-wrap.has-more::after,
+        .gor-kanban-wrap.has-more::before {
+          opacity: 1;
+        }
         .gor-kanban {
           display: flex;
           gap: 12px;
           padding: 0 1.5rem 1.5rem;
           align-items: flex-start;
           overflow-x: auto;
+        }
+        .gor-kanban-spacer {
+          flex-shrink: 0;
+          width: 108px;
         }
         .gor-column {
           min-width: 270px;
@@ -1118,15 +1203,9 @@ export async function GOR({ state, client, html, render, root }) {
       <div class="box" style="padding:0;overflow:hidden">
 
       <!-- Toolbar -->
-      <div style="
-        display:flex;
-        align-items:center;
-        flex-wrap:wrap;
-        gap:10px;
-        padding:12px 1.25rem;
-        background:#f8f9fa;
-        border-bottom:1px solid #e8e8e8;
-      ">
+      <div style="background:#f8f9fa;border-bottom:1px solid #e8e8e8">
+      <!-- Riga 1: filtri -->
+      <div style="display:flex;align-items:center;flex-wrap:wrap;gap:10px;padding:10px 1.25rem 8px">
         <!-- Cerca -->
         <div class="field has-addons mb-0" style="flex:1;min-width:180px;max-width:300px">
           <div class="control is-expanded">
@@ -1188,6 +1267,10 @@ export async function GOR({ state, client, html, render, root }) {
           </div>
         ` : ""}
 
+      </div><!-- /riga 1 -->
+
+      <!-- Riga 2: contatori + navigazione + aggiorna -->
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 1.25rem 10px">
         <!-- Contatore risorse -->
         <span class="tag is-info is-light" style="white-space:nowrap;gap:6px;display:inline-flex;align-items:center">
           <span title="Volontari"><i class="ri-user-line"></i> ${nV}</span>
@@ -1197,14 +1280,27 @@ export async function GOR({ state, client, html, render, root }) {
           <span title="Materiali"><i class="ri-tools-line"></i> ${nMat}</span>
         </span>
 
-        <!-- Spacer -->
         <div style="flex:1"></div>
+
+        <!-- Navigazione colonne kanban -->
+        <button class="button is-small is-light" id="gor-scroll-left"
+          @click=${() => kanbanScrollBy(-300)}>
+          <i class="ri-arrow-left-s-line"></i>
+        </button>
+        <span class="tag is-info is-light" id="gor-scroll-badge"
+          style="cursor:pointer" @click=${() => kanbanScrollBy(300)}>
+        </span>
+        <button class="button is-small is-light" id="gor-scroll-right"
+          @click=${() => kanbanScrollBy(300)}>
+          <i class="ri-arrow-right-s-line"></i>
+        </button>
 
         <!-- Aggiorna -->
         <button class="button is-small is-light" @click=${load} style="white-space:nowrap">
           🔄 Aggiorna
         </button>
-      </div>
+      </div><!-- /riga 2 -->
+      </div><!-- /toolbar -->
 
       <!-- Banner filtro attivo -->
       ${(filterOrg || filterProvincia) ? html`
@@ -1268,6 +1364,7 @@ export async function GOR({ state, client, html, render, root }) {
       </div>
 
       <!-- Kanban (scroll orizzontale) -->
+      <div class="gor-kanban-wrap">
       <div class="gor-kanban">
         ${activeServices.map(service => {
           const colCards  = visibleCards.filter(c => c.service === service);
@@ -1302,7 +1399,9 @@ export async function GOR({ state, client, html, render, root }) {
             </div>
           `;
         })}
+        <div class="gor-kanban-spacer"></div>
       </div>
+      </div><!-- /.gor-kanban-wrap -->
 
       </div><!-- /.box -->
 

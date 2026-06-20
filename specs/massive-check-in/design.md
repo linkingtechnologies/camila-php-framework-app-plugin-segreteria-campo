@@ -79,16 +79,19 @@ state = {
 | Aggiunta volontario (modale) | `volontari-preaccreditati` |
 | Verifica esistenza volontario | `volontari` |
 | Inserimento volontario | `volontari` |
+| Tracciamento movimento volontario | `mov-risorse` (`create`) |
 | Caricamento servizi | `servizi` |
 | Caricamento mezzi | `mezzi-preaccreditati`, `db-mezzi` |
 | Aggiunta mezzo (modale) | `mezzi-preaccreditati` |
 | Verifica esistenza mezzo | `mezzi` |
 | Inserimento mezzo | `mezzi` |
+| Tracciamento movimento mezzo | `mov-risorse` (`create`) |
 | Caricamento materiali | `materiali-preaccreditati`, `db-materiali` |
 | Aggiunta materiale (modale) | `materiali-preaccreditati` |
 | Sequence ID materiale | `materiali-preaccreditati` (`.sequence()`) |
 | Verifica esistenza materiale | `materiali` |
 | Inserimento materiale | `materiali` |
+| Tracciamento movimento materiale | `mov-risorse` (`create`) |
 
 ---
 
@@ -217,6 +220,33 @@ Il campo `servizio` viene letto dalla tabella preaccreditati e propagato fino ag
 Se il preaccreditato non ha `servizio` valorizzato si usa il default `IN ATTESA DI SERVIZIO`. Il valore è sempre modificabile dall'operatore prima dell'inserimento.
 
 **Guard "valore non in lista":** se il servizio del preaccreditato non è nella tabella `servizi` attiva, viene aggiunto come opzione extra nella select così non scompare silenziosamente (stessa logica in step 3, 5, 7).
+
+---
+
+## Tracciamento mov-risorse
+
+Dopo ogni `create` riuscito (step 3, 5, 7), viene inserito un record in `mov-risorse`:
+
+```js
+{
+  "data/ora":     "YYYY-MM-DD HH:MM:SS",   // nowDateTime() al momento dell'insert
+  "gruppo":       org.name,                 // organizzazione selezionata in step 1
+  "risorsa":      String,                   // vedi sotto
+  "tipo-risorsa": "VOLONTARIO" | "MEZZO" | "MATERIALE",
+  "da":           "",                       // stringa vuota: risorsa nuova, nessun servizio precedente
+  "a":            insertRow["servizio"]     // valore effettivo scritto in tabella (modificabile per-riga)
+}
+
+// risorsa:
+//   volontario → "nome cognome"
+//   mezzo      → "targa marca modello"  (campi vuoti omessi con filter+join)
+//   materiale  → "id-materiale - tipologia (codice-inventario)"
+//                tipologia e codice-inventario inclusi solo se valorizzati
+```
+
+Il movimento **non è in transazione** con il `create`: se `mov-risorse.create` fallisce dopo un inserimento già riuscito, il record operativo è comunque presente. L'errore viene silenziosamente ignorato (`.catch(() => {})`).
+
+⚠️ **`da` è sempre stringa vuota** al check-in: la risorsa è nuova nel sistema operativo, non aveva un servizio precedente. Il campo `a` rispecchia il servizio effettivamente assegnato, che l'operatore può modificare per-riga prima di confermare.
 
 ---
 
