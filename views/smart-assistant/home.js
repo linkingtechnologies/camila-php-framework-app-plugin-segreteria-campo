@@ -11,13 +11,17 @@ function nowDbFormat() {
 }
 
 const BROGLIACCIO_ALERT_HOURS = 2;
+const COMUNE_DEFAULT_VALUE = "Ornate";
+const LS_KEY = "smart-assistant-collapsed";
 
 export async function Home({ client, html, render, root }) {
   let loading = true;
   let hasServizi = false;
   let brogliaccioAlert = false;   // true se nessun record nelle ultime 2 ore
   let brogliaccioLastTs = null;   // timestamp ultimo record (Date) o null se tabella vuota
+  let comuneUnconfigured = false; // true se template comune ha ancora il valore default
   let error = null;
+  let collapsed = localStorage.getItem(LS_KEY) === "1";
 
   // popup brogliaccio
   let showModal  = false;
@@ -32,9 +36,10 @@ export async function Home({ client, html, render, root }) {
     rerender();
 
     try {
-      const [resServizi, resBrogliaccio] = await Promise.all([
+      const [resServizi, resBrogliaccio, resComune] = await Promise.all([
         client.table("servizi").list({ size: 1 }),
         client.table("brogliaccio").list({ include: ["data/ora"], size: 1, order: [["data/ora", "desc"]] }),
+        client.call("GET", "/templates/comune").catch(() => null),
       ]);
 
       hasServizi = getRecords(resServizi).length > 0;
@@ -49,6 +54,8 @@ export async function Home({ client, html, render, root }) {
         brogliaccioLastTs = null;
         brogliaccioAlert = false;  // brogliaccio vuoto: nessun alert
       }
+
+      comuneUnconfigured = resComune?.value === COMUNE_DEFAULT_VALUE;
     } catch (e) {
       error = e;
     } finally {
@@ -88,74 +95,134 @@ export async function Home({ client, html, render, root }) {
     }
   }
 
+  function toggle() {
+    collapsed = !collapsed;
+    localStorage.setItem(LS_KEY, collapsed ? "1" : "0");
+    rerender();
+  }
+
   function view() {
     return html`
       <div>
 
-        ${error
-          ? html`
-              <div class="notification is-danger is-light is-small">
-                <i class="ri-error-warning-line mr-1"></i>
-                Errore nel controllo della tabella <code>servizi</code>
-              </div>
-            `
-          : ""}
-
-        ${!loading && brogliaccioAlert ? html`
-          <div class="notification is-warning" style="display:flex;align-items:center;gap:.75rem">
-            <span class="icon is-medium" style="flex-shrink:0">
-              <i class="ri-alarm-warning-line ri-lg"></i>
-            </span>
-            <div style="flex:1">
-              <strong>Nessuna voce nel brogliaccio nelle ultime ${BROGLIACCIO_ALERT_HOURS} ore.</strong>
-              ${brogliaccioLastTs
-                ? html`<br><span class="is-size-7">Ultima registrazione: ${brogliaccioLastTs.toLocaleString("it-IT")}</span>`
-                : html`<br><span class="is-size-7">Il brogliaccio è vuoto.</span>`
-              }
+        <!-- Header collassabile -->
+        ${(() => {
+          const count = !loading ? [brogliaccioAlert, comuneUnconfigured, !error && !hasServizi].filter(Boolean).length : 0;
+          if (!loading && count === 0) return "";
+          return html`
+            <div
+              style="display:flex;align-items:center;gap:.5rem;cursor:pointer;user-select:none;padding:.25rem 0 .75rem"
+              @click=${toggle}
+            >
+              <span class="icon has-text-grey-light" style="transition:transform .2s;transform:rotate(${collapsed ? "-90deg" : "0deg"})">
+                <i class="ri-arrow-down-s-line"></i>
+              </span>
+              <span class="is-size-7 has-text-grey">Assistente intelligente</span>
+              ${count > 0 ? html`<span class="tag is-primary is-rounded" style="font-size:.65rem;height:1.2rem;padding:0 .45rem">${count}</span>` : ""}
             </div>
-            <button class="button is-warning is-small" @click=${openModal}>
-              <span class="icon"><i class="ri-edit-line"></i></span>
-              <span>Inserisci messaggio</span>
-            </button>
-          </div>
-        ` : ""}
+          `;
+        })()}
 
-        ${!loading && !error && !hasServizi
-          ? html`
-              <div class="card">
-                <div class="card-content py-4">
-                  <div class="media is-align-items-center">
+        ${!collapsed ? html`
 
-                    <div class="media-left">
-                      <span class="icon has-text-primary">
-                        <i class="ri-magic-line ri-lg"></i>
-                      </span>
-                    </div>
+          ${error ? html`
+            <div class="notification is-danger is-light is-small">
+              <i class="ri-error-warning-line mr-1"></i>
+              Errore nel controllo della tabella <code>servizi</code>
+            </div>
+          ` : ""}
 
-                    <div class="media-content">
-                      <p class="is-size-6 mb-1">
-                        <strong>Nessun servizio trovato</strong>
-                      </p>
-                      <p class="is-size-7 has-text-grey">
-                        Importa un file con i servizi di esempio per iniziare più velocemente
-                      </p>
-                    </div>
-
-                    <div class="media-right">
-                      <a
-                        href="./index.php?dashboard=iw"
-                        class="button is-primary is-small"
-                      >
-                        <i class="ri-upload-2-line mr-1"></i>
-                        Importa servizi di esempio
-                      </a>
-                    </div>
-
+          ${!loading && brogliaccioAlert ? html`
+            <div class="card mb-4">
+              <div class="card-content py-4">
+                <div class="media is-align-items-center">
+                  <div class="media-left">
+                    <span class="icon has-text-primary">
+                      <i class="ri-magic-line ri-lg"></i>
+                    </span>
+                  </div>
+                  <div class="media-content">
+                    <p class="is-size-6 mb-1">
+                      <strong>Nessuna voce nel brogliaccio nelle ultime ${BROGLIACCIO_ALERT_HOURS} ore.</strong>
+                    </p>
+                    <p class="is-size-7 has-text-grey">
+                      ${brogliaccioLastTs
+                        ? `Ultima registrazione: ${brogliaccioLastTs.toLocaleString("it-IT")}`
+                        : "Il brogliaccio è vuoto."}
+                    </p>
+                  </div>
+                  <div class="media-right">
+                    <button class="button is-primary is-light is-small" @click=${e => { e.stopPropagation(); openModal(); }}>
+                      <span class="icon"><i class="ri-edit-line"></i></span>
+                      <span>Inserisci messaggio</span>
+                    </button>
                   </div>
                 </div>
               </div>
-            `
-          : ""}
+            </div>
+          ` : ""}
+
+          ${!loading && comuneUnconfigured ? html`
+            <div class="card mb-4">
+              <div class="card-content py-4">
+                <div class="media is-align-items-center">
+                  <div class="media-left">
+                    <span class="icon has-text-primary">
+                      <i class="ri-magic-line ri-lg"></i>
+                    </span>
+                  </div>
+                  <div class="media-content">
+                    <p class="is-size-6 mb-1">
+                      <strong>Evento non configurato.</strong>
+                    </p>
+                    <p class="is-size-7 has-text-grey">
+                      Il nome del comune è ancora impostato al valore predefinito ("${COMUNE_DEFAULT_VALUE}"). Configura l'evento prima di utilizzare le altre funzioni.
+                    </p>
+                  </div>
+                  <div class="media-right">
+                    <a href="./index.php?dashboard=m2" class="button is-primary is-light is-small">
+                      <span class="icon"><i class="ri-calendar-line"></i></span>
+                      <span>Configura evento</span>
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ` : ""}
+
+          ${!loading && !error && !hasServizi ? html`
+            <div class="card mb-4">
+              <div class="card-content py-4">
+                <div class="media is-align-items-center">
+                  <div class="media-left">
+                    <span class="icon has-text-primary">
+                      <i class="ri-magic-line ri-lg"></i>
+                    </span>
+                  </div>
+                  <div class="media-content">
+                    <p class="is-size-6 mb-1">
+                      <strong>Nessun servizio trovato</strong>
+                    </p>
+                    <p class="is-size-7 has-text-grey">
+                      Importa un file con i servizi di esempio per iniziare più velocemente
+                    </p>
+                  </div>
+                  <div class="media-right" style="display:flex;gap:.5rem">
+                    <a href="./index.php?dashboard=iw" class="button is-primary is-small">
+                      <span class="icon"><i class="ri-upload-2-line"></i></span>
+                      <span>Importa servizi di esempio</span>
+                    </a>
+                    <a href="./index.php?dashboard=service-manager" class="button is-primary is-light is-small">
+                      <span class="icon"><i class="ri-pushpin-line"></i></span>
+                      <span>Gestione servizi</span>
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ` : ""}
+
+        ` : ""}
 
         <!-- MODAL inserisci messaggio brogliaccio -->
         ${showModal ? html`
