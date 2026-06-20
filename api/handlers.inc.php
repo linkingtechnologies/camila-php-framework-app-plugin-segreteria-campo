@@ -13,7 +13,7 @@ function sc_radio_config(): array {
 function sc_telegram_config(): array {
     static $cfg = null;
     if ($cfg === null) {
-        $file = rtrim(CAMILA_VAR_ROOTDIR, '/\\') . '/segreteria-campo.json';
+        $file = rtrim(CAMILA_VAR_ROOTDIR, '/\\') . '/segreteria-campo-telegram.json';
         $cfg  = is_file($file) ? (json_decode(file_get_contents($file), true) ?? []) : [];
     }
     return $cfg;
@@ -91,8 +91,8 @@ return [
                 '', '', '',
                 'Telegram',
                 $contentType,
-                $loc ? (string) $loc['latitude']  : '',
-                $loc ? (string) $loc['longitude'] : '',
+                $loc ? (string) $loc['latitude']  : null,
+                $loc ? (string) $loc['longitude'] : null,
                 '', '',
                 (string) ($body['update_id'] ?? ''),
                 (string) ($msg['message_id'] ?? ''),
@@ -108,16 +108,29 @@ return [
             $wt     = new CamilaWorkTable();
             $wt->db = $_CAMILA['db'];
 
+            $logFile = rtrim(CAMILA_LOG_DIR, '/\\') . '/telegram-webhook.log';
+            $log     = function(string $msg) use ($logFile): void {
+                file_put_contents($logFile, date('Y-m-d H:i:s') . ' ' . $msg . PHP_EOL, FILE_APPEND);
+            };
+
             $updateId = (string) ($body['update_id'] ?? '');
+            $log("update_id={$updateId} wt=" . SC_WT_COMUNICAZIONI . " lang=" . (defined('CAMILA_LANG') ? CAMILA_LANG : 'UNDEFINED'));
+
             if ($updateId !== '' && $wt->getWorktableRecordIdByKeyColumn(SC_WT_COMUNICAZIONI, 'Update Id', $updateId) !== '') {
-                return ['ok' => true]; // duplicate, already processed
+                $log("duplicate, skip");
+                return ['ok' => true];
             }
 
-            $wt->insertRow(SC_WT_COMUNICAZIONI, CAMILA_LANG, $fields, $values, 'telegram-bot');
+            $result = $wt->insertRow(SC_WT_COMUNICAZIONI, defined('CAMILA_LANG') ? CAMILA_LANG : 'it', $fields, $values, 'telegram-bot');
+            $log("insertRow result=" . ($result === false ? 'FALSE err=' . $wt->db->ErrorMsg() : 'OK'));
 
             $recordId = $updateId !== ''
                 ? $wt->getWorktableRecordIdByKeyColumn(SC_WT_COMUNICAZIONI, 'Update Id', $updateId)
                 : '';
+            $log("recordId={$recordId}");
+
+            $token = sc_telegram_config()['bot_token'] ?? '';
+            $log("token=" . ($token !== '' ? 'SET' : 'EMPTY') . " recordId={$recordId} chatId=" . ($chat['id'] ?? 'n/a'));
             if ($recordId !== '' && isset($chat['id'])) {
                 sc_telegram_send((int) $chat['id'],
                     "Messaggio ricevuto e registrato (ID: {$recordId}). Grazie.");
