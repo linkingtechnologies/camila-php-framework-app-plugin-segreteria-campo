@@ -2,12 +2,60 @@
 
 **Pulsante dashboard:** "Check-out massivo Organizzazione"
 
+## Modalità operative
+
+| Modalità | URL | Step 1 |
+|---|---|---|
+| **Standard** | (nessun parametro) | Lista organizzazioni con ricerca testuale |
+| **Totem** | `?totem=1` | Inserimento codice numerico (o scansione QR) |
+
+Gli step 2-4 sono identici in entrambe le modalità.
+
+---
+
+## Step 1 — UI comune
+
+Entrambe le modalità mostrano in cima allo step 1 il titolo:
+
+```html
+<h3 class="title is-4">
+  <span class="icon is-medium"><i class="ri-logout-box-line ri-lg"></i></span>
+  Check-out
+</h3>
+```
+
+---
+
+## Step 1 — Modalità totem
+
+Identica alla modalità totem del check-in massivo (stesso jsQR, stesso endpoint, stesso scanner). Differenze:
+
+- Al match trovato chiama `select({ org, code, provincia: "" })` che imposta `state.org` e resetta `step2SelectedIds` / `checkoutSelection` prima di `goTo(2)`.
+- Titolo con icona `ri-logout-box-line` invece di `ri-login-box-line`.
+
+Vedere `specs/massive-check-in/design.md` §"Step 1 — Modalità totem" per il dettaglio completo (flusso jsQR, stato scanner, overlay).
+
+---
+
+## Pulsante "Fine" (step 3 e step 4)
+
+Il pulsante **Fine** (`is-success is-small`, icona `ri-check-double-line`) è presente in:
+
+- **Step 3** — sempre visibile nella toolbar (disabilitato solo durante `busyCheckout`). Permette di concludere senza fare il check-out dei materiali.
+- **Step 4** — visibile quando `!loading && !busyCheckout`.
+
+Al click azzera lo state (`for (const key of Object.keys(state)) delete state[key]`) e chiama `goTo(1)`.
+
+---
+
 ## Struttura wizard
 
 4 step numerati, navigazione via `state.step` + `goTo(n)`.
 
 ```
-step 1  →  Selezione organizzazione
+step 1  →  Selezione organizzazione  (modalità standard)
+           — oppure —
+           Inserimento codice totem  (modalità totem)
 step 2  →  Check-out volontari
 step 3  →  Check-out mezzi
 step 4  →  Check-out materiali

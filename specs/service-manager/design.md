@@ -7,7 +7,7 @@
 SPA a pannello diviso (lista + form laterale). Nessun wizard. I dati vengono caricati al mount e ricaricati dopo ogni operazione di scrittura.
 
 ```
-[Toolbar lista: 🔍 Cerca… | + | ↺ | 🔧 Strumenti ▼]
+[Toolbar lista: 🔍 Cerca… | + | ↺ | ⚠ | 🔧 Strumenti ▼]
 [Banner risultato operazione strumenti]
 ┌────────────────────┬────────────────────────────────────────────┐
 │  Lista servizi     │  Pannello dettaglio / form                 │
@@ -46,6 +46,9 @@ deleteConfirm:  Boolean
 deleteBusy:     Boolean
 deleteUsage:    { v: Number, m: Number, mat: Number } | null
 deleteBlocked:  Boolean
+
+// filtro lista
+filterIntervento: Boolean       // true = mostra solo servizi con intervento="SI"
 
 // UI
 colorDropOpen:  Boolean         // dropdown colore aperto
@@ -93,6 +96,7 @@ Tabella: `servizi`
 | `fine` | String | formato `YYYY-MM-DD HH:MM:SS` |
 | `operatori-a-supporto` | String | |
 | `note` | String | |
+| `intervento` | String | `"SI"` / `"NO"` / vuoto |
 
 Colori disponibili (`COLORI`): `rosso`, `nero`, `blu`, `verde`, `grigio`, `arancione`, `viola`, `bianco`, `giallo`
 
@@ -104,11 +108,12 @@ Servizi protetti (`PROTECTED`): `IN ATTESA DI SERVIZIO`, `USCITA DEFINITIVA`
 
 ### 4.1 Lista servizi
 
-- Ogni riga mostra: drag handle (se non protetto), pallino colorato, nome, indicatore modifiche non salvate (●  arancione), icona GPS grigia se coordinate mancanti, numero ordine
+- Ogni riga mostra: drag handle (se non protetto), pallino colorato, nome, indicatore modifiche non salvate (● arancione), icona GPS grigia se coordinate mancanti, numero ordine
 - Drag & drop per riordinare: `draggable`, eventi `dragstart/dragover/dragleave/drop/dragend`
 - I servizi protetti non hanno drag handle e non sono draggabili
 - La riga selezionata ha classe `is-selected`
-- Filtro testo libero sul nome (case-insensitive)
+- Filtro testo libero su nome, comune, descrizione (case-insensitive)
+- **Filtro interventi** (`filterIntervento`): pulsante toggle con icona `ri-alarm-warning-line` nella toolbar. Quando attivo (stile `is-warning`) mostra solo i servizi con `intervento === "SI"`. I due filtri (testo e intervento) si combinano in AND.
 
 ### 4.2 Dropdown colore custom
 

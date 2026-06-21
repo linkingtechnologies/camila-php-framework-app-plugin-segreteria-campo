@@ -71,11 +71,21 @@ Per ogni risorsa processata con successo:
 
 ## Main Success Scenario
 
-### Step 1 — Selezione organizzazione
+### Step 1 — Selezione organizzazione (modalità standard)
 
-1. Il sistema carica le organizzazioni distinte dai volontari (tabelle `volontari-preaccreditati`, `db-volontari`), con merge e deduplicazione come nel check-in.
+1. Il sistema carica le organizzazioni distinte dalle tabelle operative `volontari`, `mezzi`, `materiali` (chi è attualmente a campo), con merge e deduplicazione per chiave composta.
 2. L'operatore filtra e seleziona l'organizzazione.
 3. Il sistema memorizza `state.org` e avanza allo Step 2.
+
+### Step 1 — Inserimento codice totem (modalità totem, `?totem=1`)
+
+1. L'operatore apre la dashboard con il parametro `?totem=1`.
+2. Il sistema mostra un campo di inserimento codice numerico e un pulsante "Scansiona QR code" (sempre visibile; usa jsQR, compatibile con tutti i browser).
+3. **Inserimento manuale**: l'operatore digita il codice e clicca "Conferma" (o preme Invio).
+4. **Scansione QR**: il sistema carica jsQR, attiva la fotocamera e rileva automaticamente il codice.
+5. Il sistema chiama `GET /segreteria-campo/totem/organization-codes` e cerca l'entry con il codice.
+6. Se trovata: chiama `select()` che imposta `state.org` e avanza allo Step 2.
+7. Se non trovata: mostra "Codice non riconosciuto. Verifica e riprova."
 
 ### Step 2 — Check-out volontari
 
@@ -89,25 +99,44 @@ Per ogni risorsa processata con successo:
 6. Dopo il check-out i record passano nella sezione "Non in servizio".
 7. L'operatore può avanzare allo Step 3 (mezzi).
 
-### Step 3 — Check-out mezzi
+### Step 3 — Check-out mezzi (fine sessione opzionale)
 
 1. Il sistema carica tutti i mezzi dell'organizzazione dalla tabella `mezzi`.
 2. Stessa suddivisione in/non in servizio.
 3. Per i mezzi in servizio, l'operatore può modificare prima del check-out: km inizio missione, km all'arrivo, km alla partenza.
 4. L'operatore seleziona e clicca **Check-out mezzi selezionati**.
 5. Payload aggiornato: `servizio = "USCITA DEFINITIVA"`, data fine, data/ora, km.
-6. L'operatore avanza allo Step 4 (materiali).
+6. L'operatore può avanzare allo Step 4 (materiali) oppure cliccare **Fine** per concludere la sessione senza fare il check-out dei materiali.
 
-### Step 4 — Check-out materiali
+### Step 4 — Check-out materiali (fine sessione)
 
 1. Il sistema carica tutti i materiali dell'organizzazione dalla tabella `materiali`.
 2. Stessa struttura in/non in servizio; nessun campo aggiuntivo modificabile prima del check-out.
 3. Payload: `servizio = "USCITA DEFINITIVA"`, data fine, data/ora.
-4. La sessione è completata. Se una risorsa rientra, dovrà essere registrata tramite check-in.
+4. Quando non è in corso un check-out, compare il pulsante **Fine**: azzera lo state e torna allo Step 1 per una nuova sessione.
 
 ---
 
 ## Extensions
+
+### 1b. Codice totem non riconosciuto
+
+- Il sistema mostra "Codice non riconosciuto. Verifica e riprova." sopra l'input.
+- Il campo rimane modificabile per un nuovo tentativo.
+
+### 1c. Errore API endpoint totem
+
+- Il sistema mostra il messaggio user-friendly corrispondente al `kind` dell'errore.
+
+### 1d. Fotocamera non disponibile (scansione QR)
+
+- Il sistema mostra l'errore nell'overlay scanner con il pulsante "Annulla".
+- L'operatore può chiudere e procedere con inserimento manuale.
+
+### 1e. jsQR non caricabile
+
+- `openScanner()` mostra "Impossibile caricare il decoder QR." nell'overlay.
+- L'operatore può chiudere e procedere con inserimento manuale.
 
 ### 1a. Nessuna organizzazione con presenti attivi
 

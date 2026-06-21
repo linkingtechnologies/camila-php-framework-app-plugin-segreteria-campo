@@ -2,12 +2,54 @@
 
 **Pulsante dashboard:** "Stato registrazione Organizzazione"
 
+## Modalità operative
+
+| Modalità | URL | Step 1 |
+|---|---|---|
+| **Standard** | (nessun parametro) | Lista organizzazioni con ricerca testuale |
+| **Totem** | `?totem=1` | Inserimento codice numerico (o scansione QR) |
+
+Lo step 2 è identico in entrambe le modalità.
+
+---
+
+## Step 1 — UI comune
+
+Entrambe le modalità mostrano in cima allo step 1 il titolo:
+
+```html
+<h3 class="title is-4">
+  <span class="icon is-medium"><i class="ri-building-line ri-lg"></i></span>
+  Stato organizzazione
+</h3>
+```
+
+---
+
+## Step 1 — Modalità totem
+
+Identica alla modalità totem del check-in massivo (stesso jsQR, stesso endpoint, stesso scanner). Al match trovato chiama `select()` che imposta `state.org` e avanza a step 2.
+
+Vedere `specs/massive-check-in/design.md` §"Step 1 — Modalità totem" per il dettaglio completo.
+
+---
+
+## Pulsante "Fine" (step 2)
+
+Il pulsante **Fine** (`is-success is-small`, icona `ri-check-double-line`) è visibile nella toolbar di step 2 affiancato a "Cambia organizzazione" e "Ricarica". Non ha condizioni di visibilità aggiuntive.
+
+Al click azzera lo state (`for (const key of Object.keys(state)) delete state[key]`) e chiama `goTo(1)`, riportando alla selezione organizzazione con lo state pulito.
+
+---
+
 ## Struttura
 
 2 step: selezione organizzazione → dashboard presenti.
 
 ```
-step 1  →  Selezione organizzazione
+step 1  →  Selezione organizzazione  (modalità standard)
+           — oppure —
+           Inserimento codice totem  (modalità totem)
 step 2  →  Dashboard: KPI card + 6 tabelle (3 categorie × in/non in servizio)
 ```
 

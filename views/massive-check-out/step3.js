@@ -626,9 +626,14 @@ export async function Step3({ state, client, goTo, html, render, root }) {
           >
             ${busyCheckout ? "Check-out in corso…" : `Check-out mezzi selezionati (${selected.size})`}
           </button>
-		  
-		  <button class="button is-small" ?disabled=${loading || busyCheckout} @click=${() => goTo(4)}>
+
+          <button class="button is-small" ?disabled=${loading || busyCheckout} @click=${() => goTo(4)}>
             Passa a Check-out materiali
+          </button>
+
+          <button class="button is-success is-small" ?disabled=${busyCheckout} @click=${() => { for (const key of Object.keys(state)) delete state[key]; goTo(1); }}>
+            <span class="icon"><i class="ri-check-double-line"></i></span>
+            <span>Fine</span>
           </button>
         </div>
 

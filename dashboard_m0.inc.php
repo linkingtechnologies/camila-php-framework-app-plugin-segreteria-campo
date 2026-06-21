@@ -44,6 +44,8 @@ $camilaUI->addGridSection(3, function ($colIndex) use ($camilaUI) {
 		case 1:
 			$camilaUI->insertButton('?dashboard=m1', 'Report situazione attuale', 'dashboard');
 			$camilaUI->insertButton('?dashboard=m6', 'Attività registrate', 'task');
+			$camilaUI->insertButton('?dashboard=pre-accreditations-summary', 'Riepilogo preaccreditamenti', 'calendar-event');
+			
 			break;
 		case 2:
 			$camilaUI->insertButton('?dashboard=map-center', 'Mappe', 'map-2');
@@ -83,11 +85,23 @@ else:
 
 $camilaUI = new CamilaUserInterface();
 $camilaUI->openBox();
-$camilaUI->insertTitle('Check-in', 'login-box');
-$camilaUI->addGridSection(1, function ($colIndex) use ($camilaUI) {
-	if ($colIndex === 0)
-		$camilaUI->insertButton('?dashboard=massive-check-in&totem=1', 'Check-in massivo Organizzazione', 'login-box');
+$camilaUI->insertTitle('Check-in, Check-out e Stato registrazione', 'login-box');
+
+
+$camilaUI->addGridSection(3, function ($colIndex) use ($camilaUI) {
+	switch ($colIndex) {
+		case 0:
+			$camilaUI->insertButton('?dashboard=massive-check-in&totem=1', 'Check-in massivo Organizzazione', 'login-box');
+			break;
+		case 1:
+			$camilaUI->insertButton('?dashboard=org-status&totem=1', 'Stato registrazione Organizzazione', 'file-list-3');
+			break;
+		case 2:
+			$camilaUI->insertButton('?dashboard=massive-check-out&totem=1', 'Check-out massivo Organizzazione', 'logout-box');
+			break;
+	}
 });
+
 $camilaUI->closeBox();
 
 endif;

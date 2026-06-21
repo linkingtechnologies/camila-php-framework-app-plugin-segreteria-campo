@@ -517,6 +517,13 @@ export async function Step4({ state, client, goTo, html, render, root }) {
               ? "Check-out in corso…"
               : `Check-out materiali selezionati (${selected.size})`}
           </button>
+
+          ${!loading && !busyCheckout ? html`
+            <button class="button is-success is-small" @click=${() => { for (const key of Object.keys(state)) delete state[key]; goTo(1); }}>
+              <span class="icon"><i class="ri-check-double-line"></i></span>
+              <span>Fine</span>
+            </button>
+          ` : ""}
         </div>
 
         ${loading ? html`<progress class="progress is-small is-primary mt-3"></progress>` : ""}

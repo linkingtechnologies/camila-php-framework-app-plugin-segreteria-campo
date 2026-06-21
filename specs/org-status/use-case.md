@@ -65,12 +65,22 @@ Operatore di segreteria campo / Responsabile organizzazione / Coordinatore opera
 
 ## Main Success Scenario
 
-### Step 1 — Selezione organizzazione
+### Step 1 — Selezione organizzazione (modalità standard)
 
-1. Il sistema carica le organizzazioni distinte dalle tabelle `volontari-preaccreditati` e `db-volontari`, con merge, deduplicazione e ordinamento alfabetico (identico al check-in step 1).
+1. Il sistema carica le organizzazioni distinte dalle tabelle operative `volontari`, `mezzi`, `materiali`, con merge, deduplicazione e ordinamento alfabetico.
 2. L'operatore filtra per nome, codice o provincia.
 3. L'operatore seleziona l'organizzazione.
 4. Il sistema memorizza `state.org` e avanza allo Step 2.
+
+### Step 1 — Inserimento codice totem (modalità totem, `?totem=1`)
+
+1. L'operatore apre la dashboard con il parametro `?totem=1`.
+2. Il sistema mostra un campo di inserimento codice numerico e un pulsante "Scansiona QR code" (sempre visibile; usa jsQR).
+3. **Inserimento manuale**: l'operatore digita il codice e clicca "Conferma" (o preme Invio).
+4. **Scansione QR**: il sistema carica jsQR, attiva la fotocamera e rileva automaticamente il codice.
+5. Il sistema chiama `GET /segreteria-campo/totem/organization-codes` e cerca l'entry con il codice.
+6. Se trovata: imposta `state.org` e avanza allo Step 2.
+7. Se non trovata: mostra "Codice non riconosciuto. Verifica e riprova."
 
 ### Step 2 — Dashboard presenti
 
@@ -83,11 +93,28 @@ Operatore di segreteria campo / Responsabile organizzazione / Coordinatore opera
 4. Sotto le KPI card, sei tabelle dettagliate (in servizio + non in servizio per ogni categoria), ognuna con campo di ricerca.
 5. L'operatore può cercare all'interno di ciascuna tabella.
 6. L'operatore può ricaricare i dati con il pulsante **Ricarica** senza tornare allo Step 1.
-7. L'operatore può cambiare organizzazione con **Cambia organizzazione** che torna allo Step 1.
+7. L'operatore può cambiare organizzazione con **Cambia organizzazione** che torna allo Step 1 (state org preservato).
+8. L'operatore può concludere la sessione con **Fine** che azzera lo state e torna allo Step 1.
 
 ---
 
 ## Extensions
+
+### 1b. Codice totem non riconosciuto
+
+- Il sistema mostra "Codice non riconosciuto. Verifica e riprova." sopra l'input.
+
+### 1c. Errore API endpoint totem
+
+- Il sistema mostra il messaggio user-friendly corrispondente al `kind` dell'errore.
+
+### 1d. Fotocamera non disponibile (scansione QR)
+
+- Il sistema mostra l'errore nell'overlay scanner con il pulsante "Annulla".
+
+### 1e. jsQR non caricabile
+
+- `openScanner()` mostra "Impossibile caricare il decoder QR." nell'overlay.
 
 ### 1a. Errore caricamento organizzazioni
 

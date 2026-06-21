@@ -26,7 +26,7 @@ const LETTERE = [
 const INCLUDE = [
   "id","nome","ordine","lettera","colore","descrizione",
   "latitudine","longitudine","comune","provincia","indirizzo",
-  "inizio","fine","operatori-a-supporto","note"
+  "inizio","fine","operatori-a-supporto","note","intervento"
 ];
 
 const PROTECTED = ["IN ATTESA DI SERVIZIO", "USCITA DEFINITIVA"];
@@ -71,7 +71,7 @@ function emptyForm() {
   return {
     nome:"", ordine:"", lettera:"", colore:"", descrizione:"",
     latitudine:"", longitudine:"", comune:"", provincia:"", indirizzo:"",
-    inizio:"", fine:"", "operatori-a-supporto":"", note:""
+    inizio:"", fine:"", "operatori-a-supporto":"", note:"", intervento:""
   };
 }
 
@@ -91,6 +91,7 @@ function serviceToForm(s) {
     fine:                  norm(s.fine),
     "operatori-a-supporto":norm(s["operatori-a-supporto"]),
     note:                  norm(s.note),
+    intervento:            norm(s.intervento),
   };
 }
 
@@ -192,6 +193,9 @@ export async function ServiceManager({ state, client, html, render, root }) {
 
   // custom color dropdown
   let colorDropOpen  = false;
+
+  // filtro intervento (pannello sinistro)
+  let filterIntervento = false;
 
   // dirty form / conferma cambio servizio
   let formDirty      = false;
@@ -649,13 +653,13 @@ export async function ServiceManager({ state, client, html, render, root }) {
 
   function view() {
     const q = search.toLocaleLowerCase("it");
-    const visible = q
-      ? services.filter(s =>
-          norm(s.nome).toLocaleLowerCase("it").includes(q) ||
-          norm(s.comune).toLocaleLowerCase("it").includes(q) ||
-          norm(s.descrizione).toLocaleLowerCase("it").includes(q)
-        )
-      : services;
+    const visible = services
+      .filter(s => !filterIntervento || norm(s.intervento).toUpperCase() === "SI")
+      .filter(s => !q ||
+        norm(s.nome).toLocaleLowerCase("it").includes(q) ||
+        norm(s.comune).toLocaleLowerCase("it").includes(q) ||
+        norm(s.descrizione).toLocaleLowerCase("it").includes(q)
+      );
 
     const isProtected = selected && PROTECTED.includes(norm(selected.nome));
     const hasCoords = mapLat !== null;
@@ -745,6 +749,12 @@ export async function ServiceManager({ state, client, html, render, root }) {
                 </button>
                 <button class="button is-small is-light" title="Aggiorna" @click=${load}>
                   <span class="icon"><i class="ri-refresh-line"></i></span>
+                </button>
+                <button
+                  class="button is-small ${filterIntervento ? 'is-warning' : 'is-light'}"
+                  title="${filterIntervento ? 'Mostra tutti i servizi' : 'Mostra solo interventi'}"
+                  @click=${() => { filterIntervento = !filterIntervento; rerender(); }}>
+                  <span class="icon"><i class="ri-alarm-warning-line"></i></span>
                 </button>
                 <div class="dropdown is-hoverable is-right" style="margin-left:auto">
                   <div class="dropdown-trigger">
@@ -931,6 +941,20 @@ export async function ServiceManager({ state, client, html, render, root }) {
                     <div class="control">
                       <input class="input is-small" type="number" min="1" .value=${form.ordine}
                         @input=${e => setField("ordine", e.target.value)} />
+                    </div>
+                  </div>
+                </div>
+
+                <!-- INTERVENTO -->
+                <div class="field mb-3" style="max-width:180px">
+                  <label class="label is-small">Intervento</label>
+                  <div class="control">
+                    <div class="select is-small is-fullwidth">
+                      <select @change=${e => setField("intervento", e.target.value)}>
+                        <option value="" ?selected=${!form.intervento}>— non specificato —</option>
+                        <option value="SI" ?selected=${norm(form.intervento).toUpperCase() === "SI"}>SI</option>
+                        <option value="NO" ?selected=${norm(form.intervento).toUpperCase() === "NO"}>NO</option>
+                      </select>
                     </div>
                   </div>
                 </div>
