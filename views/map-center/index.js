@@ -568,7 +568,7 @@ export async function MapCenter({ state, client, html, render, root }) {
     const empty = magBlocks.every(b => !b) && srvBlocks.every(b => !b);
 
     return html`
-      <div id="mc-map-sidebar" style="width:250px;flex-shrink:0;overflow-y:auto;
+      <div id="mc-map-sidebar" style="flex:0 0 33.333%;width:33.333%;overflow-y:auto;
            border-right:1px solid #e8e8e8;padding:.75rem;background:#fafafa">
         <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;
                     letter-spacing:.05em;color:#888;margin-bottom:.5rem">Giacenze</div>
@@ -586,8 +586,8 @@ export async function MapCenter({ state, client, html, render, root }) {
     }
 
     return html`
-      <div id="mc-map-sidebar" style="width:250px;flex-shrink:0;overflow-y:auto;
-           border-right:1px solid #e8e8e8;padding:.75rem;background:#fafafa">
+      <div id="mc-map-sidebar" style="flex:0 0 33.333%;width:33.333%;overflow-y:auto;
+           border-right:1px solid #e8e8e8;padding:.75rem;background:#fafafa;box-sizing:border-box">
         <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;
                     letter-spacing:.05em;color:#888;margin-bottom:.4rem">Raggruppamento</div>
         <div class="buttons has-addons mb-3" style="margin-bottom:.75rem">
@@ -603,21 +603,44 @@ export async function MapCenter({ state, client, html, render, root }) {
         <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;
                     letter-spacing:.05em;color:#888;margin-bottom:.4rem">Risorse per servizio</div>
         ${servizi.filter(r => !SERVIZI_FITTIZI.includes(norm(r.nome))).map(r => {
-          const nome = norm(r.nome);
+          const nome     = norm(r.nome);
           const srvCards = byService.get(nome) || [];
-          const totV   = srvCards.reduce((s, c) => s + c.volontari.length, 0);
-          const totM   = srvCards.reduce((s, c) => s + c.mezzi.length, 0);
-          const totMat = srvCards.reduce((s, c) => s + c.materiali.length, 0);
+          const totV     = srvCards.reduce((s, c) => s + c.volontari.length, 0);
+          const totM     = srvCards.reduce((s, c) => s + c.mezzi.length, 0);
+          const totMat   = srvCards.reduce((s, c) => s + c.materiali.length, 0);
           if (!totV && !totM && !totMat) return "";
-          return html`<div style="margin-bottom:.5rem;cursor:pointer" title="Centra sulla mappa"
-            @click=${() => flyToLocation(nome)}>
-            <div style="font-size:.78rem;font-weight:600">${nome}</div>
-            <div style="font-size:.73rem;color:#555;padding-left:8px">
-              ${totV   > 0 ? html`<span><i class="ri-user-line"></i> ${totV} &nbsp;</span>` : ""}
-              ${totM   > 0 ? html`<span><i class="ri-truck-line"></i> ${totM} &nbsp;</span>` : ""}
-              ${totMat > 0 ? html`<span><i class="ri-tools-line"></i> ${totMat}</span>` : ""}
-            </div>
-          </div>`;
+          const nGruppi   = srvCards.length;
+          const gruppoIcon = groupBy === "squadra" ? "ri-group-line" : "ri-building-line";
+          return html`
+            <div style="margin-bottom:.5rem;cursor:pointer;padding:4px 6px;border-radius:4px"
+              title="Centra sulla mappa"
+              @click=${() => flyToLocation(nome)}
+              @mouseover=${e => e.currentTarget.style.background = "#f0f4ff"}
+              @mouseout=${e => e.currentTarget.style.background = ""}>
+              <div style="font-size:.78rem;font-weight:600;display:flex;align-items:center;gap:4px">
+                <img src="${markerIconUrl(norm(r.colore), norm(r.lettera))}"
+                  style="width:auto;height:18px;flex-shrink:0" alt="">
+                <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${nome}</span>
+              </div>
+              <div style="font-size:.73rem;color:#555;padding-left:6px;margin-bottom:3px">
+                ${nGruppi > 0 ? html`<span style="color:#6366f1"><i class="${gruppoIcon}"></i> ${nGruppi}&nbsp;</span>` : ""}
+                ${totV   > 0 ? html`<span><i class="ri-user-line"></i> ${totV}&nbsp;</span>` : ""}
+                ${totM   > 0 ? html`<span><i class="ri-truck-line"></i> ${totM}&nbsp;</span>` : ""}
+                ${totMat > 0 ? html`<span><i class="ri-tools-line"></i> ${totMat}</span>` : ""}
+              </div>
+              ${srvCards.map(c => html`
+                <div style="display:flex;align-items:baseline;justify-content:space-between;
+                  padding:1px 6px;font-size:.69rem;color:#6b7280;gap:6px">
+                  <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+                    flex:1;min-width:0">${c.groupValue}</span>
+                  <span style="flex-shrink:0;white-space:nowrap;color:#888">
+                    ${c.volontari.length > 0 ? html`<i class="ri-user-line"></i>${c.volontari.length}&nbsp;` : ""}
+                    ${c.mezzi.length     > 0 ? html`<i class="ri-truck-line"></i>${c.mezzi.length}&nbsp;` : ""}
+                    ${c.materiali.length > 0 ? html`<i class="ri-tools-line"></i>${c.materiali.length}` : ""}
+                  </span>
+                </div>
+              `)}
+            </div>`;
         })}
       </div>`;
   }
@@ -627,7 +650,7 @@ export async function MapCenter({ state, client, html, render, root }) {
     const senzaCoord = organizzazioni.length - conCoord.length;
 
     return html`
-      <div id="mc-map-sidebar" style="width:250px;flex-shrink:0;overflow-y:auto;
+      <div id="mc-map-sidebar" style="flex:0 0 33.333%;width:33.333%;overflow-y:auto;
            border-right:1px solid #e8e8e8;padding:.75rem;background:#fafafa">
         <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;
                     letter-spacing:.05em;color:#888;margin-bottom:.4rem">Organizzazioni</div>
@@ -650,8 +673,8 @@ export async function MapCenter({ state, client, html, render, root }) {
     const senzaPos = visibili.filter(r => !parseFloat(r.latitudine) || !parseFloat(r.longitudine));
 
     return html`
-      <div id="mc-map-sidebar" style="width:260px;flex-shrink:0;overflow-y:auto;
-           border-right:1px solid #e8e8e8;padding:.75rem;background:#fafafa">
+      <div id="mc-map-sidebar" style="flex:0 0 33.333%;width:33.333%;overflow-y:auto;
+           border-right:1px solid #e8e8e8;padding:.75rem;background:#fafafa;box-sizing:border-box">
 
         <div style="display:flex;gap:6px;margin-bottom:.75rem">
           <button class="button is-small is-fullwidth ${posEditMode ? 'is-warning' : 'is-light'}"
@@ -793,8 +816,8 @@ export async function MapCenter({ state, client, html, render, root }) {
           <!-- linguetta toggle -->
           <div @click=${toggleSidebar} style="
             position:absolute; top:50%;
-            left:${mapSidebarOpen ? "250px" : "0"};
-            transform:translateY(-50%); z-index:1000; cursor:pointer;
+            left:${mapSidebarOpen ? "33.333%" : "0"};
+            transform:translateY(-50%); z-index:10; cursor:pointer;
             background:#fff; border:1px solid #ccc;
             border-left:${mapSidebarOpen ? "none" : "1px solid #ccc"};
             border-radius:0 4px 4px 0; padding:6px 3px;
@@ -803,7 +826,7 @@ export async function MapCenter({ state, client, html, render, root }) {
             <i class="${mapSidebarOpen ? 'ri-arrow-left-s-line' : 'ri-arrow-right-s-line'}"></i>
           </div>
 
-          <div id="mc-map-container" style="flex:1;min-width:0;min-height:300px${activeTab === 'posizioni' && pendingPlace ? ';cursor:crosshair' : ''}"></div>
+          <div id="mc-map-container" style="flex:1;min-width:0;min-height:300px;isolation:isolate${activeTab === 'posizioni' && pendingPlace ? ';cursor:crosshair' : ''}"></div>
         </div>
       </div>`;
   }

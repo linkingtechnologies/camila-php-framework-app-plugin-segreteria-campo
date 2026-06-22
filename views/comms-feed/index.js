@@ -32,16 +32,17 @@ function markerIconUrl(colore, lettera) {
   return `${base}/it/marker_rosso.png`;
 }
 
-function buildCards(volontari, mezzi, materiali) {
+function buildCards(volontari, mezzi, materiali, groupBy = "organizzazione") {
   const map = new Map();
+  const getGroup = r => (groupBy === "squadra" ? norm(r.squadra) : norm(r.organizzazione)) || "—";
   function ensure(group, service) {
     const key = `${group}|||${service}`;
     if (!map.has(key)) map.set(key, { key, groupValue: group, service, volontari: [], mezzi: [], materiali: [] });
     return map.get(key);
   }
-  for (const r of volontari) ensure(norm(r.organizzazione) || "—", norm(r.servizio) || "IN ATTESA DI SERVIZIO").volontari.push(r);
-  for (const r of mezzi)     ensure(norm(r.organizzazione) || "—", norm(r.servizio) || "IN ATTESA DI SERVIZIO").mezzi.push(r);
-  for (const r of materiali) ensure(norm(r.organizzazione) || "—", norm(r.servizio) || "IN ATTESA DI SERVIZIO").materiali.push(r);
+  for (const r of volontari) ensure(getGroup(r), norm(r.servizio) || "IN ATTESA DI SERVIZIO").volontari.push(r);
+  for (const r of mezzi)     ensure(getGroup(r), norm(r.servizio) || "IN ATTESA DI SERVIZIO").mezzi.push(r);
+  for (const r of materiali) ensure(getGroup(r), norm(r.servizio) || "IN ATTESA DI SERVIZIO").materiali.push(r);
   return Array.from(map.values()).sort((a, b) => a.groupValue.localeCompare(b.groupValue, "it"));
 }
 
@@ -194,11 +195,11 @@ export async function CommsFeed({ client, html, render, root }) {
         size: 100
       });
       const records = getRecords(res)
-        .sort((a, b) => norm(b["received-date"]).localeCompare(norm(a["received-date"])));
+        .sort((a, b) => norm(b["data/ora"]).localeCompare(norm(a["data/ora"])));
 
       const prevDate = lastCommsDate;
       const incoming = prevDate
-        ? records.filter(r => norm(r["received-date"]) > prevDate)
+        ? records.filter(r => norm(r["data/ora"]) > prevDate)
         : [];
 
       if (incoming.length > 0) {
@@ -216,7 +217,7 @@ export async function CommsFeed({ client, html, render, root }) {
 
       if (records.length > 0) {
         lastCommsDate = records.reduce((max, r) => {
-          const d = norm(r["received-date"]); return d > max ? d : max;
+          const d = norm(r["data/ora"]); return d > max ? d : max;
         }, "");
       }
 
@@ -294,7 +295,7 @@ export async function CommsFeed({ client, html, render, root }) {
     for (const { marker } of markersByName.values()) leafletMap.removeLayer(marker);
     markersByName.clear();
 
-    const cards = buildCards(volontari, mezzi, materiali);
+    const cards = buildCards(volontari, mezzi, materiali, groupBy);
     const byService = new Map();
     for (const c of cards) {
       if (!byService.has(c.service)) byService.set(c.service, []);
@@ -363,13 +364,15 @@ export async function CommsFeed({ client, html, render, root }) {
   }
 
   function fitPanelHeight() {
-    const feed = document.getElementById("cf-feed-panel");
-    const map  = document.getElementById("cf-map-panel");
+    const feed    = document.getElementById("cf-feed-panel");
+    const map     = document.getElementById("cf-map-panel");
+    const sidebar = document.getElementById("cf-sidebar");
     if (!feed || !map) return;
     const top = feed.getBoundingClientRect().top;
     const h = Math.max(400, window.innerHeight - Math.round(top) - 4);
     feed.style.height = h + "px";
     map.style.height  = h + "px";
+    if (sidebar) sidebar.style.height = h + "px";
     if (leafletMap) leafletMap.invalidateSize();
   }
 
@@ -378,7 +381,7 @@ export async function CommsFeed({ client, html, render, root }) {
   // ---- sidebar risorse --------------------------------------------------------
 
   function renderSidebarRisorse() {
-    const cards = buildCards(volontari, mezzi, materiali);
+    const cards = buildCards(volontari, mezzi, materiali, groupBy);
     const byService = new Map();
     for (const c of cards) {
       if (!byService.has(c.service)) byService.set(c.service, []);
@@ -394,19 +397,37 @@ export async function CommsFeed({ client, html, render, root }) {
         const totM   = srvCards.reduce((s, c) => s + c.mezzi.length, 0);
         const totMat = srvCards.reduce((s, c) => s + c.materiali.length, 0);
         if (!totV && !totM && !totMat) return "";
+        const nGruppi = srvCards.length;
+        const gruppoIcon = groupBy === "squadra" ? "ri-group-line" : "ri-building-line";
         return html`
           <div style="margin-bottom:.5rem;cursor:pointer;padding:4px 6px;border-radius:4px"
             title="Centra sulla mappa"
             @click=${() => flyToLocation(nome)}
             @mouseover=${e => e.currentTarget.style.background = "#f0f4ff"}
             @mouseout=${e => e.currentTarget.style.background = ""}>
-            <div style="font-size:.78rem;font-weight:600;white-space:nowrap;
-              overflow:hidden;text-overflow:ellipsis">${nome}</div>
-            <div style="font-size:.73rem;color:#555;padding-left:6px">
+            <div style="font-size:.78rem;font-weight:600;display:flex;align-items:center;gap:4px">
+              <img src="${markerIconUrl(norm(r.colore), norm(r.lettera))}"
+                style="width:auto;height:18px;flex-shrink:0" alt="">
+              <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${nome}</span>
+            </div>
+            <div style="font-size:.73rem;color:#555;padding-left:6px;margin-bottom:3px">
+              ${nGruppi > 0 ? html`<span style="color:#6366f1"><i class="${gruppoIcon}"></i> ${nGruppi}&nbsp;</span>` : ""}
               ${totV   > 0 ? html`<span><i class="ri-user-line"></i> ${totV}&nbsp;</span>` : ""}
               ${totM   > 0 ? html`<span><i class="ri-truck-line"></i> ${totM}&nbsp;</span>` : ""}
               ${totMat > 0 ? html`<span><i class="ri-tools-line"></i> ${totMat}</span>` : ""}
             </div>
+            ${srvCards.map(c => html`
+              <div style="display:flex;align-items:baseline;justify-content:space-between;
+                padding:1px 6px;font-size:.69rem;color:#6b7280;gap:6px">
+                <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+                  flex:1;min-width:0">${c.groupValue}</span>
+                <span style="flex-shrink:0;white-space:nowrap;color:#888">
+                  ${c.volontari.length > 0 ? html`<i class="ri-user-line"></i>${c.volontari.length}&nbsp;` : ""}
+                  ${c.mezzi.length     > 0 ? html`<i class="ri-truck-line"></i>${c.mezzi.length}&nbsp;` : ""}
+                  ${c.materiali.length > 0 ? html`<i class="ri-tools-line"></i>${c.materiali.length}` : ""}
+                </span>
+              </div>
+            `)}
           </div>
         `;
       });
@@ -415,7 +436,7 @@ export async function CommsFeed({ client, html, render, root }) {
 
     return html`
       <div id="cf-sidebar"
-        style="width:210px;flex-shrink:0;overflow-y:auto;border-left:1px solid #e5e7eb;
+        style="flex:1;overflow-y:auto;border-left:1px solid #e5e7eb;
           padding:.65rem .6rem;background:#fafafa;box-sizing:border-box">
 
         <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;
@@ -424,7 +445,7 @@ export async function CommsFeed({ client, html, render, root }) {
         <div class="buttons has-addons mb-3" style="margin-bottom:.65rem">
           <button class="button is-small ${groupBy === 'organizzazione' ? 'is-link is-selected' : ''}"
             @click=${() => { groupBy = "organizzazione"; refreshMarkers(); rerender(); }}>
-            Org
+            Organizzazione
           </button>
           <button class="button is-small ${groupBy === 'squadra' ? 'is-link is-selected' : ''}"
             @click=${() => { groupBy = "squadra"; refreshMarkers(); rerender(); }}>
@@ -440,7 +461,7 @@ export async function CommsFeed({ client, html, render, root }) {
   // ---- view helpers -----------------------------------------------------------
 
   function formatTime(r) {
-    const s = norm(r["received-date"] || r["data/ora"]);
+    const s = norm(r["data/ora"]);
     const m = /(\d{2}:\d{2})/.exec(s);
     return m ? m[1] : "";
   }
@@ -460,7 +481,7 @@ export async function CommsFeed({ client, html, render, root }) {
   }
 
   function isRecent(r, nowMs) {
-    const s = norm(r["received-date"] || r["data/ora"]);
+    const s = norm(r["data/ora"]);
     if (!s) return false;
     try { return (nowMs - new Date(s).getTime()) < 4 * 60 * 1000; }
     catch(_) { return false; }
@@ -645,7 +666,7 @@ export async function CommsFeed({ client, html, render, root }) {
 
         <!-- left: feed -->
         <div id="cf-feed-panel"
-          style="width:50%;overflow-y:auto;padding:10px;
+          style="flex:1;overflow-y:auto;padding:10px;
             border-right:1px solid #e5e7eb;box-sizing:border-box">
 
           ${commsError ? html`
@@ -684,11 +705,13 @@ export async function CommsFeed({ client, html, render, root }) {
           ` : filtered.map(r => feedItem(r, nowMs))}
         </div>
 
-        <!-- right: map + sidebar -->
-        <div id="cf-map-panel" style="flex:1;display:flex;overflow:hidden">
-          <div id="cf-map-container" style="flex:1;height:100%"></div>
-          ${sidebarOpen ? renderSidebarRisorse() : ""}
+        <!-- centre: map -->
+        <div id="cf-map-panel" style="flex:1;overflow:hidden;isolation:isolate">
+          <div id="cf-map-container" style="width:100%;height:100%"></div>
         </div>
+
+        <!-- right: sidebar -->
+        ${sidebarOpen ? renderSidebarRisorse() : ""}
       </div>
     `;
   }

@@ -12,25 +12,30 @@ Single-view SPA con quattro tab a tema mappa. Tab di default: **Risorse**.
 
 --- Tab Risorse (default) ---
 [Layout orizzontale:]
-  [Sidebar sinistra 260px — nascondibile con linguetta]
-    Conteggio risorse attive per servizio
+  [Sidebar sinistra 1/3 larghezza (flex:0 0 33.333%) — nascondibile con linguetta]
     Toggle: raggruppa per [Organizzazione | Squadra]
-  [Mappa Leaflet]
+    Per ogni servizio con risorse attive:
+      🔴A Nome Servizio          ← icona marker (markerIconUrl) + nome
+         🏢2 👤3 🚛1             ← nGruppi in viola + conteggi totali (ri-user-line, ri-truck-line, ri-tools-line)
+         Org A    👤2 🚛1        ← sub-lista: una riga per ogni org/squadra con conteggi
+         Org B    👤1
+    Click riga → flyToLocation(nome)
+  [Mappa Leaflet — isolation:isolate per contenere z-index Leaflet]
     Marker colorati = servizi (esclusi servizi fittizi)
-    Click marker → popup con <details> collapsibili per gruppo
+    Click marker → popup con <details> collassibili per gruppo
     Ogni gruppo: elenco volontari + mezzi + materiali attivi
 
 --- Tab Consumabili ---
 [Layout orizzontale:]
-  [Sidebar sinistra 260px — nascondibile con linguetta]
+  [Sidebar sinistra 1/3 larghezza (flex:0 0 33.333%) — nascondibile con linguetta]
     Giacenze per location (magazzini + servizi)
-  [Mappa Leaflet]
+  [Mappa Leaflet — isolation:isolate]
     Marker colorati = magazzini + servizi
     Click marker → popup giacenze
 
 --- Tab Servizi (chiave interna: "posizioni") ---
 [Layout orizzontale:]
-  [Sidebar sinistra 260px — nascondibile con linguetta]
+  [Sidebar sinistra 1/3 larghezza (flex:0 0 33.333%) — nascondibile con linguetta]
     [Modifica] button + [ingranaggio → ?dashboard=service-manager]
     Se modifica attiva: hint "Trascina i marker per spostare la posizione"
     Sezione "Senza posizione (N)": servizi senza latitudine/longitudine
@@ -38,7 +43,7 @@ Single-view SPA con quattro tab a tema mappa. Tab di default: **Risorse**.
       → riga selezionata evidenziata in giallo + testo "Clicca sulla mappa"
     Sezione "Posizionati (N)": click riga = flyToLocation
     Se servizio selezionato da marker: pannello editor colore + lettera + Salva/Annulla
-  [Mappa Leaflet]
+  [Mappa Leaflet — isolation:isolate]
     Marker per tutti i servizi con coordinate (esclusi SERVIZI_FITTIZI)
     In modalità modifica: marker draggabili; cursor crosshair quando servizio in attesa di posizionamento
     Drag marker → salva immediatamente nuova posizione
@@ -47,9 +52,9 @@ Single-view SPA con quattro tab a tema mappa. Tab di default: **Risorse**.
 
 --- Tab Organizzazioni ---
 [Layout orizzontale:]
-  [Sidebar sinistra 260px — nascondibile con linguetta]
+  [Sidebar sinistra 1/3 larghezza (flex:0 0 33.333%) — nascondibile con linguetta]
     Elenco organizzazioni + warning "N senza coordinate"
-  [Mappa Leaflet]
+  [Mappa Leaflet — isolation:isolate]
     Marker per ogni org con latitudine + longitudine valide
     Click marker → popup con dati organizzazione
 ```
@@ -184,8 +189,18 @@ function isActive(r) {
 - Icone allineate a resource-board: `ri-user-line` (volontari), `ri-truck-line` (mezzi), `ri-tools-line` (materiali)
 
 ### Sidebar
-- Conteggio risorse attive per servizio con stesse icone (`ri-user-line`, `ri-truck-line`, `ri-tools-line`)
-- Toggle buttons `Organizzazione` / `Squadra` che cambiano `groupBy` e forzano re-render
+
+Per ogni servizio con risorse attive:
+- **Intestazione**: icona marker (`markerIconUrl(colore, lettera)`) + nome servizio
+- **Riga conteggi**: `ri-building-line` N (org/squadre) in viola · `ri-user-line` N · `ri-truck-line` N · `ri-tools-line` N
+- **Sub-lista**: una riga per ogni org o squadra con nome a sinistra e conteggi a destra
+- Click su riga servizio → `flyToLocation(nome)` (centra mappa + apre popup)
+
+Toggle buttons `Organizzazione` / `Squadra` cambiano `groupBy`, forzano re-render e chiamano `refreshMarkers()` per aggiornare i popup.
+
+L'icona nel contatore e nella sub-lista cambia col toggle: `ri-building-line` in modalità **Organizzazione**, `ri-group-line` in modalità **Squadra**.
+
+Servizi fittizi (`IN ATTESA DI SERVIZIO`, `USCITA DEFINITIVA`) e servizi senza risorse attive sono esclusi dall'elenco.
 
 ## 8. Tab Servizi
 
@@ -234,6 +249,8 @@ Link `<a href="?dashboard=service-manager">` con icona `ri-settings-3-line`, aff
 - **`markersByName`**: `Map<nome, { marker, lat, lon }>` — popolata in ogni `addMarkers*()`, usata da `flyToLocation()`
 - **`fitBounds`** automatico su tutti i marker con coordinate valide
 - **`fitMapHeight()`**: `window.innerHeight - getBoundingClientRect().top - 8`, chiamata a mount, resize, cambio tab, cambio fullscreen
+- **`isolation: isolate`** sul container della mappa (`#mc-map-container`): crea un nuovo stacking context che contiene i z-index alti di Leaflet, impedendo che i tile/control overlay finiscano sopra ai menu dell'applicazione
+- **Linguetta sidebar**: `z-index: 10` (ridotto da 1000); posizione `left: 33.333%` per seguire la larghezza 1/3 della sidebar
 
 ## 11. Auto-refresh e fullscreen
 

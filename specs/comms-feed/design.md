@@ -8,21 +8,25 @@
 SPA a singolo step, nessun wizard. Pensata per uno schermo dedicato in sala operativa. Layout a tre colonne sotto una toolbar scura.
 
 ```
-┌──────────────────────────────────────────────────────────────────────────────────────┐
-│  🔴 Comunicazioni live  [Audio ON/OFF]  [Tutti][Telegram][Radio]  🏢3 👤12 🚛4 🔧2  │  ← toolbar (#1e293b)
-│                                                          Feed 10s ▼  23s  Mappa 41s [▦] │
-├──────────────────────────┬─────────────────────────────────────┬─────────────────────┤
-│  FEED COMUNICAZIONI      │  MAPPA RISORSE                      │  RISORSE            │
-│  (~45%, scroll vert.)    │  Leaflet, height=viewport, flex:1   │  PER SERVIZIO       │
-│                          │                                     │  (210px, togglabile)│
-│  [card messaggio]        │  marker servizi con popup           │                     │
-│  [card messaggio]        │  volontari/mezzi/materiali          │  [Org / Squadra]    │
-│  …                       │  attivi per servizio                │  Servizio A 👤3 🚛1 │
-│                          │                                     │  Servizio B 👤5     │
-└──────────────────────────┴─────────────────────────────────────┴─────────────────────┘
+┌────────────────────────────────────────────────────────────────────────────────────────────┐
+│  🔴 Comunicazioni live  [Audio ON/OFF]  [Tutti][Telegram][Radio]  🏢3 👤12 🚛4 🔧2        │  ← toolbar (#1e293b)
+│                                                            Feed 10s ▼  23s  Mappa 41s  [▦] │
+├───────────────────────────┬────────────────────────────┬────────────────────────────────────┤
+│  FEED COMUNICAZIONI       │  MAPPA RISORSE             │  RISORSE PER SERVIZIO              │
+│  flex:1 (1/3)             │  flex:1 (1/3)              │  flex:1 (1/3, togglabile)          │
+│  scroll verticale         │  Leaflet, height=viewport  │                                    │
+│                           │                            │  [Organizzazione / Squadra]        │
+│  [card messaggio]         │  marker servizi            │                                    │
+│  [card messaggio]         │  con popup risorse         │  🔴A Servizio Alpha                │
+│  …                        │                            │    🏢2 👤3 🚛1                     │
+│                           │                            │    Org A    👤2 🚛1                │
+│                           │                            │    Org B    👤1                    │
+│                           │                            │  🔵B Servizio Beta                 │
+│                           │                            │    🏢1 👤5                         │
+└───────────────────────────┴────────────────────────────┴────────────────────────────────────┘
 ```
 
-Il pulsante `[▦]` in toolbar (icona `ri-layout-right-line`) mostra/nasconde il pannello laterale destro. Quando nascosto, la mappa occupa tutto lo spazio disponibile e `fitPanelHeight()` viene ricalcolata.
+Tre colonne `flex:1` allo stesso livello DOM. Il pulsante `[▦]` in toolbar (`ri-layout-right-line`) mostra/nasconde il pannello risorse. Quando nascosto, feed e mappa si dividono a metà (`flex:1` ciascuno).
 
 L'altezza dei pannelli è calcolata dinamicamente da `fitPanelHeight()` per riempire il viewport dalla posizione del pannello fino al fondo. Viene ricalcolata ad ogni `resize`.
 
@@ -35,7 +39,7 @@ L'altezza dei pannelli è calcolata dinamicamente da `fitPanelHeight()` per riem
 comms:           Array           // record da com-digitali, ordinati per received-date desc
 commsLoading:    Boolean
 commsError:      Any | null
-lastCommsDate:   String          // max received-date visto finora (per rilevare nuovi)
+lastCommsDate:   String          // max data/ora visto finora (per rilevare nuovi)
 newIds:          Set<String>     // id messaggi evidenziati come nuovi (rimossi dopo 4s)
 newCount:        Number          // contatore cumulativo nuovi messaggi dall'ultimo scroll-in-cima (reset a 0 sul click pill)
 channelFilter:   String          // "" = tutti, "Telegram", "Radio", …
@@ -213,13 +217,17 @@ Il refresh della mappa avviene ogni **60 secondi** tramite timer separato, indip
 
 ## 8. Pannello "Risorse per servizio"
 
-Pannello laterale destro (210px, `border-left`), togglabile dalla toolbar.
+Terza colonna (`flex:1`, `border-left`), stessa larghezza di feed e mappa. Togglabile dalla toolbar. Quando nascosto, feed e mappa si dividono lo spazio a metà.
 
-- Elenco dei servizi con risorse attive assegnate (esclusi servizi fittizi e senza risorse)
-- Per ogni servizio: nome + conteggi `ri-user-line` N · `ri-truck-line` N · `ri-tools-line` N
+Per ogni servizio con risorse attive:
+- **Intestazione**: icona marker (`markerIconUrl`) + nome servizio
+- **Riga conteggi**: `ri-building-line` N (org/squadre) in viola · `ri-user-line` N · `ri-truck-line` N · `ri-tools-line` N
+- **Sub-lista**: una riga per ogni org (o squadra), con nome a sinistra e conteggi a destra
 - Click su un servizio → `flyToLocation(nome)` (centra mappa + apre popup)
-- Toggle **Org / Squadra** (`groupBy`) che cambia il raggruppamento nei popup mappa
-- Quando nascosto (`sidebarOpen = false`), la mappa occupa tutto lo spazio del pannello destro
+
+L'icona nel contatore e nella sub-lista cambia col toggle: `ri-building-line` in modalità **Organizzazione**, `ri-group-line` in modalità **Squadra**. Il toggle chiama `refreshMarkers()` per aggiornare anche i popup sulla mappa.
+
+Servizi fittizi (`IN ATTESA DI SERVIZIO`, `USCITA DEFINITIVA`) e servizi senza risorse attive sono esclusi dall'elenco.
 
 ---
 
@@ -229,8 +237,9 @@ Pannello laterale destro (210px, `border-left`), togglabile dalla toolbar.
 ```js
 const top = feedPanel.getBoundingClientRect().top;
 const h = Math.max(400, window.innerHeight - top - 4);
-feedPanel.style.height = h + "px";
-mapPanel.style.height  = h + "px";
+feedPanel.style.height  = h + "px";
+mapPanel.style.height   = h + "px";
+if (sidebar) sidebar.style.height = h + "px";
 leafletMap?.invalidateSize();
 ```
 
