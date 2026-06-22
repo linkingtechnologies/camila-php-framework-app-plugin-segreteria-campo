@@ -38,10 +38,11 @@ $camilaUI->insertTitle('Attività', 'todo');
 $camilaUI->addGridSection(3, function ($colIndex) use ($camilaUI) {
 	switch ($colIndex) {
 		case 0:
-			$camilaUI->insertButton('?dashboard=service-manager', 'Gestione servizi', 'pushpin');
+			$camilaUI->insertButton('?dashboard=service-manager', 'Gestione servizi/interventi', 'pushpin');
 			$camilaUI->insertButton('?dashboard=warehouse-manager', 'Gestione magazzini', 'home-gear');
 			break;
 		case 1:
+			$camilaUI->insertButton('?dashboard=comms-feed', 'Comunicazioni live', 'signal-tower');
 			$camilaUI->insertButton('?dashboard=m1', 'Report situazione attuale', 'dashboard');
 			$camilaUI->insertButton('?dashboard=m6', 'Attività registrate', 'task');
 			$camilaUI->insertButton('?dashboard=pre-accreditations-summary', 'Riepilogo preaccreditamenti', 'calendar-event');
