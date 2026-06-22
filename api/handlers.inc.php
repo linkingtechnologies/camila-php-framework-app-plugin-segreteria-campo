@@ -1,4 +1,44 @@
 <?php
+/**
+ * Segreteria Campo — Plugin API handlers
+ * Base path: /app/segreteriacampo/cf_api.php/segreteria-campo
+ *
+ * ENDPOINTS
+ * ─────────────────────────────────────────────────────────────────────────────
+ *
+ * POST /segreteria-campo/telegram/webhook                          [PUBLIC]
+ *   Telegram webhook receiver. Accepts update_id-deduplicated messages
+ *   and edited_message events. Attachments are rejected with a reply.
+ *   Verified via X-Telegram-Bot-Api-Secret-Token (if webhook_secret set).
+ *   Config: var/segreteria-campo-telegram.json (bot_token, bot_name, webhook_secret)
+ *   Writes to: worktable SC_WT_COMUNICAZIONI
+ *
+ * GET /segreteria-campo/totem/organization-codes                   [PRIVATE]
+ *   Returns a list of {org, cod} pairs — deterministic numeric codes
+ *   derived from organisation names in the VOLONTARI PREACCREDITATI worktable.
+ *   Used by totem kiosks for offline verification.
+ *
+ * GET /segreteria-campo/radio/health                               [PUBLIC — Basic Auth]
+ *   Health check for the radio integration. Verifies DB connectivity.
+ *   Returns: {status, db, worktable, time}
+ *   Auth: Basic Auth via var/segreteria-campo-radio.json (username, password)
+ *
+ * PUT /segreteria-campo/radio/messages                             [PUBLIC — Basic Auth]
+ *   Upsert radio messages from the Sparviere dispatcher into SC_WT_COMUNICAZIONI.
+ *   Deduplication key: Num. Messaggio + Canale origine = 'Radio' (no cross-channel conflicts).
+ *   Update Type: 'message' on insert, 'edited_message' on update.
+ *   Payload: {"messagesPayload": [{"id", "timestamp", "from", "to", "text"}, …]}
+ *   Auth: Basic Auth via var/segreteria-campo-radio.json (username, password)
+ *
+ * GET /segreteria-campo/status                                     [PRIVATE]
+ *   Simple liveness check. Returns: {status: "ok"}
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * NOTE: emoji and 4-byte UTF-8 chars are sanitized before DB insert (columns
+ *       are utf8, not utf8mb4). Use sc_utf8_sanitize() on free-text fields.
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+
 define('SC_WT_COMUNICAZIONI', 'Com. Digitali');
 
 // Gestisce caratteri 4-byte (emoji, ecc.) — workaround per colonne utf8 (non utf8mb4)
@@ -192,6 +232,41 @@ SQL;
 
         return ['data' => $rows];
     },
+
+    // -------------------------------------------------------------------------
+    // PUBLIC (own Basic Auth): Radio health check
+    // GET /segreteria-campo/radio/health
+    // -------------------------------------------------------------------------
+    'GET /radio/health' => [
+        'public'  => true,
+        'handler' => function(array $params, ?array $body, array $path): array {
+            global $_CAMILA;
+
+            $authUser = $_SERVER['PHP_AUTH_USER'] ?? null;
+            $authPw   = $_SERVER['PHP_AUTH_PW']   ?? null;
+
+            if ($authUser === null) {
+                return ['__status' => 401, 'status' => 'error', 'message' => 'Authentication required'];
+            }
+            $radioCfg = sc_radio_config();
+            if ($authUser !== ($radioCfg['username'] ?? '') || $authPw !== ($radioCfg['password'] ?? '')) {
+                return ['__status' => 403, 'status' => 'error', 'message' => 'Authentication failed'];
+            }
+
+            $dbOk = false;
+            try {
+                $rs   = $_CAMILA['db']->Execute('SELECT 1');
+                $dbOk = $rs !== false;
+            } catch (\Throwable $e) {}
+
+            return [
+                'status'    => $dbOk ? 'ok' : 'error',
+                'db'        => $dbOk ? 'connected' : 'unreachable',
+                'worktable' => SC_WT_COMUNICAZIONI,
+                'time'      => date('c'),
+            ];
+        },
+    ],
 
     // -------------------------------------------------------------------------
     // PUBLIC (own Basic Auth): Radio messages upsert (Sparviere dispatcher)
