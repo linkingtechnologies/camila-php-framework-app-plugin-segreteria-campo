@@ -102,7 +102,21 @@ function applyFiltersV(raw) {
 }
 ```
 
-I filtri logistici (benefici, intolleranze, pranzo, cena, pernottamento) si applicano **solo ai volontari**. Mezzi e materiali non vengono esclusi da questi filtri.
+I filtri logistici (benefici, intolleranze, pranzo, cena, pernottamento) si applicano **solo ai volontari**.
+
+Quando almeno uno di questi filtri è attivo (`hasVolOnlyFilter() === true`), mezzi e materiali vengono esclusi completamente dai risultati (`filtM = []`, `filtA = []`): spariscono dai KPI, dalla tabella riepilogo e dall'accordion. Restano visibili solo le organizzazioni che hanno volontari corrispondenti al filtro.
+
+```js
+function hasVolOnlyFilter() {
+  return filterBenefici.size > 0 || filterIntolleranze.size > 0 ||
+         filterPranzo.size > 0   || filterCena.size > 0         ||
+         filterPernottamento.size > 0;
+}
+// in buildGroups() e view():
+const volOnly = hasVolOnlyFilter();
+const filtM = volOnly ? [] : applyFilters(rawM);
+const filtA = volOnly ? [] : applyFilters(rawA);
+```
 
 I valori null/vuoti vengono normalizzati a `"—"` sia in raccolta che in confronto, così le chip appaiono sempre una volta caricati i dati.
 

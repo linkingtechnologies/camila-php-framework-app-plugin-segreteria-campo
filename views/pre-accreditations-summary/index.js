@@ -111,6 +111,12 @@ export async function PreAccreditationsSummary({ client, html, render, root }) {
       (filterProvincia.size === 0 || filterProvincia.has(norm(r.provincia)));
   }
 
+  function hasVolOnlyFilter() {
+    return filterBenefici.size > 0 || filterIntolleranze.size > 0 ||
+           filterPranzo.size > 0   || filterCena.size > 0         ||
+           filterPernottamento.size > 0;
+  }
+
   function applyFilters(raw) {
     return raw.filter(r => applyFiltersBase(r));
   }
@@ -127,9 +133,10 @@ export async function PreAccreditationsSummary({ client, html, render, root }) {
   }
 
   function buildGroups() {
+    const volOnly = hasVolOnlyFilter();
     const filtV = applyFiltersV(rawV);
-    const filtM = applyFilters(rawM);
-    const filtA = applyFilters(rawA);
+    const filtM = volOnly ? [] : applyFilters(rawM);
+    const filtA = volOnly ? [] : applyFilters(rawA);
 
     const map = {};
     const add = (recs, tipo) => recs.forEach(r => {
@@ -378,9 +385,10 @@ export async function PreAccreditationsSummary({ client, html, render, root }) {
   }
 
   function view() {
+    const volOnly = hasVolOnlyFilter();
     const filtV  = applyFiltersV(rawV);
-    const filtM  = applyFilters(rawM);
-    const filtA  = applyFilters(rawA);
+    const filtM  = volOnly ? [] : applyFilters(rawM);
+    const filtA  = volOnly ? [] : applyFilters(rawA);
     const groups = buildGroups();
     const totOrg = groups.length;
     const totV   = filtV.length;
