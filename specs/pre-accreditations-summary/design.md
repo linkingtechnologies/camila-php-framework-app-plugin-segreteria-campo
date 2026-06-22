@@ -8,11 +8,18 @@
 SPA a singolo step, nessun wizard. Caricamento unico al mount delle tre tabelle preaccreditati in parallelo; tutto il filtraggio e il raggruppamento avvengono client-side sui dati in memoria.
 
 ```
-[Titolo + filtri turni/servizi (chip)]
+[Titolo]
+[Filtri — griglia 2 colonne]
+  Turni (con 🖨 per turno)  |  Provincia
+  Servizi                   |  Intolleranze *
+  Benefici di legge *       |  Cena *
+  Pranzo *                  |  Pernottamento *
+  (* solo volontari)
+
 [KPI: # org | # volontari | # mezzi | # materiali]  [🔍 Cerca org…] [Riepilogo | Dettaglio] [↺]
 ──────────────────────────────────────────────────────
 Modalità RIEPILOGO:
-  tabella compatta con totali a piè di pagina
+  tabella compatta (Org | Prov | Vol | Mezzi | Mat) — nessuna colonna "Tot"
 
 Modalità DETTAGLIO:
   accordion per organizzazione, espansione on-click
@@ -23,33 +30,45 @@ Modalità DETTAGLIO:
 
 ```js
 // caricamento
-loading:         Boolean
-error:           Any | null
+loading:             Boolean
+error:               Any | null
 
 // dati grezzi (caricati una volta al mount)
-rawV:            Array   // record da volontari-preaccreditati
-rawM:            Array   // record da mezzi-preaccreditati
-rawA:            Array   // record da materiali-preaccreditati
+rawV:                Array   // record da volontari-preaccreditati
+rawM:                Array   // record da mezzi-preaccreditati
+rawA:                Array   // record da materiali-preaccreditati
 
-// opzioni filtri (derivate dai raw dopo il load)
-allTurni:        Array<String>   // valori distinti di `turno`, ordinati alfabeticamente
-allServizi:      Array<String>   // valori distinti di `servizio`, ordinati alfabeticamente
+// opzioni filtri (derivate dai raw dopo il load, ordinate alfabeticamente)
+allTurni:            Array<String>
+allServizi:          Array<String>
+allProvince:         Array<String>   // da tutti e tre i dataset
+allBenefici:         Array<String>   // da rawV; null/vuoto → "—"
+allIntolleranze:     Array<String>   // da rawV; null/vuoto → "—"
+allPranzo:           Array<String>   // da rawV; null/vuoto → "—"
+allCena:             Array<String>   // da rawV; null/vuoto → "—"
+allPernottamento:    Array<String>   // da rawV; null/vuoto → "—"
 
-// filtri attivi (multi-select, semantica OR)
-filterTurni:     Set<String>     // empty = nessun filtro (tutti i turni)
-filterServizi:   Set<String>     // empty = nessun filtro (tutti i servizi)
+// filtri attivi (multi-select, semantica OR; empty = tutti)
+filterTurni:         Set<String>
+filterServizi:       Set<String>
+filterProvincia:     Set<String>
+filterBenefici:      Set<String>
+filterIntolleranze:  Set<String>
+filterPranzo:        Set<String>
+filterCena:          Set<String>
+filterPernottamento: Set<String>
 
 // UI lista
-search:          String          // filtro testo sul nome organizzazione
-viewMode:        "summary" | "detail"
-expanded:        Set<String>     // nomi org espansi in modalità detail
+search:              String          // filtro testo sul nome organizzazione
+viewMode:            "summary" | "detail"
+expanded:            Set<String>     // nomi org espansi in modalità detail
 ```
 
 ## 3. Tabelle e campi
 
 | Tabella | Campi inclusi |
 |---|---|
-| `volontari-preaccreditati` | `organizzazione`, `codice-organizzazione`, `provincia`, `turno`, `servizio`, `codice-fiscale`, `cognome`, `nome`, `mansione` |
+| `volontari-preaccreditati` | `organizzazione`, `codice-organizzazione`, `provincia`, `turno`, `servizio`, `codice-fiscale`, `cognome`, `nome`, `mansione`, `benefici-di-legge`, `intolleranze`, `pranzo`, `cena`, `pernottamento` |
 | `mezzi-preaccreditati` | `organizzazione`, `codice-organizzazione`, `provincia`, `turno`, `servizio`, `targa`, `categoria`, `tipologia` |
 | `materiali-preaccreditati` | `organizzazione`, `codice-organizzazione`, `provincia`, `turno`, `servizio`, `id-materiale`, `codice-inventario`, `categoria`, `tipologia` |
 
@@ -57,109 +76,136 @@ Tutte e tre le query usano `size: 5000`.
 
 ## 4. Logica di filtraggio e raggruppamento
 
-### 4.1 Filtro
+### 4.1 Funzioni filtro
 
 ```js
-// applicato a ciascuno dei tre array raw
-raw.filter(r =>
-  (filterTurni.size === 0   || filterTurni.has(norm(r.turno)))   &&
-  (filterServizi.size === 0 || filterServizi.has(norm(r.servizio)))
-)
+// filtri comuni a tutti e tre i dataset
+function applyFiltersBase(r) {
+  return (filterTurni.size === 0    || filterTurni.has(norm(r.turno)))    &&
+         (filterServizi.size === 0  || filterServizi.has(norm(r.servizio))) &&
+         (filterProvincia.size === 0 || filterProvincia.has(norm(r.provincia)));
+}
+
+// per mezzi e materiali
+function applyFilters(raw) { return raw.filter(r => applyFiltersBase(r)); }
+
+// per volontari — aggiunge i filtri logistici (solo rawV ha questi campi)
+function applyFiltersV(raw) {
+  return raw.filter(r =>
+    applyFiltersBase(r) &&
+    (filterBenefici.size === 0     || filterBenefici.has(norm(r["benefici-di-legge"]) || "—")) &&
+    (filterIntolleranze.size === 0 || filterIntolleranze.has(norm(r.intolleranze) || "—")) &&
+    (filterPranzo.size === 0       || filterPranzo.has(norm(r.pranzo) || "—")) &&
+    (filterCena.size === 0         || filterCena.has(norm(r.cena) || "—")) &&
+    (filterPernottamento.size === 0 || filterPernottamento.has(norm(r.pernottamento) || "—"))
+  );
+}
 ```
 
-I due filtri si combinano in AND tra loro; all'interno di ciascuno la semantica è OR (mostra record che matchano almeno uno dei valori selezionati).
+I filtri logistici (benefici, intolleranze, pranzo, cena, pernottamento) si applicano **solo ai volontari**. Mezzi e materiali non vengono esclusi da questi filtri.
+
+I valori null/vuoti vengono normalizzati a `"—"` sia in raccolta che in confronto, così le chip appaiono sempre una volta caricati i dati.
 
 ### 4.2 Raggruppamento per organizzazione
 
-La chiave di raggruppamento è `norm(organizzazione).toLowerCase() + "|" + norm(codice-organizzazione).toLowerCase()`.
+Chiave: `norm(organizzazione).toLowerCase() + "|" + norm(codice-organizzazione).toLowerCase()`.
 
-Ogni gruppo contiene:
-- `name` — nome organizzazione
-- `code` — codice organizzazione
-- `provincia`
-- `v[]`, `m[]`, `a[]` — record filtrati per categoria
-
-I gruppi sono ordinati alfabeticamente per nome.
+Ogni gruppo: `{ name, code, provincia, v[], m[], a[] }`. Ordinamento alfabetico per nome.
 
 Il filtro testo `search` si applica sul `name` del gruppo dopo il raggruppamento.
 
 ### 4.3 KPI
 
-Derivati dai gruppi risultanti (aggiornati ad ogni `rerender`):
-
 | KPI | Calcolo totale | Calcolo unici |
 |---|---|---|
 | Organizzazioni | `groups.length` | — |
-| Volontari | `filtV.length` | `new Set(filtV.map(r => codice-fiscale)).size` |
-| Mezzi | `filtM.length` | `new Set(filtM.map(r => targa)).size` |
-| Materiali | `filtA.length` | `new Set(filtA.map(r => id-materiale \|\| codice-inventario)).size` |
-
-I valori filtrati (`filtV`, `filtM`, `filtA`) sono calcolati applicando `applyFilters()` agli array raw prima del raggruppamento.
+| Volontari | `filtV.length` (`applyFiltersV`) | `new Set(filtV.map(r => codice-fiscale)).size` |
+| Mezzi | `filtM.length` (`applyFilters`) | `new Set(filtM.map(r => targa)).size` |
+| Materiali | `filtA.length` (`applyFilters`) | `new Set(filtA.map(r => id-materiale \|\| codice-inventario)).size` |
 
 ## 5. Componenti UI
 
-### 5.1 Filtri chip
+### 5.1 Filtri chip — layout
 
-Chip toggle arrotondati (Bulma `tag is-rounded`). Stato attivo: `is-primary`. Stato inattivo: `is-light`.
+I filtri sono disposti in una griglia CSS `display:grid; grid-template-columns:1fr 1fr; gap:.25rem 2rem`. Ordine DOM (determina la colonna per auto-placement):
 
-- **Tutti** — chip fisso che azzera il Set e torna allo stato "nessun filtro". È evidenziato quando il Set è vuoto.
-- Chip per valore — toggle: se presente nel Set lo rimuove, altrimenti lo aggiunge.
+| Sinistra | Destra |
+|---|---|
+| Turni | Provincia |
+| Servizi | Intolleranze |
+| Benefici di legge | Cena |
+| Pranzo | Pernottamento |
 
-Turni e servizi hanno ciascuno la propria riga di chip con intestazione (`heading`).
+### 5.2 Chip standard
 
-### 5.2 KPI bar
+Bulma `tag is-rounded`. Attivo: `is-primary`. Inattivo: `is-light`. Il chip **Tutti/Tutte** azzera il Set.
 
-Quattro blocchi affiancati con `title is-5` per il numero e `help` per l'etichetta con icona:
+### 5.3 Chip turno con stampa (`chipTurno`)
 
-| Icona | Etichetta | Chiave deduplicazione |
+I chip turno usano Bulma `tags has-addons` (due tag connessi):
+
+```
+[TURNO 1][🖨]
+```
+
+- Parte sinistra: label del turno, click → toggle filtro
+- Parte destra: icona `ri-printer-line`, `<a target="_blank">` → `stampaUrl(turno)`
+
+```js
+function stampaUrl(turno) {
+  const f1 = encodeURIComponent(` AND \${VOLONTARI PREACCREDITATI.TURNO} = '${turno}'`);
+  const f2 = encodeURIComponent(` AND \${MEZZI PREACCREDITATI.TURNO} = '${turno}'`);
+  const f3 = encodeURIComponent(` AND \${MATERIALI PREACCREDITATI.TURNO} = '${turno}'`);
+  return `?camila_worktable_add_child_filter_1=${f1}`
+       + `&camila_worktable_add_child_filter_2=${f2}`
+       + `&camila_worktable_add_child_filter_3=${f3}`
+       + `&camila_xml2pdf`;
+}
+```
+
+Il parametro `camila_xml2pdf` senza valore attiva la generazione PDF in Camila. Il chip **Tutti** rimane chip standard senza icona stampante.
+
+### 5.4 KPI bar
+
+Quattro blocchi con `title is-5` + `help`:
+
+| Icona | Etichetta | Deduplicazione |
 |---|---|---|
 | `ri-building-line` | organizzazioni | — |
 | `ri-user-line` | volontari | `codice-fiscale` |
 | `ri-truck-line` | mezzi | `targa` |
 | `ri-tools-line` | materiali | `id-materiale` o `codice-inventario` |
 
-I contatori volontari, mezzi e materiali mostrano il numero di **righe** (slot preaccreditati). Se il numero di risorse **uniche** (deduplicate per chiave) è inferiore al totale, viene mostrata una riga aggiuntiva sotto il contatore principale:
+Se `unique < total` appare riga `N unici` sotto il contatore.
 
-```
-145
-12 unici
-👤 volontari
-```
+### 5.5 Modalità Riepilogo (tabella)
 
-La riga "N unici" è omessa quando `unique === total` (nessun duplicato nei dati filtrati).
+Tabella `is-fullwidth is-striped is-hoverable is-size-7`:
 
-### 5.3 Modalità Riepilogo (tabella)
+| Organizzazione | Prov | Vol | Mezzi | Mat |
+|---|---|---|---|---|
 
-Tabella `is-fullwidth is-striped is-hoverable is-size-7` con colonne:
+- Valori zero → `—`
+- Nessuna colonna "Tot" (sommare risorse eterogenee non ha significato)
+- `<tfoot>` con totali di colonna e conteggio org
 
-| Organizzazione | Prov | Vol | Mezzi | Mat | Tot |
-|---|---|---|---|---|---|
+### 5.6 Modalità Dettaglio (accordion)
 
-- Celle numeriche allineate a destra
-- Valori a zero mostrati come `—`
-- Riga `<tfoot>` con totali di colonna e conteggio organizzazioni
+Header box: chevron · nome + tag codice + tag provincia · badge `is-info` (V) · `is-warning` (M) · `is-success` (A). Nessun badge totale cumulativo.
 
-### 5.4 Modalità Dettaglio (accordion)
+Corpo espanso — tre sezioni opzionali con `<thead>`:
 
-Ogni organizzazione è un `box` cliccabile che mostra/nasconde il contenuto. L'header contiene:
-- Icona chevron destra/giù
-- Nome organizzazione + tag codice + tag provincia
-- Badge colorati con conteggio risorse: info (V), warning (M), success (A), dark (totale)
+**Volontari** — colonne: Nominativo | Mansione | Turno | Servizio | Pranzo | Cena | Pernott. | Benefici | Intolleranze
 
-Il corpo espanso (bordato a sinistra) mostra tre sezioni opzionali (omesse se array vuoto):
+**Mezzi** — colonne: Targa | Categoria · Tipologia | Turno | Servizio
 
-**Volontari** — colonne: `cognome nome` | `mansione` | `turno` | `servizio`
+**Materiali** — colonne: ID/Codice | Categoria · Tipologia | Turno | Servizio
 
-**Mezzi** — colonne: `targa` | `categoria · tipologia` | `turno` | `servizio`
+`detailSubTable(rows, cols, headers=[])` accetta un terzo parametro opzionale per la riga `<thead>`.
 
-**Materiali** — colonne: `id-materiale` o `codice-inventario` | `categoria · tipologia` | `turno` | `servizio`
-
-Tutte le sub-tabelle: `is-fullwidth is-narrow is-striped is-size-7`.
-
-## 6. WorkTableClient — pattern di utilizzo
+## 6. WorkTableClient
 
 ```js
-// caricamento parallelo al mount
 const [resV, resM, resA] = await Promise.all([
   client.table("volontari-preaccreditati").list({ include: INCLUDE_V, size: 5000 }),
   client.table("mezzi-preaccreditati").list({ include: INCLUDE_M, size: 5000 }),
@@ -167,13 +213,13 @@ const [resV, resM, resA] = await Promise.all([
 ]);
 ```
 
-SPA di sola lettura: nessuna chiamata `create`, `update` o `delete`.
+SPA di sola lettura.
 
 ## 7. File
 
 | File | Ruolo |
 |---|---|
-| `app-pre-accreditations-summary.js` | Entry point: carica lit-html, WorkTableClient, importa e monta la view |
-| `views/pre-accreditations-summary/index.js` | Intera logica e template della SPA (~250 righe) |
-| `pre-accreditations-summary.inc.php` | Mount PHP tramite `CamilaUserInterface::mountMiniApp` |
-| `dashboard_pre-accreditations-summary.inc.php` | Alias PHP per dashboard (include pre-accreditations-summary.inc.php) |
+| `app-pre-accreditations-summary.js` | Entry point |
+| `views/pre-accreditations-summary/index.js` | Logica e template (~530 righe) |
+| `pre-accreditations-summary.inc.php` | Mount PHP via `mountMiniApp` |
+| `dashboard_pre-accreditations-summary.inc.php` | Alias dashboard |

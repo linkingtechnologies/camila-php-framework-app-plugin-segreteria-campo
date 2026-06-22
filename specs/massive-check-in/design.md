@@ -263,7 +263,7 @@ Se il preaccreditato non ha `servizio` valorizzato si usa il default `IN ATTESA 
 Entrambe le modalità mostrano in cima allo step 1 il titolo:
 
 ```html
-<h3 class="title is-4">
+<h3 class="title is-4" style="margin-top:.75rem">
   <span class="icon is-medium"><i class="ri-login-box-line ri-lg"></i></span>
   Check-in
 </h3>

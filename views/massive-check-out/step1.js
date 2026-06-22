@@ -400,7 +400,7 @@ export async function Step1({ state, client, goTo, html, render, root }) {
 
   function view() {
     const titleEl = html`
-      <h3 class="title is-4">
+      <h3 class="title is-4" style="margin-top:.75rem">
         <span class="icon is-medium" style="vertical-align:middle;margin-right:.4rem">
           <i class="ri-logout-box-line ri-lg"></i>
         </span>Check-out

@@ -21,6 +21,7 @@ $camilaUI->addGridSection(3, function ($colIndex) use ($camilaUI) {
 	switch ($colIndex) {
 		case 0:
 			$camilaUI->insertButton('?dashboard=massive-check-in', 'Check-in massivo Organizzazione', 'login-box');
+			$camilaUI->insertButton('?dashboard=pre-accreditations-summary', 'Riepilogo preaccreditamenti', 'calendar-event');
 			break;
 		case 1:
 			$camilaUI->insertButton('?dashboard=resource-board', 'Movimentazione risorse', 'route');
@@ -28,6 +29,7 @@ $camilaUI->addGridSection(3, function ($colIndex) use ($camilaUI) {
 			break;
 		case 2:
 			$camilaUI->insertButton('?dashboard=massive-check-out', 'Check-out massivo Organizzazione', 'logout-box');
+			$camilaUI->insertButton('?dashboard=org-status', 'Stato registrazione Organizzazione', 'file-list-3');
 			break;
 
 	}
@@ -43,14 +45,11 @@ $camilaUI->addGridSection(3, function ($colIndex) use ($camilaUI) {
 			break;
 		case 1:
 			$camilaUI->insertButton('?dashboard=comms-feed', 'Comunicazioni live', 'signal-tower');
-			$camilaUI->insertButton('?dashboard=m1', 'Report situazione attuale', 'dashboard');
-			$camilaUI->insertButton('?dashboard=m6', 'Attività registrate', 'task');
-			$camilaUI->insertButton('?dashboard=pre-accreditations-summary', 'Riepilogo preaccreditamenti', 'calendar-event');
-			
+			$camilaUI->insertButton('?dashboard=map-center', 'Mappe', 'map-2');
 			break;
 		case 2:
-			$camilaUI->insertButton('?dashboard=map-center', 'Mappe', 'map-2');
-			$camilaUI->insertButton('?dashboard=org-status', 'Stato registrazione Organizzazione', 'file-list-3');
+			$camilaUI->insertButton('?dashboard=m1', 'Report situazione attuale', 'dashboard');
+			$camilaUI->insertButton('?dashboard=m6', 'Attività registrate', 'task');
 			break;
 
 	}

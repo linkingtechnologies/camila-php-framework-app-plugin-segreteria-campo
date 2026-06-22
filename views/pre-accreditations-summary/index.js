@@ -20,9 +20,21 @@ export async function PreAccreditationsSummary({ client, html, render, root }) {
 
   let allTurni = [];
   let allServizi = [];
+  let allProvince = [];
+  let allBenefici = [];
+  let allIntolleranze = [];
+  let allPranzo = [];
+  let allCena = [];
+  let allPernottamento = [];
 
   let filterTurni = new Set();
   let filterServizi = new Set();
+  let filterProvincia = new Set();
+  let filterBenefici = new Set();
+  let filterIntolleranze = new Set();
+  let filterPranzo = new Set();
+  let filterCena = new Set();
+  let filterPernottamento = new Set();
 
   let search = "";
   let viewMode = "summary";
@@ -38,7 +50,7 @@ export async function PreAccreditationsSummary({ client, html, render, root }) {
     rerender();
 
     try {
-      const INCLUDE_V = ["organizzazione", "codice-organizzazione", "provincia", "turno", "servizio", "codice-fiscale", "cognome", "nome", "mansione"];
+      const INCLUDE_V = ["organizzazione", "codice-organizzazione", "provincia", "turno", "servizio", "codice-fiscale", "cognome", "nome", "mansione", "benefici-di-legge", "intolleranze", "pranzo", "cena", "pernottamento"];
       const INCLUDE_M = ["organizzazione", "codice-organizzazione", "provincia", "turno", "servizio", "targa", "categoria", "tipologia"];
       const INCLUDE_A = ["organizzazione", "codice-organizzazione", "provincia", "turno", "servizio", "id-materiale", "codice-inventario", "categoria", "tipologia"];
 
@@ -54,15 +66,37 @@ export async function PreAccreditationsSummary({ client, html, render, root }) {
 
       const turniSet = new Set();
       const serviziSet = new Set();
+      const provinciaSet = new Set();
       for (const r of [...rawV, ...rawM, ...rawA]) {
         const t = norm(r.turno);
         const s = norm(r.servizio);
+        const p = norm(r.provincia);
         if (t) turniSet.add(t);
         if (s) serviziSet.add(s);
+        if (p) provinciaSet.add(p);
+      }
+
+      const beneficiSet = new Set();
+      const intolleranzeSet = new Set();
+      const pranzoSet = new Set();
+      const cenaSet = new Set();
+      const pernottamentoSet = new Set();
+      for (const r of rawV) {
+        beneficiSet.add(norm(r["benefici-di-legge"]) || "—");
+        intolleranzeSet.add(norm(r.intolleranze) || "—");
+        pranzoSet.add(norm(r.pranzo) || "—");
+        cenaSet.add(norm(r.cena) || "—");
+        pernottamentoSet.add(norm(r.pernottamento) || "—");
       }
 
       allTurni = Array.from(turniSet).sort((a, b) => a.localeCompare(b, "it"));
       allServizi = Array.from(serviziSet).sort((a, b) => a.localeCompare(b, "it"));
+      allProvince = Array.from(provinciaSet).sort((a, b) => a.localeCompare(b, "it"));
+      allBenefici = Array.from(beneficiSet).sort((a, b) => a.localeCompare(b, "it"));
+      allIntolleranze = Array.from(intolleranzeSet).sort((a, b) => a.localeCompare(b, "it"));
+      allPranzo = Array.from(pranzoSet).sort((a, b) => a.localeCompare(b, "it"));
+      allCena = Array.from(cenaSet).sort((a, b) => a.localeCompare(b, "it"));
+      allPernottamento = Array.from(pernottamentoSet).sort((a, b) => a.localeCompare(b, "it"));
     } catch (e) {
       error = e;
     } finally {
@@ -71,15 +105,29 @@ export async function PreAccreditationsSummary({ client, html, render, root }) {
     }
   }
 
+  function applyFiltersBase(r) {
+    return (filterTurni.size === 0 || filterTurni.has(norm(r.turno))) &&
+      (filterServizi.size === 0 || filterServizi.has(norm(r.servizio))) &&
+      (filterProvincia.size === 0 || filterProvincia.has(norm(r.provincia)));
+  }
+
   function applyFilters(raw) {
+    return raw.filter(r => applyFiltersBase(r));
+  }
+
+  function applyFiltersV(raw) {
     return raw.filter(r =>
-      (filterTurni.size === 0 || filterTurni.has(norm(r.turno))) &&
-      (filterServizi.size === 0 || filterServizi.has(norm(r.servizio)))
+      applyFiltersBase(r) &&
+      (filterBenefici.size === 0 || filterBenefici.has(norm(r["benefici-di-legge"]) || "—")) &&
+      (filterIntolleranze.size === 0 || filterIntolleranze.has(norm(r.intolleranze) || "—")) &&
+      (filterPranzo.size === 0 || filterPranzo.has(norm(r.pranzo) || "—")) &&
+      (filterCena.size === 0 || filterCena.has(norm(r.cena) || "—")) &&
+      (filterPernottamento.size === 0 || filterPernottamento.has(norm(r.pernottamento) || "—"))
     );
   }
 
   function buildGroups() {
-    const filtV = applyFilters(rawV);
+    const filtV = applyFiltersV(rawV);
     const filtM = applyFilters(rawM);
     const filtA = applyFilters(rawA);
 
@@ -117,6 +165,31 @@ export async function PreAccreditationsSummary({ client, html, render, root }) {
     rerender();
   }
 
+  function toggleProvincia(v) {
+    if (filterProvincia.has(v)) filterProvincia.delete(v); else filterProvincia.add(v);
+    rerender();
+  }
+  function toggleBenefici(v) {
+    if (filterBenefici.has(v)) filterBenefici.delete(v); else filterBenefici.add(v);
+    rerender();
+  }
+  function toggleIntolleranze(v) {
+    if (filterIntolleranze.has(v)) filterIntolleranze.delete(v); else filterIntolleranze.add(v);
+    rerender();
+  }
+  function togglePranzo(v) {
+    if (filterPranzo.has(v)) filterPranzo.delete(v); else filterPranzo.add(v);
+    rerender();
+  }
+  function toggleCena(v) {
+    if (filterCena.has(v)) filterCena.delete(v); else filterCena.add(v);
+    rerender();
+  }
+  function togglePernottamento(v) {
+    if (filterPernottamento.has(v)) filterPernottamento.delete(v); else filterPernottamento.add(v);
+    rerender();
+  }
+
   function toggleExpanded(name) {
     if (expanded.has(name)) expanded.delete(name);
     else expanded.add(name);
@@ -130,6 +203,29 @@ export async function PreAccreditationsSummary({ client, html, render, root }) {
         style="cursor:pointer;user-select:none"
         @click=${onClick}>
         ${label}
+      </span>
+    `;
+  }
+
+  function stampaUrl(turno) {
+    const f1 = encodeURIComponent(` AND \${VOLONTARI PREACCREDITATI.TURNO} = '${turno}'`);
+    const f2 = encodeURIComponent(` AND \${MEZZI PREACCREDITATI.TURNO} = '${turno}'`);
+    const f3 = encodeURIComponent(` AND \${MATERIALI PREACCREDITATI.TURNO} = '${turno}'`);
+    return `?camila_worktable_add_child_filter_1=${f1}&camila_worktable_add_child_filter_2=${f2}&camila_worktable_add_child_filter_3=${f3}&camila_xml2pdf`;
+  }
+
+  function chipTurno(t, active, onClick) {
+    return html`
+      <span class="tags has-addons" style="margin-bottom:.25rem">
+        <span class="tag is-clickable ${active ? "is-primary" : "is-light"}"
+          style="user-select:none;cursor:pointer"
+          @click=${onClick}>
+          ${t}
+        </span>
+        <a class="tag is-light" href="${stampaUrl(t)}" target="_blank"
+          title="Stampa modulo ${t}" style="padding:0 .5rem;color:inherit">
+          <i class="ri-printer-line"></i>
+        </a>
       </span>
     `;
   }
@@ -160,7 +256,6 @@ export async function PreAccreditationsSummary({ client, html, render, root }) {
               <th class="has-text-right">Vol</th>
               <th class="has-text-right">Mezzi</th>
               <th class="has-text-right">Mat</th>
-              <th class="has-text-right">Tot</th>
             </tr>
           </thead>
           <tbody>
@@ -174,7 +269,6 @@ export async function PreAccreditationsSummary({ client, html, render, root }) {
                 <td class="has-text-right">${g.v.length || "—"}</td>
                 <td class="has-text-right">${g.m.length || "—"}</td>
                 <td class="has-text-right">${g.a.length || "—"}</td>
-                <td class="has-text-right"><strong>${g.v.length + g.m.length + g.a.length}</strong></td>
               </tr>
             `)}
           </tbody>
@@ -184,7 +278,6 @@ export async function PreAccreditationsSummary({ client, html, render, root }) {
               <th class="has-text-right">${totV}</th>
               <th class="has-text-right">${totM}</th>
               <th class="has-text-right">${totA}</th>
-              <th class="has-text-right"><strong>${totV + totM + totA}</strong></th>
             </tr>
           </tfoot>
         </table>
@@ -192,9 +285,14 @@ export async function PreAccreditationsSummary({ client, html, render, root }) {
     `;
   }
 
-  function detailSubTable(rows, cols) {
+  function detailSubTable(rows, cols, headers = []) {
     return html`
       <table class="table is-fullwidth is-narrow is-striped is-size-7 mb-3">
+        ${headers.length ? html`
+          <thead>
+            <tr>${headers.map(h => html`<th>${h}</th>`)}</tr>
+          </thead>
+        ` : ""}
         <tbody>
           ${rows.map(r => html`<tr>${cols.map(c => html`<td>${c(r) || "—"}</td>`)}</tr>`)}
         </tbody>
@@ -205,8 +303,6 @@ export async function PreAccreditationsSummary({ client, html, render, root }) {
   function detailAccordion(groups) {
     return groups.map(g => {
       const isOpen = expanded.has(g.name);
-      const tot = g.v.length + g.m.length + g.a.length;
-
       return html`
         <div class="box mb-2 p-3">
           <div class="is-flex is-align-items-center"
@@ -224,7 +320,6 @@ export async function PreAccreditationsSummary({ client, html, render, root }) {
               ${g.v.length ? html`<span class="tag is-info is-light is-small"><i class="ri-user-line mr-1"></i>${g.v.length}</span>` : ""}
               ${g.m.length ? html`<span class="tag is-warning is-light is-small"><i class="ri-truck-line mr-1"></i>${g.m.length}</span>` : ""}
               ${g.a.length ? html`<span class="tag is-success is-light is-small"><i class="ri-tools-line mr-1"></i>${g.a.length}</span>` : ""}
-              <span class="tag is-dark is-small">${tot}</span>
             </div>
           </div>
 
@@ -239,8 +334,13 @@ export async function PreAccreditationsSummary({ client, html, render, root }) {
                   r => html`<strong>${norm(r.cognome)} ${norm(r.nome)}</strong>`,
                   r => norm(r.mansione),
                   r => norm(r.turno),
-                  r => norm(r.servizio)
-                ])}
+                  r => norm(r.servizio),
+                  r => norm(r.pranzo),
+                  r => norm(r.cena),
+                  r => norm(r.pernottamento),
+                  r => norm(r["benefici-di-legge"]),
+                  r => norm(r.intolleranze)
+                ], ["Nominativo", "Mansione", "Turno", "Servizio", "Pranzo", "Cena", "Pernott.", "Benefici", "Intolleranze"])}
               ` : ""}
 
               ${g.m.length ? html`
@@ -278,7 +378,7 @@ export async function PreAccreditationsSummary({ client, html, render, root }) {
   }
 
   function view() {
-    const filtV  = applyFilters(rawV);
+    const filtV  = applyFiltersV(rawV);
     const filtM  = applyFilters(rawM);
     const filtA  = applyFilters(rawA);
     const groups = buildGroups();
@@ -309,25 +409,89 @@ export async function PreAccreditationsSummary({ client, html, render, root }) {
           </div>
         ` : ""}
 
-        ${allTurni.length ? html`
-          <div class="mb-3">
-            <p class="heading mb-2">Turni</p>
-            <div class="tags">
-              ${chip("Tutti", filterTurni.size === 0, () => { filterTurni.clear(); rerender(); })}
-              ${allTurni.map(t => chip(t, filterTurni.has(t), () => toggleTurno(t)))}
-            </div>
-          </div>
-        ` : ""}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.25rem 2rem">
 
-        ${allServizi.length ? html`
-          <div class="mb-2">
-            <p class="heading mb-2">Servizi</p>
-            <div class="tags">
-              ${chip("Tutti", filterServizi.size === 0, () => { filterServizi.clear(); rerender(); })}
-              ${allServizi.map(s => chip(s, filterServizi.has(s), () => toggleServizio(s)))}
+          ${allTurni.length ? html`
+            <div class="mb-3">
+              <p class="heading mb-2">Turni</p>
+              <div class="tags">
+                ${chip("Tutti", filterTurni.size === 0, () => { filterTurni.clear(); rerender(); })}
+                ${allTurni.map(t => chipTurno(t, filterTurni.has(t), () => toggleTurno(t)))}
+              </div>
             </div>
-          </div>
-        ` : ""}
+          ` : ""}
+
+          ${allProvince.length ? html`
+            <div class="mb-3">
+              <p class="heading mb-2">Provincia</p>
+              <div class="tags">
+                ${chip("Tutte", filterProvincia.size === 0, () => { filterProvincia.clear(); rerender(); })}
+                ${allProvince.map(v => chip(v, filterProvincia.has(v), () => toggleProvincia(v)))}
+              </div>
+            </div>
+          ` : ""}
+
+          ${allServizi.length ? html`
+            <div class="mb-3">
+              <p class="heading mb-2">Servizi</p>
+              <div class="tags">
+                ${chip("Tutti", filterServizi.size === 0, () => { filterServizi.clear(); rerender(); })}
+                ${allServizi.map(s => chip(s, filterServizi.has(s), () => toggleServizio(s)))}
+              </div>
+            </div>
+          ` : ""}
+
+          ${allIntolleranze.length ? html`
+            <div class="mb-3">
+              <p class="heading mb-2">Intolleranze</p>
+              <div class="tags">
+                ${chip("Tutte", filterIntolleranze.size === 0, () => { filterIntolleranze.clear(); rerender(); })}
+                ${allIntolleranze.map(v => chip(v, filterIntolleranze.has(v), () => toggleIntolleranze(v)))}
+              </div>
+            </div>
+          ` : ""}
+
+          ${allBenefici.length ? html`
+            <div class="mb-3">
+              <p class="heading mb-2">Benefici di legge</p>
+              <div class="tags">
+                ${chip("Tutti", filterBenefici.size === 0, () => { filterBenefici.clear(); rerender(); })}
+                ${allBenefici.map(v => chip(v, filterBenefici.has(v), () => toggleBenefici(v)))}
+              </div>
+            </div>
+          ` : ""}
+
+          ${allCena.length ? html`
+            <div class="mb-3">
+              <p class="heading mb-2">Cena</p>
+              <div class="tags">
+                ${chip("Tutti", filterCena.size === 0, () => { filterCena.clear(); rerender(); })}
+                ${allCena.map(v => chip(v, filterCena.has(v), () => toggleCena(v)))}
+              </div>
+            </div>
+          ` : ""}
+
+          ${allPranzo.length ? html`
+            <div class="mb-3">
+              <p class="heading mb-2">Pranzo</p>
+              <div class="tags">
+                ${chip("Tutti", filterPranzo.size === 0, () => { filterPranzo.clear(); rerender(); })}
+                ${allPranzo.map(v => chip(v, filterPranzo.has(v), () => togglePranzo(v)))}
+              </div>
+            </div>
+          ` : ""}
+
+          ${allPernottamento.length ? html`
+            <div class="mb-3">
+              <p class="heading mb-2">Pernottamento</p>
+              <div class="tags">
+                ${chip("Tutti", filterPernottamento.size === 0, () => { filterPernottamento.clear(); rerender(); })}
+                ${allPernottamento.map(v => chip(v, filterPernottamento.has(v), () => togglePernottamento(v)))}
+              </div>
+            </div>
+          ` : ""}
+
+        </div>
       </div>
 
       <!-- kpi + toolbar -->

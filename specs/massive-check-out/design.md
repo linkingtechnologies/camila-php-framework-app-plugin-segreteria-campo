@@ -18,7 +18,7 @@ Gli step 2-4 sono identici in entrambe le modalità.
 Entrambe le modalità mostrano in cima allo step 1 il titolo:
 
 ```html
-<h3 class="title is-4">
+<h3 class="title is-4" style="margin-top:.75rem">
   <span class="icon is-medium"><i class="ri-logout-box-line ri-lg"></i></span>
   Check-out
 </h3>
