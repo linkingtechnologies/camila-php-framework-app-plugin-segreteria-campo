@@ -1,6 +1,13 @@
 <?php
 define('SC_WT_COMUNICAZIONI', 'Com. Digitali');
 
+// Gestisce caratteri 4-byte (emoji, ecc.) — workaround per colonne utf8 (non utf8mb4)
+// $replace='[emoji]' per sostituire, $replace='' per rimuovere
+function sc_utf8_sanitize(?string $s, string $replace = '[emoji]'): ?string {
+    if ($s === null) return null;
+    return preg_replace('/[\x{10000}-\x{10FFFF}]/u', $replace, $s);
+}
+
 function sc_radio_config(): array {
     static $cfg = null;
     if ($cfg === null) {
@@ -85,9 +92,9 @@ return [
             $values = [
                 isset($msg['date']) ? date('Y-m-d H:i:s', $msg['date']) : date('Y-m-d H:i:s'),
                 (string) ($msg['message_id'] ?? ''),
-                trim(($from['first_name'] ?? '') . ' ' . ($from['last_name'] ?? '')),
+                sc_utf8_sanitize(trim(($from['first_name'] ?? '') . ' ' . ($from['last_name'] ?? '')), ''),
                 sc_telegram_config()['bot_name'] ?? 'Bot Telegram',
-                $msg['text'] ?? '',
+                sc_utf8_sanitize($msg['text'] ?? ''),
                 '', '', '',
                 'Telegram',
                 $contentType,
@@ -98,11 +105,11 @@ return [
                 (string) ($msg['message_id'] ?? ''),
                 (string) ($chat['id']         ?? ''),
                 (string) ($from['id']         ?? ''),
-                $from['username'] ?? ($from['first_name'] ?? ''),
+                sc_utf8_sanitize($from['username'] ?? ($from['first_name'] ?? ''), ''),
                 $updateType,
                 $fileId,
                 date('Y-m-d H:i:s'),
-                json_encode($body, JSON_UNESCAPED_UNICODE),
+                sc_utf8_sanitize(json_encode($body, JSON_UNESCAPED_UNICODE)),
             ];
 
             $wt     = new CamilaWorkTable();
@@ -200,15 +207,15 @@ SQL;
         $authPw   = $_SERVER['PHP_AUTH_PW']   ?? null;
 
         if ($authUser === null) {
-            return ['__status' => 401, 'status' => 'error', 'message' => 'Autenticazione richiesta'];
+            return ['__status' => 401, 'status' => 'error', 'message' => 'Authentication required'];
         }
         $radioCfg = sc_radio_config();
         if ($authUser !== ($radioCfg['username'] ?? '') || $authPw !== ($radioCfg['password'] ?? '')) {
-            return ['__status' => 403, 'status' => 'error', 'message' => 'Autenticazione fallita'];
+            return ['__status' => 403, 'status' => 'error', 'message' => 'Authentication failed'];
         }
 
         if (empty($body['messagesPayload']) || !is_array($body['messagesPayload'])) {
-            return ['__status' => 400, 'status' => 'error', 'message' => 'Payload non valido'];
+            return ['__status' => 400, 'status' => 'error', 'message' => 'Invalid payload'];
         }
 
         $wt     = new CamilaWorkTable();
@@ -228,19 +235,38 @@ SQL;
         $updatedCount   = 0;
         $errorCount     = 0;
 
+        $logFile = rtrim(CAMILA_LOG_DIR, '/\\') . '/radio-messages.log';
+        $log     = function(string $msg) use ($logFile): void {
+            file_put_contents($logFile, date('Y-m-d H:i:s') . ' ' . $msg . PHP_EOL, FILE_APPEND);
+        };
+
         foreach ($body['messagesPayload'] as $entry) {
-            $msgId    = (string) ($entry['id'] ?? '');
-            $dataOra  = isset($entry['timestamp']) ? date('Y-m-d H:i:s', $entry['timestamp']) : date('Y-m-d H:i:s');
-            $esisteId = $msgId !== '' ? $wt->getWorktableRecordIdByKeyColumn(SC_WT_COMUNICAZIONI, 'Num. Messaggio', $msgId) : '';
+            $msgId   = (string) ($entry['id'] ?? '');
+            $dataOra = isset($entry['timestamp']) ? date('Y-m-d H:i:s', $entry['timestamp']) : date('Y-m-d H:i:s');
+
+            $esisteId = '';
+            if ($msgId !== '') {
+                $db  = $_CAMILA['db'];
+                $chk = "SELECT id FROM \${" . SC_WT_COMUNICAZIONI . "}"
+                     . " WHERE \${" . SC_WT_COMUNICAZIONI . ".Num. Messaggio}=" . $db->qstr($msgId)
+                     . " AND \${"   . SC_WT_COMUNICAZIONI . ".Canale origine}='Radio'"
+                     . " LIMIT 1";
+                $rs = $wt->startExecuteQuery($chk, true, ADODB_FETCH_ASSOC);
+                if ($rs && !$rs->EOF) {
+                    $esisteId = (string) ($rs->fields['id'] ?? '');
+                }
+                $wt->endExecuteQuery();
+            }
 
             if ($esisteId !== '') {
                 $db  = $_CAMILA['db'];
                 $upd = "UPDATE \${" . SC_WT_COMUNICAZIONI . "}"
-                     . " SET \${" . SC_WT_COMUNICAZIONI . ".Data/ora}="     . $db->qstr($dataOra)
-                     . ", \${"    . SC_WT_COMUNICAZIONI . ".Chiamante}="    . $db->qstr($entry['from'] ?? '')
-                     . ", \${"    . SC_WT_COMUNICAZIONI . ".Chiamato}="     . $db->qstr($entry['to']   ?? '')
-                     . ", \${"    . SC_WT_COMUNICAZIONI . ".Messaggio}="    . $db->qstr($entry['text'] ?? '')
-                     . ", \${"    . SC_WT_COMUNICAZIONI . ".Payload}="      . $db->qstr(json_encode($entry, JSON_UNESCAPED_UNICODE))
+                     . " SET \${" . SC_WT_COMUNICAZIONI . ".Data/ora}="       . $db->qstr($dataOra)
+                     . ", \${"    . SC_WT_COMUNICAZIONI . ".Chiamante}="      . $db->qstr($entry['from'] ?? '')
+                     . ", \${"    . SC_WT_COMUNICAZIONI . ".Chiamato}="       . $db->qstr($entry['to']   ?? '')
+                     . ", \${"    . SC_WT_COMUNICAZIONI . ".Messaggio}="      . $db->qstr($entry['text'] ?? '')
+                     . ", \${"    . SC_WT_COMUNICAZIONI . ".Update Type}="    . $db->qstr('edited_message')
+                     . ", \${"    . SC_WT_COMUNICAZIONI . ".Payload}="        . $db->qstr(json_encode($entry, JSON_UNESCAPED_UNICODE))
                      . " WHERE id=" . $db->qstr($esisteId);
                 $result = $wt->startExecuteQuery($upd, false);
                 $result === false ? $errorCount++ : $updatedCount++;
@@ -253,13 +279,19 @@ SQL;
                     $entry['text'] ?? '',
                     'Sala Radio', '', '',
                     'Radio', 'Testo',
-                    '', '', '', '',
+                    null, null, '', '',
                     '', $msgId, '', '', '',
-                    'radio', '', date('Y-m-d H:i:s'),
+                    'message', '', date('Y-m-d H:i:s'),
                     json_encode($entry, JSON_UNESCAPED_UNICODE),
                 ];
-                $result = $wt->insertRow(SC_WT_COMUNICAZIONI, CAMILA_LANG, $fields, $values, 'sala-radio');
-                $result === false ? $errorCount++ : $insertedCount++;
+                $result = $wt->insertRow(SC_WT_COMUNICAZIONI, defined('CAMILA_LANG') ? CAMILA_LANG : 'it', $fields, $values, 'sala-radio');
+                if ($result === false) {
+                    $log("insertRow FAILED id={$msgId} err=" . $wt->db->ErrorMsg());
+                    $errorCount++;
+                } else {
+                    $log("insertRow OK id={$msgId}");
+                    $insertedCount++;
+                }
             }
 
             $processedCount++;
@@ -267,7 +299,7 @@ SQL;
 
         return [
             'status'         => 'success',
-            'message'        => 'Dati elaborati con successo',
+            'message'        => 'Data processed successfully',
             'inserted_count' => $insertedCount,
             'updated_count'  => $updatedCount,
             'error_count'    => $errorCount,
