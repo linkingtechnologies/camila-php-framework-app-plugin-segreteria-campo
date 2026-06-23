@@ -28,8 +28,8 @@ $camilaUI->addGridSection(3, function ($colIndex) use ($camilaUI) {
 			$camilaUI->insertButton('?dashboard=stock-manager', 'Movimentazione consumabili', 'exchange-box');
 			break;
 		case 2:
-			$camilaUI->insertButton('?dashboard=massive-check-out', 'Check-out massivo Organizzazione', 'logout-box');
 			$camilaUI->insertButton('?dashboard=org-status', 'Stato registrazione Organizzazione', 'file-list-3');
+			$camilaUI->insertButton('?dashboard=massive-check-out', 'Check-out massivo Organizzazione', 'logout-box');
 			break;
 
 	}

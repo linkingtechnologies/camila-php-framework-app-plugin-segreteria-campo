@@ -59,7 +59,7 @@ function buildMezziInsertRow(selectionOrg, m) {
   row.servizio = servizio;
 
   if (kmInizio) row["km-inizio-missione"] = kmInizio;
-  if (kmArrivo) row["km-all'arrivo"] = kmArrivo;
+  if (kmArrivo) row["km-all-arrivo"] = kmArrivo;
   if (kmPartenza) row["km-alla-partenza"] = kmPartenza;
 
   if (refNome) row["nome-referente"] = refNome;

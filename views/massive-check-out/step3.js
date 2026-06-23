@@ -180,7 +180,7 @@ export async function Step3({ state, client, goTo, html, render, root }) {
 
           "servizio",
           "km-inizio-missione",
-          "km-all'arrivo",
+          "km-all-arrivo",
           "km-alla-partenza",
           "nome-referente",
           "numero-telefono-referente",
@@ -215,7 +215,7 @@ export async function Step3({ state, client, goTo, html, render, root }) {
           servizio: safe(r.servizio),
 
           kmInizioMissione: toNumericString(r["km-inizio-missione"]),
-          kmAllArrivo: toNumericString(r["km-all'arrivo"]),
+          kmAllArrivo: toNumericString(r["km-all-arrivo"]),
           kmAllaPartenza: toNumericString(r["km-alla-partenza"]),
 
           nomeReferente: safe(r["nome-referente"]),
@@ -327,7 +327,7 @@ export async function Step3({ state, client, goTo, html, render, root }) {
           "servizio": "USCITA DEFINITIVA",
 
           "km-inizio-missione": r.kmInizioMissione || "",
-          "km-all'arrivo": r.kmAllArrivo || "",
+          "km-all-arrivo": r.kmAllArrivo || "",
           "km-alla-partenza": r.kmAllaPartenza || ""
         });
 

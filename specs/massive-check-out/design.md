@@ -131,7 +131,7 @@ Campi aggiuntivi per **volontari**:
 Campi aggiuntivi per **mezzi**:
 ```js
 {
-  "km-inizio-missione", "km-all'arrivo", "km-alla-partenza"
+  "km-inizio-missione", "km-all-arrivo", "km-alla-partenza"
 }
 ```
 

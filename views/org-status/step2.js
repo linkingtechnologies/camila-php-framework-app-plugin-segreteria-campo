@@ -107,8 +107,9 @@ export async function Step2({ state, client, goTo, html, render, root }) {
           filters,
           include: [
             "codice-fiscale","cognome","nome","mansione","servizio",
-            "responsabile","autista","cellulare",
+            "responsabile","autista","cellulare","email","note",
             "benefici-di-legge","num-gg-ben-legge",
+            "pernottamento","pranzo","cena","intolleranze",
             "data-inizio-attestato","data-fine-attestato"
           ],
           size: 5000
@@ -118,7 +119,8 @@ export async function Step2({ state, client, goTo, html, render, root }) {
           include: [
             "targa","codice-inventario","categoria","tipologia",
             "marca","modello","servizio",
-            "km-inizio-missione","km-all'arrivo","km-alla-partenza",
+            "km-inizio-missione","km-all-arrivo","km-alla-partenza",
+            "nome-referente","numero-telefono-referente","provenienza",
             "data-inizio-attestato","data-fine-attestato"
           ],
           size: 5000
@@ -128,7 +130,7 @@ export async function Step2({ state, client, goTo, html, render, root }) {
           include: [
             "id-materiale","codice-inventario",
             "categoria","tipologia","marca","modello",
-            "note","note-ulteriori","servizio",
+            "note","note-ulteriori","turno","servizio",
             "data-inizio-attestato","data-fine-attestato"
           ],
           size: 5000
@@ -145,18 +147,24 @@ export async function Step2({ state, client, goTo, html, render, root }) {
 
       vRecs.forEach(r => {
         const row = {
-          cf: safe(r["codice-fiscale"]),
-          cognome: safe(r["cognome"]),
-          nome: safe(r["nome"]),
-          mansione: safe(r["mansione"]),
-          servizio: safe(r["servizio"]),
-          responsabile: safe(r["responsabile"]),
-          autista: safe(r["autista"]),
-          cellulare: safe(r["cellulare"]),
-          benefici: safe(r["benefici-di-legge"]),
-          numgg: safe(r["num-gg-ben-legge"]),
-          inizio: safe(r["data-inizio-attestato"]),
-          fine: safe(r["data-fine-attestato"])
+          cf:            safe(r["codice-fiscale"]),
+          cognome:       safe(r["cognome"]),
+          nome:          safe(r["nome"]),
+          mansione:      safe(r["mansione"]),
+          servizio:      safe(r["servizio"]),
+          responsabile:  safe(r["responsabile"]),
+          autista:       safe(r["autista"]),
+          cellulare:     safe(r["cellulare"]),
+          email:         safe(r["email"]),
+          note:          safe(r["note"]),
+          benefici:      safe(r["benefici-di-legge"]),
+          numgg:         safe(r["num-gg-ben-legge"]),
+          pernottamento: safe(r["pernottamento"]),
+          pranzo:        safe(r["pranzo"]),
+          cena:          safe(r["cena"]),
+          intolleranze:  safe(r["intolleranze"]),
+          inizio:        safe(r["data-inizio-attestato"]),
+          fine:          safe(r["data-fine-attestato"])
         };
 
         if (!row.cf) return;
@@ -174,18 +182,21 @@ export async function Step2({ state, client, goTo, html, render, root }) {
 
       mRecs.forEach(r => {
         const row = {
-          targa: safe(r["targa"]),
-          inventario: safe(r["codice-inventario"]),
-          marca: safe(r["marca"]),
-          modello: safe(r["modello"]),
-          categoria: safe(r["categoria"]),
-          tipologia: safe(r["tipologia"]),
-          servizio: safe(r["servizio"]),
-          kmInizio: safe(r["km-inizio-missione"]),
-          kmArrivo: safe(r["km-all'arrivo"]),
-          kmPartenza: safe(r["km-alla-partenza"]),
-          inizio: safe(r["data-inizio-attestato"]),
-          fine: safe(r["data-fine-attestato"])
+          targa:       safe(r["targa"]),
+          inventario:  safe(r["codice-inventario"]),
+          marca:       safe(r["marca"]),
+          modello:     safe(r["modello"]),
+          categoria:   safe(r["categoria"]),
+          tipologia:   safe(r["tipologia"]),
+          servizio:    safe(r["servizio"]),
+          kmInizio:    safe(r["km-inizio-missione"]),
+          kmArrivo:    safe(r["km-all-arrivo"]),
+          kmPartenza:  safe(r["km-alla-partenza"]),
+          refNome:     safe(r["nome-referente"]),
+          refTel:      safe(r["numero-telefono-referente"]),
+          provenienza: safe(r["provenienza"]),
+          inizio:      safe(r["data-inizio-attestato"]),
+          fine:        safe(r["data-fine-attestato"])
         };
 
         if (!row.targa && !row.inventario) return;
@@ -203,16 +214,18 @@ export async function Step2({ state, client, goTo, html, render, root }) {
 
       aRecs.forEach(r => {
         const row = {
-          id: safe(r["id-materiale"]),
+          id:        safe(r["id-materiale"]),
           inventario: safe(r["codice-inventario"]),
           categoria: safe(r["categoria"]),
           tipologia: safe(r["tipologia"]),
-          marca: safe(r["marca"]),
-          modello: safe(r["modello"]),
-          note: safe(r["note"]),
-          servizio: safe(r["servizio"]),
-          inizio: safe(r["data-inizio-attestato"]),
-          fine: safe(r["data-fine-attestato"])
+          marca:     safe(r["marca"]),
+          modello:   safe(r["modello"]),
+          note:      safe(r["note"]),
+          noteUlt:   safe(r["note-ulteriori"]),
+          turno:     safe(r["turno"]),
+          servizio:  safe(r["servizio"]),
+          inizio:    safe(r["data-inizio-attestato"]),
+          fine:      safe(r["data-fine-attestato"])
         };
 
         if (!row.id) return;
@@ -269,7 +282,9 @@ export async function Step2({ state, client, goTo, html, render, root }) {
   function volunteerTable(title, rows) {
     const filtered = vq
       ? rows.filter(r =>
-          rowMatches([r.cf, r.cognome, r.nome, r.servizio], vq))
+          rowMatches([r.cf, r.cognome, r.nome, r.mansione, r.servizio,
+                      r.responsabile, r.autista, r.cellulare, r.email,
+                      r.benefici, r.intolleranze, r.note], vq))
       : rows;
 
     return html`
@@ -285,17 +300,49 @@ export async function Step2({ state, client, goTo, html, render, root }) {
           .value=${vq}
           @input=${e => { vq = e.target.value; state.s2_v_q = vq; rerender(); }}>
 
-        <table class="table is-fullwidth is-striped">
+        <table class="table is-fullwidth is-striped is-size-7">
+          <thead>
+            <tr>
+              <th>Nominativo</th>
+              <th>Mansione / Servizio</th>
+              <th>Contatti</th>
+              <th>Logistica</th>
+              <th>Benefici</th>
+              <th>Inizio / Fine</th>
+            </tr>
+          </thead>
           <tbody>
             ${filtered.map(r => html`
               <tr>
                 <td>
                   <strong>${highlight(r.cognome, vq, html)} ${highlight(r.nome, vq, html)}</strong>
                   <div class="has-text-grey">${highlight(r.cf, vq, html)}</div>
+                  ${r.note ? html`<div class="has-text-grey" style="font-style:italic">${highlight(r.note, vq, html)}</div>` : ""}
                 </td>
-                <td>${highlight(r.servizio || "-", vq, html)}</td>
-                <td>${formatDMY(r.inizio)}</td>
-                <td>${formatDMY(r.fine)}</td>
+                <td>
+                  ${r.mansione ? html`<div>${highlight(r.mansione, vq, html)}</div>` : ""}
+                  <div class="has-text-grey">${highlight(r.servizio || "—", vq, html)}</div>
+                </td>
+                <td>
+                  ${r.responsabile ? html`<div>Resp.: ${highlight(r.responsabile, vq, html)}</div>` : ""}
+                  ${r.autista ? html`<div>Autista: ${highlight(r.autista, vq, html)}</div>` : ""}
+                  ${r.cellulare ? html`<div>Tel: ${highlight(r.cellulare, vq, html)}</div>` : ""}
+                  ${r.email ? html`<div>${highlight(r.email, vq, html)}</div>` : ""}
+                </td>
+                <td>
+                  ${r.pranzo ? html`<div>Pranzo: ${r.pranzo}</div>` : ""}
+                  ${r.cena ? html`<div>Cena: ${r.cena}</div>` : ""}
+                  ${r.pernottamento ? html`<div>Pernott.: ${r.pernottamento}</div>` : ""}
+                  ${r.intolleranze ? html`<div>Intoll.: ${highlight(r.intolleranze, vq, html)}</div>` : ""}
+                </td>
+                <td>
+                  ${r.benefici ? html`<div>${highlight(r.benefici, vq, html)}</div>` : ""}
+                  ${r.numgg ? html`<div>Gg: ${r.numgg}</div>` : ""}
+                </td>
+                <td style="white-space:nowrap">
+                  <div>${formatDMY(r.inizio)}</div>
+                  <div class="has-text-grey">${formatDMY(r.fine)}</div>
+                </td>
               </tr>
             `)}
           </tbody>
@@ -307,7 +354,9 @@ export async function Step2({ state, client, goTo, html, render, root }) {
   function mezziTable(title, rows) {
     const filtered = mq
       ? rows.filter(r =>
-          rowMatches([r.targa, r.inventario, r.servizio], mq))
+          rowMatches([r.targa, r.inventario, r.marca, r.modello,
+                      r.categoria, r.tipologia, r.servizio,
+                      r.refNome, r.refTel, r.provenienza], mq))
       : rows;
 
     return html`
@@ -323,17 +372,45 @@ export async function Step2({ state, client, goTo, html, render, root }) {
           .value=${mq}
           @input=${e => { mq = e.target.value; state.s2_m_q = mq; rerender(); }}>
 
-        <table class="table is-fullwidth is-striped">
+        <table class="table is-fullwidth is-striped is-size-7">
+          <thead>
+            <tr>
+              <th>Targa / Inv.</th>
+              <th>Mezzo</th>
+              <th>Servizio / Provenienza</th>
+              <th>Km i/a/p</th>
+              <th>Referente</th>
+              <th>Inizio / Fine</th>
+            </tr>
+          </thead>
           <tbody>
             ${filtered.map(r => html`
               <tr>
                 <td>
                   <strong>${highlight(r.targa, mq, html)}</strong>
-                  <div class="has-text-grey">${highlight(r.inventario, mq, html)}</div>
+                  ${r.inventario ? html`<div class="has-text-grey">${highlight(r.inventario, mq, html)}</div>` : ""}
                 </td>
-                <td>${highlight(r.servizio || "-", mq, html)}</td>
-                <td>${formatDMY(r.inizio)}</td>
-                <td>${formatDMY(r.fine)}</td>
+                <td>
+                  ${(r.marca || r.modello) ? html`<div>${highlight(r.marca, mq, html)} ${highlight(r.modello, mq, html)}</div>` : ""}
+                  ${(r.categoria || r.tipologia) ? html`<div class="has-text-grey">${highlight(r.categoria, mq, html)}${r.categoria && r.tipologia ? " · " : ""}${highlight(r.tipologia, mq, html)}</div>` : ""}
+                </td>
+                <td>
+                  <div>${highlight(r.servizio || "—", mq, html)}</div>
+                  ${r.provenienza ? html`<div class="has-text-grey">${highlight(r.provenienza, mq, html)}</div>` : ""}
+                </td>
+                <td style="white-space:nowrap">
+                  ${r.kmInizio ? html`<div>i: ${r.kmInizio}</div>` : ""}
+                  ${r.kmArrivo ? html`<div>a: ${r.kmArrivo}</div>` : ""}
+                  ${r.kmPartenza ? html`<div>p: ${r.kmPartenza}</div>` : ""}
+                </td>
+                <td>
+                  ${r.refNome ? html`<div>${highlight(r.refNome, mq, html)}</div>` : ""}
+                  ${r.refTel ? html`<div class="has-text-grey">${highlight(r.refTel, mq, html)}</div>` : ""}
+                </td>
+                <td style="white-space:nowrap">
+                  <div>${formatDMY(r.inizio)}</div>
+                  <div class="has-text-grey">${formatDMY(r.fine)}</div>
+                </td>
               </tr>
             `)}
           </tbody>
@@ -345,7 +422,9 @@ export async function Step2({ state, client, goTo, html, render, root }) {
   function materialiTable(title, rows) {
     const filtered = aq
       ? rows.filter(r =>
-          rowMatches([r.id, r.inventario, r.servizio], aq))
+          rowMatches([r.id, r.inventario, r.marca, r.modello,
+                      r.categoria, r.tipologia, r.turno,
+                      r.servizio, r.note, r.noteUlt], aq))
       : rows;
 
     return html`
@@ -361,17 +440,39 @@ export async function Step2({ state, client, goTo, html, render, root }) {
           .value=${aq}
           @input=${e => { aq = e.target.value; state.s2_a_q = aq; rerender(); }}>
 
-        <table class="table is-fullwidth is-striped">
+        <table class="table is-fullwidth is-striped is-size-7">
+          <thead>
+            <tr>
+              <th>ID / Inv.</th>
+              <th>Materiale</th>
+              <th>Turno / Servizio</th>
+              <th>Note</th>
+              <th>Inizio / Fine</th>
+            </tr>
+          </thead>
           <tbody>
             ${filtered.map(r => html`
               <tr>
                 <td>
                   <strong>${highlight(r.id, aq, html)}</strong>
-                  <div class="has-text-grey">${highlight(r.inventario, aq, html)}</div>
+                  ${r.inventario ? html`<div class="has-text-grey">${highlight(r.inventario, aq, html)}</div>` : ""}
                 </td>
-                <td>${highlight(r.servizio || "-", aq, html)}</td>
-                <td>${formatDMY(r.inizio)}</td>
-                <td>${formatDMY(r.fine)}</td>
+                <td>
+                  ${(r.marca || r.modello) ? html`<div>${highlight(r.marca, aq, html)} ${highlight(r.modello, aq, html)}</div>` : ""}
+                  ${(r.categoria || r.tipologia) ? html`<div class="has-text-grey">${highlight(r.categoria, aq, html)}${r.categoria && r.tipologia ? " · " : ""}${highlight(r.tipologia, aq, html)}</div>` : ""}
+                </td>
+                <td>
+                  ${r.turno ? html`<div>${highlight(r.turno, aq, html)}</div>` : ""}
+                  <div class="has-text-grey">${highlight(r.servizio || "—", aq, html)}</div>
+                </td>
+                <td>
+                  ${r.note ? html`<div>${highlight(r.note, aq, html)}</div>` : ""}
+                  ${r.noteUlt ? html`<div class="has-text-grey">${highlight(r.noteUlt, aq, html)}</div>` : ""}
+                </td>
+                <td style="white-space:nowrap">
+                  <div>${formatDMY(r.inizio)}</div>
+                  <div class="has-text-grey">${formatDMY(r.fine)}</div>
+                </td>
               </tr>
             `)}
           </tbody>
