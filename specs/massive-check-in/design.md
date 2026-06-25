@@ -300,13 +300,24 @@ In modalità totem `load()` (caricamento organizzazioni) non viene eseguita. Lo 
 ```json
 {
   "data": [
-    { "org": "Nome Organizzazione", "cod": 123456 },
+    {
+      "organizzazione": "A.V. USIGNOLO",
+      "provincia": "MI",
+      "codice-organizzazione": "ORG0006",
+      "code": 131778
+    },
     ...
   ]
 }
 ```
 
 Il confronto codice usa `String()` su entrambi i lati (robusto a number/string).
+
+Mapping campi → `state.org`:
+- `match.organizzazione` → `state.org.name`
+- `match["codice-organizzazione"]` → `state.org.code`
+- `match.provincia` → `state.org.province`
+- `match.code` è usato solo per il lookup (non salvato in state)
 
 ### Flusso scansione QR
 

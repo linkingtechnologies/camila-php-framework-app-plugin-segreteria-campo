@@ -230,7 +230,7 @@ export async function Step1({ state, client, goTo, html, render, root }) {
     try {
       const res   = await client.call("GET", "/segreteria-campo/totem/organization-codes");
       const list  = Array.isArray(res?.data) ? res.data : [];
-      const match = list.find(item => String(item.cod) === String(code));
+      const match = list.find(item => String(item.code) === String(code));
 
       if (!match) {
         totemError   = "Codice non riconosciuto. Verifica e riprova.";
@@ -239,7 +239,7 @@ export async function Step1({ state, client, goTo, html, render, root }) {
         return;
       }
 
-      select({ org: match.org, code: String(match.cod), provincia: "" });
+      select({ org: match.organizzazione, code: match["codice-organizzazione"], provincia: match.provincia || "" });
     } catch (e) {
       totemError   = userFriendlyErrorText(normalizeApiError(e));
       totemLoading = false;

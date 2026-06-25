@@ -194,9 +194,9 @@ return [
     'GET /totem/organization-codes' => function(array $params, ?array $body, array $path): array {
         global $_CAMILA;
 
-        $sql = <<<'SQL'
+        $sqlCodes = <<<'SQL'
 SELECT DISTINCT
-    organizzazione AS org,
+    organizzazione,
     (
         LENGTH(u) * 7919
       + INSTR(r, SUBSTR(u, 1, 1))  * 101
@@ -206,7 +206,7 @@ SELECT DISTINCT
       + INSTR(r, SUBSTR(u, 15, 1)) * 503
       + INSTR(r, SUBSTR(u, LENGTH(u), 1)) * 601
       + 888
-    ) % 2147483629 AS cod
+    ) % 2147483629 AS code
 FROM (
     SELECT ${VOLONTARI PREACCREDITATI.ORGANIZZAZIONE} AS organizzazione,
            UPPER(TRIM(COALESCE(${VOLONTARI PREACCREDITATI.ORGANIZZAZIONE}, ''))) AS u,
@@ -216,19 +216,58 @@ FROM (
 ) AS t
 SQL;
 
+        $sqlMeta = <<<'SQL'
+SELECT DISTINCT
+    ${VOLONTARI PREACCREDITATI.ORGANIZZAZIONE}       AS organizzazione,
+    ${VOLONTARI PREACCREDITATI.PROVINCIA}            AS provincia,
+    ${VOLONTARI PREACCREDITATI.CODICE ORGANIZZAZIONE}  AS cod_org
+FROM ${VOLONTARI PREACCREDITATI}
+WHERE Id IS NOT NULL
+SQL;
+
         $wt     = new CamilaWorkTable();
         $wt->db = $_CAMILA['db'];
 
-        $result = $wt->startExecuteQuery($sql, true, ADODB_FETCH_ASSOC);
-        $rows   = [];
-        while (!$result->EOF) {
-            $rows[] = [
-                'org' => $result->fields['org'],
-                'cod'   => (int) $result->fields['cod'],
-            ];
-            $result->MoveNext();
+        // prima query: codici hash
+        $rCodes = $wt->startExecuteQuery($sqlCodes, true, ADODB_FETCH_ASSOC);
+        if ($rCodes === false) {
+            return ['__status' => 500, 'message' => 'query codes failed', 'db_error' => $wt->db->ErrorMsg()];
+        }
+        $codes  = [];
+        while (!$rCodes->EOF) {
+            $codes[$rCodes->fields['organizzazione']] = (int) $rCodes->fields['code'];
+            $rCodes->MoveNext();
         }
         $wt->endExecuteQuery();
+
+        // seconda query: provincia e codice-organizzazione (un record per org)
+        $rMeta = $wt->startExecuteQuery($sqlMeta, true, ADODB_FETCH_ASSOC);
+        if ($rMeta === false) {
+            return ['__status' => 500, 'message' => 'query meta failed', 'db_error' => $wt->db->ErrorMsg()];
+        }
+        $meta  = [];
+        while (!$rMeta->EOF) {
+            $org = $rMeta->fields['organizzazione'];
+            if ($org !== null && $org !== '' && !isset($meta[$org])) {
+                $meta[$org] = [
+                    'provincia' => $rMeta->fields['provincia'],
+                    'cod_org'   => $rMeta->fields['cod_org'],
+                ];
+            }
+            $rMeta->MoveNext();
+        }
+        $wt->endExecuteQuery();
+
+        // join in memoria
+        $rows = [];
+        foreach ($codes as $org => $code) {
+            $rows[] = [
+                'organizzazione'        => $org,
+                'provincia'             => $meta[$org]['provincia'] ?? null,
+                'codice-organizzazione' => $meta[$org]['cod_org']   ?? null,
+                'code'                  => $code,
+            ];
+        }
 
         return ['data' => $rows];
     },
