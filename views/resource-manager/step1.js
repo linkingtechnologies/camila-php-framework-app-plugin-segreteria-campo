@@ -73,12 +73,6 @@ export async function Step1(props) {
     materiali: "db-materiali",
   };
 
-  const FILTERABLE_COLS = {
-    volontari: ["codice-fiscale", "cognome", "nome", "organizzazione"],
-    mezzi: ["targa", "marca", "modello", "categoria", "tipologia", "organizzazione"],
-    materiali: ["id-materiale", "categoria", "tipologia", "marca", "modello", "organizzazione"],
-  };
-
   const PREFERRED_COLS = {
     volontari: [
       "codice-fiscale",
@@ -905,31 +899,56 @@ export async function Step1(props) {
           </div>
 
           <div class="box p-3">
-            <div class="is-flex is-flex-wrap-wrap" style="gap: .75rem;">
-              <div style="flex: 0 1 16rem; min-width: 14rem;">
+            <div class="is-flex" style="gap:.75rem;align-items:flex-end;">
+
+              <div style="width:200px;flex-shrink:0;">
                 <label class="label is-small mb-1">Organizzazione</label>
-                <div class="control">
-                  <div class="select is-small is-fullwidth">
-                    <select
-                      .value=${state.selectedOrgByTab?.[tab] || "all"}
-                      @change=${(e) => onOrgChange(tab, e.target.value)}
-                    >
-                      ${[
-                        html`<option value="all">Tutte</option>`,
-                        ...(state.step1.orgCatalog || []).map((o) => html`<option value=${o.code}>${o.name}</option>`),
-                      ]}
-                    </select>
-                  </div>
+                <div class="select is-small is-fullwidth">
+                  <select
+                    .value=${state.selectedOrgByTab?.[tab] || "all"}
+                    @change=${(e) => onOrgChange(tab, e.target.value)}
+                  >
+                    <option value="all">Tutte</option>
+                    ${(state.step1.orgCatalog || []).map((o) => html`<option value=${o.code}>${o.name}</option>`)}
+                  </select>
                 </div>
               </div>
 
-              <div style="flex: 1 1 22rem; min-width: 0;">
+              ${hasCatTip ? html`
+                <div style="width:160px;flex-shrink:0;">
+                  <label class="label is-small mb-1">Categoria</label>
+                  <div class="select is-small is-fullwidth">
+                    <select
+                      .value=${catFilter}
+                      @change=${(e) => onCatFilterChange(tab, e.target.value)}
+                    >
+                      <option value="">Tutte</option>
+                      ${catOptsForFilter.map((o) => html`<option value=${o} ?selected=${o === catFilter}>${o}</option>`)}
+                    </select>
+                  </div>
+                </div>
+
+                <div style="width:200px;flex-shrink:0;">
+                  <label class="label is-small mb-1">Tipologia</label>
+                  <div class="select is-small is-fullwidth">
+                    <select
+                      .value=${tipFilter}
+                      @change=${(e) => onTipFilterChange(tab, e.target.value)}
+                    >
+                      <option value="">Tutte</option>
+                      ${tipOptsForFilter.map((o) => html`<option value=${o} ?selected=${o === tipFilter}>${o}</option>`)}
+                    </select>
+                  </div>
+                </div>
+              ` : null}
+
+              <div style="flex:1;min-width:0;">
                 <label class="label is-small mb-1">Filtro per colonna</label>
-                <div class="field has-addons">
+                <div class="field has-addons mb-0">
                   <p class="control">
                     <span class="select is-small">
                       <select .value=${f.col} @change=${(e) => onFilterColChange(tab, e.target.value)}>
-                        ${(FILTERABLE_COLS[tab] || []).map((c) => html`<option value=${c}>${COL_LABELS[c] || c}</option>`)}
+                        ${cols.map((c) => html`<option value=${c}>${COL_LABELS[c] || c}</option>`)}
                       </select>
                     </span>
                   </p>
@@ -943,57 +962,22 @@ export async function Step1(props) {
                     />
                   </p>
                 </div>
-                <p class="help is-size-7">
-                  ${state.step1.readOnlyGlobal ? html`<span><i class="ri-lock-line"></i> sola lettura</span>` : null}
-                </p>
+                ${state.step1.readOnlyGlobal ? html`<p class="help is-size-7 mb-0"><i class="ri-lock-line"></i> sola lettura</p>` : null}
               </div>
 
-              ${hasCatTip ? html`
-                <div style="flex: 0 1 14rem; min-width: 12rem;">
-                  <label class="label is-small mb-1">Categoria</label>
-                  <div class="control">
-                    <div class="select is-small is-fullwidth">
-                      <select
-                        .value=${catFilter}
-                        @change=${(e) => onCatFilterChange(tab, e.target.value)}
-                      >
-                        <option value="">Tutte</option>
-                        ${catOptsForFilter.map((o) => html`<option value=${o} ?selected=${o === catFilter}>${o}</option>`)}
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                <div style="flex: 0 1 16rem; min-width: 12rem;">
-                  <label class="label is-small mb-1">Tipologia</label>
-                  <div class="control">
-                    <div class="select is-small is-fullwidth">
-                      <select
-                        .value=${tipFilter}
-                        @change=${(e) => onTipFilterChange(tab, e.target.value)}
-                      >
-                        <option value="">Tutte</option>
-                        ${tipOptsForFilter.map((o) => html`<option value=${o} ?selected=${o === tipFilter}>${o}</option>`)}
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              ` : null}
-
-              <div style="flex: 0 1 10rem; min-width: 10rem;">
+              <div style="width:90px;flex-shrink:0;">
                 <label class="label is-small mb-1">Per pagina</label>
-                <div class="control">
-                  <div class="select is-small is-fullwidth">
-                    <select .value=${String(pag.size)} @change=${(e) => onPageSizeChange(tab, e.target.value)}>
-                      <option value="20">20</option>
-                      <option value="25">25</option>
-                      <option value="50">50</option>
-                      <option value="100">100</option>
-                      <option value="200">200</option>
-                    </select>
-                  </div>
+                <div class="select is-small is-fullwidth">
+                  <select .value=${String(pag.size)} @change=${(e) => onPageSizeChange(tab, e.target.value)}>
+                    <option value="20">20</option>
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                    <option value="200">200</option>
+                  </select>
                 </div>
               </div>
+
             </div>
           </div>
 
