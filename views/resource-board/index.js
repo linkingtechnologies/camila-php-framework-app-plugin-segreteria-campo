@@ -728,15 +728,17 @@ export async function GOR({ state, client, html, render, root }) {
         ${expanded ? html`<div style="overflow-x:auto">${renderCardDetail(card)}</div>` : ""}
 
         <!-- actions -->
-        <div class="buttons mt-2" style="gap:4px;flex-wrap:wrap">
+        <div class="buttons mt-2" style="gap:4px">
           <button
             class="button is-small is-info is-light"
+            title="Cambia servizio"
             @click=${e => { e.stopPropagation(); openServiceChangeModal(card); }}
-          >Cambia servizio</button>
+          ><span class="icon"><i class="ri-swap-line"></i></span></button>
           <button
             class="button is-small is-warning is-light"
+            title="Cambia squadra"
             @click=${e => { e.stopPropagation(); openSquadraModal(card); }}
-          >Cambia squadra</button>
+          ><span class="icon"><i class="ri-team-line"></i></span></button>
         </div>
       </div>
     `;

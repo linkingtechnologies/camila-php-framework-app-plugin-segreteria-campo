@@ -20,8 +20,8 @@ $camilaUI->insertTitle('Risorse', 'team');
 $camilaUI->addGridSection(3, function ($colIndex) use ($camilaUI) {
 	switch ($colIndex) {
 		case 0:
-			$camilaUI->insertButton('?dashboard=massive-check-in', 'Check-in massivo Organizzazione', 'login-box');
 			$camilaUI->insertButton('?dashboard=pre-accreditations-summary', 'Riepilogo preaccreditamenti', 'calendar-event');
+			$camilaUI->insertButton('?dashboard=massive-check-in', 'Check-in massivo Organizzazione', 'login-box');
 			break;
 		case 1:
 			$camilaUI->insertButton('?dashboard=resource-board', 'Movimentazione risorse', 'route');

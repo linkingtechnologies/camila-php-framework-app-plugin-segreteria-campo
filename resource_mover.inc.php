@@ -1,6 +1,6 @@
 <?php
 /*  This File is part of Camila PHP Framework
-    Copyright (C) 2006-2025 Umberto Bresciani
+    Copyright (C) 2006-2026 Umberto Bresciani
 
     Camila PHP Framework is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -495,17 +495,17 @@ if (!isset($_REQUEST['service'])) {
 							
 							if (strpos($resourceTable, 'ATTESI') === false) {
 
-								if ($serviceEndServiceValue != '')
-									$query.= ',${' .$resourceTable. '.DATA FINE ATTESTATO}=' . $camilaWT->db->qstr($now2);
+								//if ($serviceEndServiceValue != '')
+								//	$query.= ',${' .$resourceTable. '.DATA FINE ATTESTATO}=' . $camilaWT->db->qstr($now2);
 
 								if ($to == $serviceEndServiceValue && $serviceEndServiceValue != '') {
 									$query.= ',${' .$resourceTable. '.DATA/ORA USCITA DEFINITIVA}=' . $camilaWT->db->qstr($now);
-								//	$query.= ',${' .$resourceTable. '.DATA FINE ATTESTATO}=' . $camilaWT->db->qstr($now2);
+									$query.= ',${' .$resourceTable. '.DATA FINE ATTESTATO}=' . $camilaWT->db->qstr($now2);
 								}
 
 								if ($from == $serviceEndServiceValue && $serviceEndServiceValue != '' && $serviceEndServiceValue != $to) {
 									$query.= ',${' .$resourceTable. '.DATA/ORA USCITA DEFINITIVA}=NULL';
-								//	$query.= ',${' .$resourceTable. '.DATA FINE ATTESTATO}=' . $camilaWT->db->qstr('');
+									$query.= ',${' .$resourceTable. '.DATA FINE ATTESTATO}=' . $camilaWT->db->qstr('');
 								}
 							}
 
