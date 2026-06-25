@@ -117,6 +117,12 @@ return [
                 return ['ok' => true];
             }
 
+            if (trim($msg['text'] ?? '') === '/start') {
+                $name = trim(($from['first_name'] ?? '') . ' ' . ($from['last_name'] ?? '')) ?: 'utente';
+                sc_telegram_send((int) ($chat['id'] ?? 0), "Benvenuto, {$name}!");
+                return ['ok' => true];
+            }
+
             $contentType = 'Testo';
             $fileId      = '';
             if (isset($msg['location'])) { $contentType = 'Posizione'; }
