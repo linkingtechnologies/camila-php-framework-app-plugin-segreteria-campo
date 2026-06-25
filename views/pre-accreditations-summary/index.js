@@ -219,9 +219,8 @@ export async function PreAccreditationsSummary({ client, html, render, root }) {
       const totPre   = vRows.length + mRows.length + aRows.length;
       const totArr   = vRows.filter(r => r.arrived).length + mRows.filter(r => r.arrived).length + aRows.filter(r => r.arrived).length;
       const totExtra = extraV.length + extraM.length + extraA.length;
-      const statusColor = totPre === 0 ? "is-light" : totArr === totPre ? "is-success" : totArr === 0 ? "is-danger" : "is-warning";
 
-      return { ...g, vRows, mRows, aRows, extraV, extraM, extraA, totPre, totArr, totExtra, statusColor };
+      return { ...g, vRows, mRows, aRows, extraV, extraM, extraA, totPre, totArr, totExtra };
     });
   }
 
@@ -469,7 +468,6 @@ export async function PreAccreditationsSummary({ client, html, render, root }) {
               ${g.provincia ? html`<span class="tag is-light is-small ml-1">${g.provincia}</span>` : ""}
             </div>
             <div class="is-flex" style="gap:.3rem;align-items:center;flex-wrap:nowrap">
-              <span class="tag ${g.statusColor} is-small">${g.totArr}/${g.totPre}</span>
               ${g.vRows.length ? html`<span class="tag is-info is-light is-small"><i class="ri-user-line mr-1"></i>${vArr}/${g.vRows.length}</span>` : ""}
               ${g.mRows.length ? html`<span class="tag is-warning is-light is-small"><i class="ri-truck-line mr-1"></i>${mArr}/${g.mRows.length}</span>` : ""}
               ${g.aRows.length ? html`<span class="tag is-success is-light is-small"><i class="ri-tools-line mr-1"></i>${aArr}/${g.aRows.length}</span>` : ""}
@@ -576,20 +574,15 @@ export async function PreAccreditationsSummary({ client, html, render, root }) {
     `;
     const items = buildConfronto();
     if (!items.length) return html`<div class="notification is-light">Nessuna organizzazione trovata.</div>`;
-    const totPre   = items.reduce((s, g) => s + g.totPre, 0);
-    const totArr   = items.reduce((s, g) => s + g.totArr, 0);
     const totExtra = items.reduce((s, g) => s + g.totExtra, 0);
     return html`
-      <div class="is-flex is-align-items-center mb-3" style="gap:.75rem;flex-wrap:wrap">
-        <span class="tag is-medium ${totArr === totPre && totPre > 0 ? "is-success" : "is-info is-light"}">
-          <i class="ri-check-double-line mr-1"></i>Arrivati: ${totArr} / ${totPre}
-        </span>
-        ${totExtra ? html`
+      ${totExtra ? html`
+        <div class="mb-3">
           <span class="tag is-medium is-warning">
             <i class="ri-alert-line mr-1"></i>${totExtra} non preaccreditati presenti in DB
           </span>
-        ` : ""}
-      </div>
+        </div>
+      ` : ""}
       ${confrontoAccordion(items)}
     `;
   }
@@ -740,7 +733,7 @@ export async function PreAccreditationsSummary({ client, html, render, root }) {
             </button>
             <button class="button is-small ${viewMode === "confronto" ? "is-primary is-selected" : ""}"
               @click=${() => { viewMode = "confronto"; loadConfronto(); rerender(); }}>
-              <span class="icon"><i class="ri-git-diff-line"></i></span>
+              <span class="icon"><i class="ri-arrow-left-right-line"></i></span>
               <span>Confronto</span>
             </button>
           </div>

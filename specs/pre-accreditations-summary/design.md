@@ -26,8 +26,8 @@ Modalità DETTAGLIO:
   → sub-tabelle volontari / mezzi / materiali
 
 Modalità CONFRONTO:
-  banner globale "Arrivati: X / Y" + eventuale contatore extra
-  accordion per organizzazione con badge stato colorato + breakdown per tipo
+  eventuale banner ⚠ con contatore extra globale (solo se presenti)
+  accordion per organizzazione con badge per tipo (V N/N · M N/N · Mat N/N)
   → sub-tabelle: ✓ arrivato (verde) / ✗ mancante (rosso) / ⚠ non preaccreditato (arancione)
 ```
 
@@ -246,18 +246,11 @@ Attivata al primo click sul bottone "Confronto": `loadConfronto()` carica le tre
 - `vRows / mRows / aRows` — ogni preaccreditato con flag `arrived: Boolean`
 - `extraV / extraM / extraA` — record nelle tabelle operative con lo stesso `codice-organizzazione` ma chiave non presente tra i preaccreditati di quella org
 
-#### Colore badge stato per org
-
-| Condizione | Colore |
-|---|---|
-| `totArr === totPre` (tutti arrivati) | `is-success` (verde) |
-| `totArr > 0 && totArr < totPre` | `is-warning` (giallo) |
-| `totArr === 0 && totPre > 0` | `is-danger` (rosso) |
-| `totPre === 0` | `is-light` |
-
 #### Struttura accordion confronto
 
-Header: chevron · nome + tag codice + tag provincia · badge `totArr/totPre` colorato · breakdown `V N/N · M N/N · Mat N/N` · badge `+N` arancione per extra.
+Header: chevron · nome + tag codice + tag provincia · badge `V N/N` · badge `M N/N` · badge `Mat N/N` · badge `+N` arancione per extra (se presenti).
+
+Nessun badge aggregato `totArr/totPre`: sommare risorse eterogenee (volontari + mezzi + materiali) non ha significato.
 
 Corpo espanso — tre sezioni, ciascuna con tabella `is-size-7`:
 - Righe preaccreditati: icona `ri-check-line` (#48c78e) o `ri-close-line` (#f14668) · nominativo/targa/id · CF o categoria · turno
