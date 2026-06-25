@@ -40,6 +40,9 @@ export async function PreAccreditationsSummary({ client, html, render, root }) {
   let viewMode = "summary";
   let expanded = new Set();
 
+  let rawOpV = [], rawOpM = [], rawOpA = [];
+  let confrontoLoaded = false, loadingConfronto = false, errorConfronto = null;
+
   function rerender() {
     render(view(), root);
   }
@@ -105,6 +108,28 @@ export async function PreAccreditationsSummary({ client, html, render, root }) {
     }
   }
 
+  async function loadConfronto() {
+    if (confrontoLoaded) return;
+    loadingConfronto = true;
+    rerender();
+    try {
+      const [resV, resM, resA] = await Promise.all([
+        client.table("volontari").list({ include: ["codice-fiscale", "cognome", "nome", "organizzazione", "codice-organizzazione"], size: 5000 }),
+        client.table("mezzi").list({ include: ["targa", "organizzazione", "codice-organizzazione"], size: 5000 }),
+        client.table("materiali").list({ include: ["id-materiale", "codice-inventario", "organizzazione", "codice-organizzazione"], size: 5000 })
+      ]);
+      rawOpV = getRecords(resV);
+      rawOpM = getRecords(resM);
+      rawOpA = getRecords(resA);
+      confrontoLoaded = true;
+    } catch (e) {
+      errorConfronto = e;
+    } finally {
+      loadingConfronto = false;
+      rerender();
+    }
+  }
+
   function applyFiltersBase(r) {
     return (filterTurni.size === 0 || filterTurni.has(norm(r.turno))) &&
       (filterServizi.size === 0 || filterServizi.has(norm(r.servizio))) &&
@@ -158,6 +183,46 @@ export async function PreAccreditationsSummary({ client, html, render, root }) {
     return Object.values(map)
       .filter(g => !needle || g.name.toLowerCase().includes(needle))
       .sort((a, b) => a.name.localeCompare(b.name, "it"));
+  }
+
+  function buildConfronto() {
+    const opVmap = new Map(rawOpV.map(r => [norm(r["codice-fiscale"]), r]).filter(([k]) => k));
+    const opMmap = new Map(rawOpM.map(r => [norm(r.targa), r]).filter(([k]) => k));
+    const opAmap = new Map(rawOpA.map(r => {
+      const k = norm(r["id-materiale"]) || norm(r["codice-inventario"]);
+      return [k, r];
+    }).filter(([k]) => k));
+
+    const opVbyOrg = {}, opMbyOrg = {}, opAbyOrg = {};
+    for (const r of rawOpV) { const c = norm(r["codice-organizzazione"]); (opVbyOrg[c] ||= []).push(r); }
+    for (const r of rawOpM) { const c = norm(r["codice-organizzazione"]); (opMbyOrg[c] ||= []).push(r); }
+    for (const r of rawOpA) { const c = norm(r["codice-organizzazione"]); (opAbyOrg[c] ||= []).push(r); }
+
+    return buildGroups().map(g => {
+      const code = g.code;
+
+      const vRows = g.v.map(r => ({ pre: r, arrived: opVmap.has(norm(r["codice-fiscale"])) }));
+      const mRows = g.m.map(r => ({ pre: r, arrived: opMmap.has(norm(r.targa)) }));
+      const aRows = g.a.map(r => {
+        const k = norm(r["id-materiale"]) || norm(r["codice-inventario"]);
+        return { pre: r, arrived: k ? opAmap.has(k) : false };
+      });
+
+      const preCFs   = new Set(g.v.map(r => norm(r["codice-fiscale"])).filter(Boolean));
+      const preTargh = new Set(g.m.map(r => norm(r.targa)).filter(Boolean));
+      const preAKeys = new Set(g.a.map(r => norm(r["id-materiale"]) || norm(r["codice-inventario"])).filter(Boolean));
+
+      const extraV = (opVbyOrg[code] || []).filter(r => { const k = norm(r["codice-fiscale"]); return k && !preCFs.has(k); });
+      const extraM = (opMbyOrg[code] || []).filter(r => { const k = norm(r.targa); return k && !preTargh.has(k); });
+      const extraA = (opAbyOrg[code] || []).filter(r => { const k = norm(r["id-materiale"]) || norm(r["codice-inventario"]); return k && !preAKeys.has(k); });
+
+      const totPre   = vRows.length + mRows.length + aRows.length;
+      const totArr   = vRows.filter(r => r.arrived).length + mRows.filter(r => r.arrived).length + aRows.filter(r => r.arrived).length;
+      const totExtra = extraV.length + extraM.length + extraA.length;
+      const statusColor = totPre === 0 ? "is-light" : totArr === totPre ? "is-success" : totArr === 0 ? "is-danger" : "is-warning";
+
+      return { ...g, vRows, mRows, aRows, extraV, extraM, extraA, totPre, totArr, totExtra, statusColor };
+    });
   }
 
   function toggleTurno(t) {
@@ -384,6 +449,151 @@ export async function PreAccreditationsSummary({ client, html, render, root }) {
     });
   }
 
+  function confrontoAccordion(items) {
+    return items.map(g => {
+      const isOpen = expanded.has("c_" + g.name);
+      const vArr = g.vRows.filter(r => r.arrived).length;
+      const mArr = g.mRows.filter(r => r.arrived).length;
+      const aArr = g.aRows.filter(r => r.arrived).length;
+      return html`
+        <div class="box mb-2 p-3">
+          <div class="is-flex is-align-items-center"
+            style="gap:.75rem;cursor:pointer;user-select:none"
+            @click=${() => toggleExpanded("c_" + g.name)}>
+            <span class="icon has-text-grey is-small">
+              <i class="${isOpen ? "ri-arrow-down-s-line" : "ri-arrow-right-s-line"} ri-lg"></i>
+            </span>
+            <div style="flex:1;min-width:0">
+              <strong>${g.name}</strong>
+              ${g.code ? html`<span class="tag is-light is-small ml-2">${g.code}</span>` : ""}
+              ${g.provincia ? html`<span class="tag is-light is-small ml-1">${g.provincia}</span>` : ""}
+            </div>
+            <div class="is-flex" style="gap:.3rem;align-items:center;flex-wrap:nowrap">
+              <span class="tag ${g.statusColor} is-small">${g.totArr}/${g.totPre}</span>
+              ${g.vRows.length ? html`<span class="tag is-info is-light is-small"><i class="ri-user-line mr-1"></i>${vArr}/${g.vRows.length}</span>` : ""}
+              ${g.mRows.length ? html`<span class="tag is-warning is-light is-small"><i class="ri-truck-line mr-1"></i>${mArr}/${g.mRows.length}</span>` : ""}
+              ${g.aRows.length ? html`<span class="tag is-success is-light is-small"><i class="ri-tools-line mr-1"></i>${aArr}/${g.aRows.length}</span>` : ""}
+              ${g.totExtra ? html`<span class="tag is-warning is-small"><i class="ri-alert-line mr-1"></i>+${g.totExtra}</span>` : ""}
+            </div>
+          </div>
+
+          ${isOpen ? html`
+            <div class="mt-3" style="padding-left:1.5rem;border-left:3px solid #dbdbdb">
+
+              ${g.vRows.length || g.extraV.length ? html`
+                <p class="heading mb-1 mt-2"><i class="ri-user-line mr-1"></i>Volontari</p>
+                <table class="table is-fullwidth is-narrow is-size-7 mb-2">
+                  <tbody>
+                    ${g.vRows.map(r => html`
+                      <tr>
+                        <td style="width:1.5rem;color:${r.arrived ? "#48c78e" : "#f14668"}">
+                          <i class="${r.arrived ? "ri-check-line" : "ri-close-line"}"></i>
+                        </td>
+                        <td><strong>${norm(r.pre.cognome)} ${norm(r.pre.nome)}</strong></td>
+                        <td class="has-text-grey">${norm(r.pre["codice-fiscale"])}</td>
+                        <td class="has-text-grey">${norm(r.pre.turno)}</td>
+                      </tr>
+                    `)}
+                    ${g.extraV.map(r => html`
+                      <tr class="has-text-warning-dark">
+                        <td><i class="ri-alert-line"></i></td>
+                        <td><strong>${norm(r.cognome)} ${norm(r.nome)}</strong></td>
+                        <td class="has-text-grey">${norm(r["codice-fiscale"])}</td>
+                        <td class="has-text-grey is-italic">non preaccreditato</td>
+                      </tr>
+                    `)}
+                  </tbody>
+                </table>
+              ` : ""}
+
+              ${g.mRows.length || g.extraM.length ? html`
+                <p class="heading mb-1 mt-2"><i class="ri-truck-line mr-1"></i>Mezzi</p>
+                <table class="table is-fullwidth is-narrow is-size-7 mb-2">
+                  <tbody>
+                    ${g.mRows.map(r => html`
+                      <tr>
+                        <td style="width:1.5rem;color:${r.arrived ? "#48c78e" : "#f14668"}">
+                          <i class="${r.arrived ? "ri-check-line" : "ri-close-line"}"></i>
+                        </td>
+                        <td><strong>${norm(r.pre.targa)}</strong></td>
+                        <td class="has-text-grey">${[norm(r.pre.categoria), norm(r.pre.tipologia)].filter(Boolean).join(" · ")}</td>
+                        <td class="has-text-grey">${norm(r.pre.turno)}</td>
+                      </tr>
+                    `)}
+                    ${g.extraM.map(r => html`
+                      <tr class="has-text-warning-dark">
+                        <td><i class="ri-alert-line"></i></td>
+                        <td><strong>${norm(r.targa)}</strong></td>
+                        <td></td>
+                        <td class="has-text-grey is-italic">non preaccreditato</td>
+                      </tr>
+                    `)}
+                  </tbody>
+                </table>
+              ` : ""}
+
+              ${g.aRows.length || g.extraA.length ? html`
+                <p class="heading mb-1 mt-2"><i class="ri-tools-line mr-1"></i>Materiali</p>
+                <table class="table is-fullwidth is-narrow is-size-7 mb-2">
+                  <tbody>
+                    ${g.aRows.map(r => html`
+                      <tr>
+                        <td style="width:1.5rem;color:${r.arrived ? "#48c78e" : "#f14668"}">
+                          <i class="${r.arrived ? "ri-check-line" : "ri-close-line"}"></i>
+                        </td>
+                        <td><strong>${norm(r.pre["id-materiale"]) || norm(r.pre["codice-inventario"])}</strong></td>
+                        <td class="has-text-grey">${[norm(r.pre.categoria), norm(r.pre.tipologia)].filter(Boolean).join(" · ")}</td>
+                        <td class="has-text-grey">${norm(r.pre.turno)}</td>
+                      </tr>
+                    `)}
+                    ${g.extraA.map(r => html`
+                      <tr class="has-text-warning-dark">
+                        <td><i class="ri-alert-line"></i></td>
+                        <td><strong>${norm(r["id-materiale"]) || norm(r["codice-inventario"])}</strong></td>
+                        <td></td>
+                        <td class="has-text-grey is-italic">non preaccreditato</td>
+                      </tr>
+                    `)}
+                  </tbody>
+                </table>
+              ` : ""}
+
+            </div>
+          ` : ""}
+        </div>
+      `;
+    });
+  }
+
+  function confrontoView() {
+    if (loadingConfronto) return html`<progress class="progress is-small is-primary"></progress>`;
+    if (errorConfronto) return html`
+      <div class="notification is-danger is-light">
+        Errore caricamento dati operativi.
+        <button class="button is-small is-light ml-3"
+          @click=${() => { confrontoLoaded = false; errorConfronto = null; loadConfronto(); }}>Riprova</button>
+      </div>
+    `;
+    const items = buildConfronto();
+    if (!items.length) return html`<div class="notification is-light">Nessuna organizzazione trovata.</div>`;
+    const totPre   = items.reduce((s, g) => s + g.totPre, 0);
+    const totArr   = items.reduce((s, g) => s + g.totArr, 0);
+    const totExtra = items.reduce((s, g) => s + g.totExtra, 0);
+    return html`
+      <div class="is-flex is-align-items-center mb-3" style="gap:.75rem;flex-wrap:wrap">
+        <span class="tag is-medium ${totArr === totPre && totPre > 0 ? "is-success" : "is-info is-light"}">
+          <i class="ri-check-double-line mr-1"></i>Arrivati: ${totArr} / ${totPre}
+        </span>
+        ${totExtra ? html`
+          <span class="tag is-medium is-warning">
+            <i class="ri-alert-line mr-1"></i>${totExtra} non preaccreditati presenti in DB
+          </span>
+        ` : ""}
+      </div>
+      ${confrontoAccordion(items)}
+    `;
+  }
+
   function view() {
     const volOnly = hasVolOnlyFilter();
     const filtV  = applyFiltersV(rawV);
@@ -528,6 +738,11 @@ export async function PreAccreditationsSummary({ client, html, render, root }) {
               <span class="icon"><i class="ri-list-unordered"></i></span>
               <span>Dettaglio</span>
             </button>
+            <button class="button is-small ${viewMode === "confronto" ? "is-primary is-selected" : ""}"
+              @click=${() => { viewMode = "confronto"; loadConfronto(); rerender(); }}>
+              <span class="icon"><i class="ri-git-diff-line"></i></span>
+              <span>Confronto</span>
+            </button>
           </div>
 
           <button class="button is-small is-light" title="Ricarica" @click=${load} ?disabled=${loading}>
@@ -543,7 +758,7 @@ export async function PreAccreditationsSummary({ client, html, render, root }) {
         </div>
       ` : ""}
 
-      ${viewMode === "summary" ? summaryTable(groups) : detailAccordion(groups)}
+      ${viewMode === "summary" ? summaryTable(groups) : viewMode === "detail" ? detailAccordion(groups) : confrontoView()}
     `;
   }
 

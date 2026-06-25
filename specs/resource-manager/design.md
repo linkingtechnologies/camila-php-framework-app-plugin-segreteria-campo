@@ -154,20 +154,34 @@ table.list({
 // res.records = array record pagina corrente
 ```
 
-### Filtri disponibili per tab
+### Layout box filtri
 
-**Tutti i tab:**
-- Organizzazione (`eq` su `codice-organizzazione`)
-- Filtro testo libero (`cs` su colonna selezionabile)
+Flex fisso senza wrap (`is-flex`, no `is-flex-wrap-wrap`). Larghezze fisse per ogni controllo; solo il campo "Filtro per colonna" cresce (`flex:1`):
 
-**Solo Mezzi e Materiali** (select in testata):
-- Categoria (`eq`) — opzioni da `MEZZI_CAT_OPT` / `MAT_CAT_OPT`
-- Tipologia (`eq`) — se una categoria è selezionata mostra solo le sue voci; altrimenti mostra tutte in ordine alfabetico. Cambiare categoria azzera il filtro tipologia.
+| Controllo | Larghezza |
+|---|---|
+| Organizzazione | 200px |
+| Categoria *(solo Mezzi e Materiali)* | 160px |
+| Tipologia *(solo Mezzi e Materiali)* | 200px |
+| Filtro per colonna | `flex:1` |
+| Per pagina | 90px |
 
-Colonne filtrabili per tab (filtro testo libero):
-- **volontari:** `codice-fiscale, cognome, nome, organizzazione`
-- **mezzi:** `targa, marca, modello, categoria, tipologia, organizzazione`
-- **materiali:** `id-materiale, categoria, tipologia, marca, modello, organizzazione`
+### Filtri server-side
+
+Tutti applicati insieme in `buildFilters(tab)` e inviati al server via `table.list({ filters: [...] })`.
+
+| Filtro | Campo | Operatore | Tab |
+|---|---|---|---|
+| Organizzazione | `codice-organizzazione` | `eq` | tutti |
+| Categoria | `categoria` | `eq` | mezzi, materiali |
+| Tipologia | `tipologia` | `eq` | mezzi, materiali |
+| Filtro colonna | qualsiasi colonna visibile | `cs` | tutti |
+
+**Filtro Categoria:** opzioni da `MEZZI_CAT_OPT` / `MAT_CAT_OPT`. Cambiare categoria azzera il filtro tipologia e resetta la pagina.
+
+**Filtro Tipologia:** se una categoria è selezionata mostra solo le voci di quella categoria; altrimenti mostra tutte in ordine alfabetico.
+
+**Filtro per colonna (testo libero):** il dropdown colonna espone tutte le colonne visibili nella tabella corrente (stesso set di `cols`, ordinato come `PREFERRED_COLS` + extra alfabetiche). Nessuna lista hardcoded di colonne filtrabili.
 
 ## 8. Editing inline (step 1, doppio click su cella)
 

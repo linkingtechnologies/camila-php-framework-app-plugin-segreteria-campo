@@ -16,7 +16,7 @@ SPA a singolo step, nessun wizard. Caricamento unico al mount delle tre tabelle 
   Pranzo *                  |  Pernottamento *
   (* solo volontari)
 
-[KPI: # org | # volontari | # mezzi | # materiali]  [🔍 Cerca org…] [Riepilogo | Dettaglio] [↺]
+[KPI: # org | # volontari | # mezzi | # materiali]  [🔍 Cerca org…] [Riepilogo | Dettaglio | Confronto] [↺]
 ──────────────────────────────────────────────────────
 Modalità RIEPILOGO:
   tabella compatta (Org | Prov | Vol | Mezzi | Mat) — nessuna colonna "Tot"
@@ -24,6 +24,11 @@ Modalità RIEPILOGO:
 Modalità DETTAGLIO:
   accordion per organizzazione, espansione on-click
   → sub-tabelle volontari / mezzi / materiali
+
+Modalità CONFRONTO:
+  banner globale "Arrivati: X / Y" + eventuale contatore extra
+  accordion per organizzazione con badge stato colorato + breakdown per tipo
+  → sub-tabelle: ✓ arrivato (verde) / ✗ mancante (rosso) / ⚠ non preaccreditato (arancione)
 ```
 
 ## 2. State shape
@@ -60,8 +65,16 @@ filterPernottamento: Set<String>
 
 // UI lista
 search:              String          // filtro testo sul nome organizzazione
-viewMode:            "summary" | "detail"
-expanded:            Set<String>     // nomi org espansi in modalità detail
+viewMode:            "summary" | "detail" | "confronto"
+expanded:            Set<String>     // nomi org espansi (detail usa g.name; confronto usa "c_" + g.name)
+
+// modalità confronto — caricamento lazy al primo click
+rawOpV:              Array           // record da volontari (tabella operativa)
+rawOpM:              Array           // record da mezzi (tabella operativa)
+rawOpA:              Array           // record da materiali (tabella operativa)
+confrontoLoaded:     Boolean
+loadingConfronto:    Boolean
+errorConfronto:      Any | null
 ```
 
 ## 3. Tabelle e campi
@@ -217,13 +230,64 @@ Corpo espanso — tre sezioni opzionali con `<thead>`:
 
 `detailSubTable(rows, cols, headers=[])` accetta un terzo parametro opzionale per la riga `<thead>`.
 
+### 5.7 Modalità Confronto
+
+Attivata al primo click sul bottone "Confronto": `loadConfronto()` carica le tre tabelle operative in parallelo (lazy, poi cache). Mostra spinner mentre carica; bottone "Riprova" in caso di errore.
+
+#### Logica di matching
+
+| Tipo | Campo chiave preaccreditati | Campo chiave operativi |
+|---|---|---|
+| Volontari | `codice-fiscale` | `codice-fiscale` |
+| Mezzi | `targa` | `targa` |
+| Materiali | `id-materiale` \|\| `codice-inventario` | `id-materiale` \|\| `codice-inventario` |
+
+`buildConfronto()` chiama internamente `buildGroups()` (rispetta i filtri attivi) e per ogni gruppo costruisce:
+- `vRows / mRows / aRows` — ogni preaccreditato con flag `arrived: Boolean`
+- `extraV / extraM / extraA` — record nelle tabelle operative con lo stesso `codice-organizzazione` ma chiave non presente tra i preaccreditati di quella org
+
+#### Colore badge stato per org
+
+| Condizione | Colore |
+|---|---|
+| `totArr === totPre` (tutti arrivati) | `is-success` (verde) |
+| `totArr > 0 && totArr < totPre` | `is-warning` (giallo) |
+| `totArr === 0 && totPre > 0` | `is-danger` (rosso) |
+| `totPre === 0` | `is-light` |
+
+#### Struttura accordion confronto
+
+Header: chevron · nome + tag codice + tag provincia · badge `totArr/totPre` colorato · breakdown `V N/N · M N/N · Mat N/N` · badge `+N` arancione per extra.
+
+Corpo espanso — tre sezioni, ciascuna con tabella `is-size-7`:
+- Righe preaccreditati: icona `ri-check-line` (#48c78e) o `ri-close-line` (#f14668) · nominativo/targa/id · CF o categoria · turno
+- Righe extra: icona `ri-alert-line` · nominativo/targa/id · CF · "non preaccreditato" in corsivo
+
+#### Campi operativi caricati
+
+| Tabella | Campi |
+|---|---|
+| `volontari` | `codice-fiscale`, `cognome`, `nome`, `organizzazione`, `codice-organizzazione` |
+| `mezzi` | `targa`, `organizzazione`, `codice-organizzazione` |
+| `materiali` | `id-materiale`, `codice-inventario`, `organizzazione`, `codice-organizzazione` |
+
+Tutte e tre con `size: 5000`.
+
 ## 6. WorkTableClient
 
 ```js
+// Caricamento preaccrediti — al mount
 const [resV, resM, resA] = await Promise.all([
   client.table("volontari-preaccreditati").list({ include: INCLUDE_V, size: 5000 }),
   client.table("mezzi-preaccreditati").list({ include: INCLUDE_M, size: 5000 }),
   client.table("materiali-preaccreditati").list({ include: INCLUDE_A, size: 5000 })
+]);
+
+// Caricamento operativi — lazy, al primo click su "Confronto"
+const [resOpV, resOpM, resOpA] = await Promise.all([
+  client.table("volontari").list({ include: [...], size: 5000 }),
+  client.table("mezzi").list({ include: [...], size: 5000 }),
+  client.table("materiali").list({ include: [...], size: 5000 })
 ]);
 ```
 
