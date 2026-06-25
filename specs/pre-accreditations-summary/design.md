@@ -205,7 +205,15 @@ Quattro blocchi con `title is-5` + `help`:
 
 Se `unique < total` appare riga `N unici` sotto il contatore.
 
-### 5.5 Modalità Riepilogo (tabella)
+### 5.5 Bottoni viewMode
+
+| Bottone | Icona | viewMode |
+|---|---|---|
+| Riepilogo | `ri-table-line` | `"summary"` |
+| Dettaglio | `ri-list-unordered` | `"detail"` |
+| Confronto | `ri-arrow-left-right-line` | `"confronto"` |
+
+### 5.7 Modalità Riepilogo (tabella)
 
 Tabella `is-fullwidth is-striped is-hoverable is-size-7`:
 
@@ -216,7 +224,7 @@ Tabella `is-fullwidth is-striped is-hoverable is-size-7`:
 - Nessuna colonna "Tot" (sommare risorse eterogenee non ha significato)
 - `<tfoot>` con totali di colonna e conteggio org
 
-### 5.6 Modalità Dettaglio (accordion)
+### 5.8 Modalità Dettaglio (accordion)
 
 Header box: chevron · nome + tag codice + tag provincia · badge `is-info` (V) · `is-warning` (M) · `is-success` (A). Nessun badge totale cumulativo.
 
@@ -230,7 +238,7 @@ Corpo espanso — tre sezioni opzionali con `<thead>`:
 
 `detailSubTable(rows, cols, headers=[])` accetta un terzo parametro opzionale per la riga `<thead>`.
 
-### 5.7 Modalità Confronto
+### 5.9 Modalità Confronto
 
 Attivata al primo click sul bottone "Confronto": `loadConfronto()` carica le tre tabelle operative in parallelo (lazy, poi cache). Mostra spinner mentre carica; bottone "Riprova" in caso di errore.
 

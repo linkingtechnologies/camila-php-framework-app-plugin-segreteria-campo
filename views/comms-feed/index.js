@@ -192,14 +192,16 @@ export async function CommsFeed({ client, html, render, root }) {
                   "chiamante", "chiamato", "username", "messaggio", "priorita",
                   "tipo-contenuto", "stato-elaborazione",
                   "latitudine", "longitudine"],
-        size: 100
+        size: 100,
+        order: [["received-date", "desc"]]
       });
-      const records = getRecords(res)
-        .sort((a, b) => norm(b["data/ora"]).localeCompare(norm(a["data/ora"])));
+      const records = getRecords(res);
+
+      const dateOf = r => norm(r["received-date"]) || norm(r["data/ora"]);
 
       const prevDate = lastCommsDate;
       const incoming = prevDate
-        ? records.filter(r => norm(r["data/ora"]) > prevDate)
+        ? records.filter(r => dateOf(r) > prevDate)
         : [];
 
       if (incoming.length > 0) {
@@ -217,7 +219,7 @@ export async function CommsFeed({ client, html, render, root }) {
 
       if (records.length > 0) {
         lastCommsDate = records.reduce((max, r) => {
-          const d = norm(r["data/ora"]); return d > max ? d : max;
+          const d = dateOf(r); return d > max ? d : max;
         }, "");
       }
 

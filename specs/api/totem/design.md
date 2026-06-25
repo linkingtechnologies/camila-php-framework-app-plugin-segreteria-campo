@@ -15,19 +15,19 @@ I dati vengono letti dal worktable Camila `VOLONTARI PREACCREDITATI` tramite `Ca
 ### GET /segreteria-campo/totem/organization-codes
 
 **Auth:** privata (richiede sessione Camila o API key)
-**Sorgente dati:** worktable `VOLONTARI PREACCREDITATI`, colonna `ORGANIZZAZIONE`
+**Sorgente dati:** worktable `VOLONTARI PREACCREDITATI`, colonne `ORGANIZZAZIONE`, `PROVINCIA`, `COD. ORGANIZZAZIONE`
 
 **Risposta (200):**
 ```json
 {
   "data": [
-    { "org": "Croce Rossa Milano", "cod": 1482937 },
-    { "org": "Protezione Civile Cremona", "cod": 8834521 }
+    { "organizzazione": "Croce Rossa Milano", "provincia": "MI", "codice-organizzazione": "CRI-MI-001", "code": 1482937 },
+    { "organizzazione": "Protezione Civile Cremona", "provincia": "CR", "codice-organizzazione": "PC-CR-042", "code": 8834521 }
   ]
 }
 ```
 
-**Proprietà del codice `cod`:**
+**Proprietà del codice `code`:**
 - Deterministico: stessa organizzazione → stesso codice ad ogni chiamata
 - Calcolato da nome uppercase, lunghezza e posizione di caratteri campione
 - Non sequenziale: non rivela quante organizzazioni esistono

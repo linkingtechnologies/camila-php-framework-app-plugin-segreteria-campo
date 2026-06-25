@@ -86,7 +86,9 @@ sidebarOpen:     Boolean         // mostra/nasconde pannello risorse (default: t
 | `tipo-contenuto` | caricato, non ancora usato nella UI |
 | `stato-elaborazione` | caricato, non ancora usato nella UI |
 
-Query: `size: 100`, nessun filtro server-side. Ordinamento client-side per `received-date` desc.
+Query: `size: 100`, `order: [["received-date", "desc"]]`. Nessun filtro server-side. Nessun sort client-side.
+
+`dateOf(r)` = `norm(r["received-date"]) || norm(r["data/ora"])` — usata per la rilevazione nuovi messaggi e per aggiornare `lastCommsDate`.
 
 ### Mappa risorse (stesse tabelle del map-center tab risorse)
 
