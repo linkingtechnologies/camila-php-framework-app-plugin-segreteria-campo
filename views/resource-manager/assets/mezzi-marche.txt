@@ -1,0 +1,387 @@
+9ff
+Abadal
+Abarth
+Abbott-Detroit
+ABT
+AC
+Acura
+Aiways
+Aixam
+Alfa Romeo
+Alpina
+Alpine
+Alta
+Alvis
+AMC
+Apollo
+Arash
+Arcfox
+Ariel
+ARO
+Arrinera
+Arrival
+Artega
+Ascari
+Askam
+Aspark
+Aston Martin
+Atalanta
+Auburn
+Audi
+Audi Sport
+Austin
+Autobacs
+Autobianchi
+Axon
+BAC
+BAIC Motor
+Baojun
+BeiBen
+Bentley
+Berkeley
+Berliet
+Bertone
+Bestune
+BharatBenz
+Bitter
+Bizzarrini
+BMW
+BMW M
+Borgward
+Bowler
+Brabus
+Brammo
+Brilliance
+Bristol
+Brooke
+Bufori
+Bugatti
+Buick
+BYD
+Byton
+Cadillac
+CAMC
+Canoo
+Caparo
+Carlsson
+Caterham
+Changan
+Changfeng
+Chery
+Chevrolet
+Chevrolet Corvette
+Chrysler
+Cisitalia
+Citroën
+Cizeta
+Cole
+Corre La Licorne
+Cupra
+Dacia
+Daewoo
+DAF
+Daihatsu
+Daimler
+Dartz
+Datsun
+David Brown
+Dayun
+De Tomaso
+Delage
+DeSoto
+Detroit Electric
+Devel Sixteen
+Diatto
+DINA
+DKW
+DMC
+Dodge
+Dodge Viper
+Dongfeng
+Donkervoort
+Drako
+DS
+Duesenberg
+Eagle
+EDAG
+Edsel
+Eicher
+Elemental
+Elfin
+Elva
+Englon
+ERF
+Eterniti
+Exeed
+Facel Vega
+Faraday Future
+FAW
+FAW Jiefang
+Ferrari
+Fiat
+Fioravanti
+Fisker
+Foden
+Force Motors
+Ford
+Ford Mustang
+Foton
+FPV
+Franklin
+Freightliner
+FSO
+GAC Group
+Gardner Douglas
+GAZ
+Geely
+General Motors
+Genesis
+Geo
+Geometry
+Gilbern
+Gillet
+Ginetta
+GMC
+Golden Dragon
+Gonow
+Great Wall
+Grinnall
+Gumpert
+Hafei
+Haima
+Haval
+Hawtai
+Hennessey
+Higer
+Hillman
+Hindustan Motors
+Hino
+HiPhi
+Hispano-Suiza
+Holden
+Hommell
+Honda
+Hongqi
+Hongyan
+Horch
+HSV
+Hudson
+Hummer
+Hupmobile
+Hyundai
+IC Bus
+IH
+IKCO
+Infiniti
+Innocenti
+Intermeccanica
+International
+Irizar
+Isdera
+Iso
+Isuzu
+Iveco
+JAC
+Jaguar
+Jawa
+JBA Motors
+Jeep
+Jensen
+Jetour
+Jetta
+JMC
+Kaiser
+Kamaz
+Karlmann King
+Karma
+Keating
+Kenworth
+Kia
+King Long
+Koenigsegg
+KTM
+Lada
+Lagonda
+Lamborghini
+Lancia
+Land Rover
+Landwind
+Laraki
+Leapmotor
+LEVC
+Lexus
+Leyland
+Li Auto
+Lifan
+Ligier
+Lincoln
+Lister
+Lloyd
+Lobini
+Lordstown
+Lotus
+Lucid
+Luxgen
+Lynk & Co
+Mack
+Mahindra
+MAN
+Mansory
+Marcos
+Marlin
+Maserati
+Mastretta
+Maxus
+Maybach
+MAZ
+Mazda
+Mazzanti
+McLaren
+Melkus
+Mercedes-AMG
+Mercedes-Benz
+Mercury
+Merkur
+MEV
+MG
+Microcar
+Mini
+Mitsubishi
+Mitsuoka
+MK
+Morgan
+Morris
+Mosler
+Navistar
+NEVS
+Nikola
+NIO
+Nissan
+Nissan GT-R
+Nissan Nismo
+Noble
+Oldsmobile
+Oltcit
+Omoda
+Opel
+OSCA
+Paccar
+Packard
+Pagani
+Panhard
+Panoz
+Pegaso
+Perodua
+Peterbilt
+Peugeot
+PGO
+Pierce-Arrow
+Pininfarina
+Plymouth
+Polestar
+Pontiac
+Porsche
+Praga
+Premier
+Prodrive
+Proton
+Qoros
+Radical
+RAM
+Rambler
+Ranz
+Renault
+Renault Samsung
+Rezvani
+Riley
+Rimac
+Rinspeed
+Rivian
+Roewe
+Rolls-Royce
+Ronart
+Rossion
+Rover
+RUF
+Saab
+SAIC Motor
+Saipa
+Saleen
+Saturn
+Scania
+Scion
+SEAT
+Setra
+SEV
+Shacman
+Simca
+Singer
+Singulato
+Sinotruk
+Sisu
+Škoda
+Smart
+Soueast
+Spania GTA
+Spirra
+Spyker
+SsangYong
+SSC
+Sterling
+Studebaker
+Stutz
+Subaru
+Suffolk
+Suzuki
+Talbot
+Tata
+Tatra
+Tauro
+TechArt
+Tesla
+Toyota
+Toyota Alphard
+Toyota Century
+Toyota Crown
+Tramontana
+Trion
+Triumph
+Troller
+Tucker
+TVR
+UAZ
+UD
+Ultima
+Vandenbrink
+Vauxhall
+Vector
+Vencer
+Venturi
+Venucia
+VinFast
+VLF
+Volkswagen
+Volvo
+W Motors
+Wanderer
+Wartburg
+Weltmeister
+Western Star
+Westfield
+WEY
+Wiesmann
+Willys-Overland
+Workhorse
+Wuling
+XPeng
+Yulon
+Yutong
+Zarooq Motors
+Zastava
+ZAZ
+Zeekr
+Zenos
+Zenvo
+Zhongtong
+Zinoro
+Zotye
