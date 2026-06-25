@@ -86,7 +86,7 @@ ORDER BY
 	</report>
 
 
-	<report>
+	<!--<report>
 		<id>5</id>
 		<query>SELECT DISTINCT ${VOLONTARI.PROVINCIA} AS 'PROV.',${VOLONTARI.ORGANIZZAZIONE} AS 'ORGANIZZAZIONE',${VOLONTARI.CODICE FISCALE} AS 'CODICE FISCALE',${VOLONTARI.COGNOME} AS 'COGNOME', ${VOLONTARI.NOME} AS 'NOME' FROM ${VOLONTARI} ORDER BY ${VOLONTARI.PROVINCIA},${VOLONTARI.ORGANIZZAZIONE},${VOLONTARI.COGNOME}, ${VOLONTARI.NOME}</query>
 		<graphs>
@@ -97,7 +97,7 @@ ORDER BY
 				<sum>0</sum>
 			</graph>
 		</graphs>
-	</report>
+	</report>-->
 	
 	<report>
 		<id>6</id>
@@ -131,7 +131,16 @@ ORDER BY
 	<report>
 		<id>8</id>
 		<query/>
-		<mysqlQuery>(SELECT ${BROGLIACCIO.Data/ora} AS TS,DATE_FORMAT(${BROGLIACCIO.Data/ora}, '%e/%c %H:%i') AS 'Data/ora', 'SEGRETERIA' AS 'Funzione',${BROGLIACCIO.descrizione} AS 'Descrizione' FROM ${brogliaccio}) UNION (SELECT ${COMUNICAZIONI RADIO.Data/ora} AS TS,DATE_FORMAT(${COMUNICAZIONI RADIO.Data/ora}, '%e/%c %H:%i') AS 'Data/ora', 'SALA RADIO' AS 'Funzione',CONCAT('Da ',${COMUNICAZIONI RADIO.chiamante},' a ',${COMUNICAZIONI RADIO.chiamato},': ',${COMUNICAZIONI RADIO.messaggio}) AS 'Descrizione' FROM ${COMUNICAZIONI RADIO}) ORDER BY TS </mysqlQuery>
+		<mysqlQuery>(SELECT ${BROGLIACCIO.Data/ora} AS TS,
+		DATE_FORMAT(${BROGLIACCIO.Data/ora}, '%e/%c %H:%i') AS 'Data/ora', 
+		'SEGRETERIA' AS 'Funzione',${BROGLIACCIO.descrizione} AS 'Descrizione' FROM ${brogliaccio}) 
+		UNION 
+		(SELECT ${COM. DIGITALI.Data/ora} AS TS,
+		DATE_FORMAT(${COM. DIGITALI.Data/ora}, '%e/%c %H:%i') AS 'Data/ora', 
+		'SALA RADIO' AS 'Funzione',
+		CONCAT('Da ',${COM. DIGITALI.chiamante},' a ',${COM. DIGITALI.chiamato},': ',${COM. DIGITALI.messaggio}) AS 'Descrizione'
+		FROM ${COM. DIGITALI} WHERE ${COM. DIGITALI.Canale origine} IN ('Radio','Telegram'))
+		ORDER BY TS</mysqlQuery>
 		<sqliteQuery>
   SELECT 
     ${BROGLIACCIO.Data/ora} AS TS,
@@ -145,13 +154,13 @@ ORDER BY
 UNION
 
   SELECT 
-    ${COMUNICAZIONI RADIO.Data/ora} AS TS,
-    CAST(strftime('%d', ${COMUNICAZIONI RADIO.Data/ora}) AS INTEGER) || '/' || 
-    CAST(strftime('%m', ${COMUNICAZIONI RADIO.Data/ora}) AS INTEGER) || ' ' || 
-    strftime('%H:%M', ${COMUNICAZIONI RADIO.Data/ora}) AS 'Data/ora',
+    ${COM. DIGITALI.Data/ora} AS TS,
+    CAST(strftime('%d', ${COM. DIGITALI.Data/ora}) AS INTEGER) || '/' || 
+    CAST(strftime('%m', ${COM. DIGITALI.Data/ora}) AS INTEGER) || ' ' || 
+    strftime('%H:%M', ${COM. DIGITALI.Data/ora}) AS 'Data/ora',
     'SALA RADIO' AS 'Funzione',
-    'Da ' || ${COMUNICAZIONI RADIO.chiamante} || ' a ' || ${COMUNICAZIONI RADIO.chiamato} || ': ' || ${COMUNICAZIONI RADIO.messaggio} AS 'Descrizione'
-  FROM ${COMUNICAZIONI RADIO}
+    'Da ' || ${COM. DIGITALI.chiamante} || ' a ' || ${COM. DIGITALI.chiamato} || ': ' || ${COM. DIGITALI.messaggio} AS 'Descrizione'
+  FROM ${COM. DIGITALI} WHERE ${COM. DIGITALI.Canale origine} IN ('Radio','Telegram')
 
 ORDER BY TS
   </sqliteQuery>
