@@ -52,6 +52,11 @@ Base path: `/app/segreteriacampo/cf_api.php/segreteria-campo`
 
 **Risposta:** sempre `{"ok": true}` (Telegram richiede HTTP 200 in ogni caso)
 
+**Comandi speciali:**
+| Comando | Comportamento |
+|---|---|
+| `/start` | Risponde "Benvenuto, [nome]!" all'utente. Non registra il messaggio nel worktable. |
+
 **Tipi `update-type`:**
 | Caso | Valore |
 |---|---|

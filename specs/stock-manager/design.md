@@ -36,7 +36,7 @@ Single-view SPA con tre tab principali:
 
 **Modale nuova/modifica movimentazione:**
 ```
-data/ora     (precompilata con now(), read-only in new — editabile in edit)
+data/ora     (datetime-local, sempre editabile; default: now())
 tipo         (select) → CARICO / SCARICO / TRASFERIMENTO
 articolo     (input + datalist ARTICOLI fissi + articoli già usati)
 quantita     (input numerico)
@@ -106,6 +106,7 @@ const PAGE_SIZE = 50;
   autoRefreshTimer:  Number | null,
   countdownSec:      Number,         // 60→0, reset a 60 dopo ogni load
   mapResizeHandler:  Function | null,
+  mapInitializing:   Boolean,         // true durante loadLeaflet+initMap, previene init concorrenti
 }
 
 // ModalState
@@ -123,7 +124,7 @@ const PAGE_SIZE = 50;
   servizio:                 String,
   operatore:                String,
   note:                     String,
-  "data/ora":               String,   // read-only in new, editabile in edit
+  "data/ora":               String,   // datetime-local, sempre editabile; default nowDateTime() su new
 }
 ```
 
@@ -139,6 +140,8 @@ const PAGE_SIZE = 50;
 | Eliminazione movimentazione | `mov-consumabili` (`.remove(id)`) |
 
 ## 5. Caricamento dati
+
+Durante il caricamento (`loading === true`) viene mostrato uno spinner centrato: cerchio animato (`@keyframes sm-spin`, `border-top-color:#6366f1`) + testo "Caricamento…" in grigio, altezza fissa 200px, nessun sfondo aggiuntivo.
 
 `Promise.all` su tre chiamate parallele al mount e dopo ogni scrittura:
 

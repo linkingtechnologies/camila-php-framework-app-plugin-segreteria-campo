@@ -25,7 +25,8 @@ $camilaUI->addGridSection(3, function ($colIndex) use ($camilaUI) {
 			break;
 		case 1:
 			$camilaUI->insertButton('?dashboard=resource-board', 'Movimentazione risorse', 'route');
-			$camilaUI->insertButton('?dashboard=stock-manager', 'Movimentazione consumabili', 'exchange-box');
+			$camilaUI->insertButton('?dashboard=requests-board', 'Gestione richieste', 'login-box');
+			$camilaUI->insertButton('?dashboard=stock-manager', 'Movimentazione consumabili', 'inbox');
 			break;
 		case 2:
 			$camilaUI->insertButton('?dashboard=org-status', 'Stato registrazione Organizzazione', 'file-list-3');

@@ -223,7 +223,7 @@ Si apre con doppio click su qualsiasi cella `categoria` o `tipologia` di un reco
 ```
 
 - **Categoria select**: lista completa delle categorie (`MEZZI_CAT_OPT` o `MAT_CAT_OPT`).
-- **Tipologia select**: `<select>` con `<optgroup>` per ogni categoria, mostra tutte le tipologie. Se categoria = "Non assegnata" → campo disabilitato con valore fisso "Non assegnata".
+- **Tipologia select**: `<select>` con `<optgroup>` per ogni categoria, mostra tutte le tipologie. Se categoria = "Non assegnata" → campo disabilitato con valore fisso "Non assegnata". Se la categoria selezionata ha tipologie vuote (es. "Materiale informatico") → campo disabilitato con valore "—".
 - **Dipendenza bidirezionale**:
   - Cambio categoria → tipologia si resetta a `""` (vuoto) o `"Non assegnata"` se categoria = "Non assegnata".
   - Cambio tipologia → categoria si aggiorna automaticamente per reverse lookup nella mappa `byCat`.
@@ -245,9 +245,9 @@ Tipologie per categoria (esempi principali):
 ### Opzioni materiali
 
 Categorie derivate da `MATERIALI_TIPOLOGIE_OPTS` (stessa stringa usata in step2):
-`Non assegnata, Attrezzature speciali, Attrezzi vari, Container, Effetti letterecci, Generatori, Materiale AIB, Materiale antinquinante, Materiale elettrico, Materiale idraulico e idrogeologico, Radio e dispositivi TLC, Tende`
+`Non assegnata, Attrezzature speciali, Attrezzi vari, Container, Effetti letterecci, Generatori, Materiale AIB, Materiale antinquinante, Materiale elettrico, Materiale idraulico e idrogeologico, Materiale informatico, Radio e dispositivi TLC, Tende`
 
-Tipologie: select con optgroup (lista completa in `MATERIALI_TIPOLOGIE_OPTS`).
+Tipologie: select con optgroup (lista completa in `MATERIALI_TIPOLOGIE_OPTS`). Le categorie senza tipologie (attualmente: "Materiale informatico") mostrano il campo tipologia disabilitato con "—".
 
 ## 10. Permissions
 
@@ -278,7 +278,7 @@ Campi gestiti con logica speciale in step 2:
 - `categoria` (mezzi) → select; cambio resetta `tipologia`
 - `tipologia` (mezzi) → select filtrata per `categoria`; disabilitata se categoria = "Non assegnata"
 - `categoria` (materiali) → select; stessa logica
-- `tipologia` (materiali) → select con optgroup (stessa `MATERIALI_TIPOLOGIE_OPTS`)
+- `tipologia` (materiali) → select con optgroup (stessa `MATERIALI_TIPOLOGIE_OPTS`); se la categoria non ha tipologie (es. "Materiale informatico") → campo disabilitato con "—" e help "Nessuna tipologia disponibile per questa categoria."
 - `targa` (mezzi, create) → normalizzata in uppercase
 - `codice-fiscale` (volontari, create) → normalizzato in uppercase
 - `id-materiale` (materiali, create) → pre-fill con `client.table("db-materiali").sequence()`

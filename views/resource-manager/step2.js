@@ -1031,6 +1031,18 @@ export async function Step2(props) {
                           `;
                         }
 
+                        if (allowedTipologieMat.length === 0) {
+                          return html`
+                            <div style="flex: 1 1 28rem; min-width: 0;">
+                              <label class="label is-small">${label}</label>
+                              <div class="control">
+                                <input class="input is-small" type="text" .value=${"—"} disabled />
+                              </div>
+                              <p class="help is-size-7">Nessuna tipologia disponibile per questa categoria.</p>
+                            </div>
+                          `;
+                        }
+
                         return html`
                           <div style="flex: 1 1 28rem; min-width: 0;">
                             <label class="label is-small">
