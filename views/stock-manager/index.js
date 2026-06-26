@@ -4,7 +4,13 @@
 
 const TIPI = ["CARICO", "SCARICO", "TRASFERIMENTO"];
 const UDM      = ["pezzo", "bancale", "bottiglia", "Kg", "l", "confezione"];
-const ARTICOLI = ["Sacco sabbia vuoto", "Sacco sabbia pieno", "Pasto", "Acqua"];
+const ARTICOLI = [
+  "Sacco sabbia vuoto", "Sacco sabbia pieno",
+  "Sacco juta vuoto",   "Sacco juta pieno",
+  "Sacco PTT vuoto",    "Sacco PTT pieno",
+  "Big Bag vuoto",      "Big Bag pieno",
+  "Pasto", "Acqua",
+];
 const PAGE_SIZE = 50;
 
 const INCLUDE_MOV = [
@@ -145,6 +151,7 @@ export async function StockManager({ state, client, html, render, root }) {
   let autoRefreshTimer= null;
   let countdownSec    = 60;
   let mapResizeHandler= null;
+  let mapInitializing = false;
 
   // filtri + paginazione
   let search          = "";
@@ -637,9 +644,13 @@ export async function StockManager({ state, client, html, render, root }) {
   }
 
   async function initMap() {
+    if (mapInitializing) return;
     const container = document.getElementById("sm-map-container");
     if (!container) return;
+    // se la mappa esiste ed è già agganciata a questo container, non fare nulla
+    if (leafletMap && document.contains(leafletMap.getContainer())) return;
 
+    mapInitializing = true;
     await loadLeaflet();
     const L = window.L;
 
@@ -703,6 +714,7 @@ export async function StockManager({ state, client, html, render, root }) {
       mapResizeHandler = () => fitMapHeight();
       window.addEventListener("resize", mapResizeHandler);
     }
+    mapInitializing = false;
   }
 
   function flyToLocation(nome) {
@@ -810,7 +822,7 @@ export async function StockManager({ state, client, html, render, root }) {
   }
 
   function renderTabMappa() {
-    if (!leafletMap) setTimeout(initMap, 0);
+    setTimeout(initMap, 0);
 
     const toggleSidebar = () => {
       mapSidebarOpen = !mapSidebarOpen;
@@ -908,14 +920,12 @@ export async function StockManager({ state, client, html, render, root }) {
 
             <!-- data/ora -->
             <div class="field mb-3">
-              <label class="label is-small">Data/Ora
-                ${!isEdit ? html`<span class="tag is-light is-small ml-1">automatica</span>` : ""}
-              </label>
+              <label class="label is-small">Data/Ora</label>
               <div class="control">
-                <input class="input is-small" type="text"
-                  .value=${modal["data/ora"]}
-                  ?disabled=${!isEdit || modal.busy}
-                  @input=${e => setModalField("data/ora", e.target.value)}
+                <input class="input is-small" type="datetime-local"
+                  .value=${modal["data/ora"].replace(" ", "T").slice(0, 16)}
+                  ?disabled=${modal.busy}
+                  @change=${e => setModalField("data/ora", e.target.value.replace("T", " ") + ":00")}
                 />
               </div>
             </div>
@@ -1077,12 +1087,14 @@ export async function StockManager({ state, client, html, render, root }) {
   function view() {
     if (loading) {
       return html`
-        <section class="section">
-          <div class="container has-text-centered">
-            <p class="has-text-grey mb-2">Caricamento dati…</p>
-            <progress class="progress is-primary" style="max-width:400px;margin:0 auto"></progress>
-          </div>
-        </section>
+        <style>@keyframes sm-spin{to{transform:rotate(360deg)}}</style>
+        <div style="display:flex;align-items:center;justify-content:center;
+          height:200px;gap:.6rem;color:#94a3b8">
+          <div style="width:22px;height:22px;border:3px solid #e2e8f0;
+            border-top-color:#6366f1;border-radius:50%;flex-shrink:0;
+            animation:sm-spin .9s linear infinite"></div>
+          <span style="font-size:.85rem">Caricamento…</span>
+        </div>
       `;
     }
 

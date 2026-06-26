@@ -62,6 +62,7 @@ leafletMap:      L.Map | null
 markersByName:   Map<String, { marker: L.Marker, lat: Number, lon: Number }>
 groupBy:         "organizzazione" | "squadra"   // raggruppamento nel pannello risorse
 sidebarOpen:     Boolean         // mostra/nasconde pannello risorse (default: true)
+expandedGroups:  Set<String>     // chiavi `${servizio}|${gruppo}` dei gruppi espansi nella sidebar
 ```
 
 ---
@@ -86,9 +87,9 @@ sidebarOpen:     Boolean         // mostra/nasconde pannello risorse (default: t
 | `tipo-contenuto` | caricato, non ancora usato nella UI |
 | `stato-elaborazione` | caricato, non ancora usato nella UI |
 
-Query: `size: 100`, `order: [["received-date", "desc"]]`. Nessun filtro server-side. Nessun sort client-side.
+Query: `size: 100`, `order: [["data/ora", "desc"]]`. Nessun filtro server-side. Nessun sort client-side.
 
-`dateOf(r)` = `norm(r["received-date"]) || norm(r["data/ora"])` — usata per la rilevazione nuovi messaggi e per aggiornare `lastCommsDate`.
+`dateOf(r)` = `norm(r["data/ora"]) || norm(r["received-date"])` — usata per la rilevazione nuovi messaggi e per aggiornare `lastCommsDate`.
 
 ### Mappa risorse (stesse tabelle del map-center tab risorse)
 
@@ -222,10 +223,11 @@ Il refresh della mappa avviene ogni **60 secondi** tramite timer separato, indip
 Terza colonna (`flex:1`, `border-left`), stessa larghezza di feed e mappa. Togglabile dalla toolbar. Quando nascosto, feed e mappa si dividono lo spazio a metà.
 
 Per ogni servizio con risorse attive:
-- **Intestazione**: icona marker (`markerIconUrl`) + nome servizio
+- **Intestazione**: icona marker (`markerIconUrl`) + nome servizio — click → `flyToLocation(nome)`
 - **Riga conteggi**: `ri-building-line` N (org/squadre) in viola · `ri-user-line` N · `ri-truck-line` N · `ri-tools-line` N
-- **Sub-lista**: una riga per ogni org (o squadra), con nome a sinistra e conteggi a destra
-- Click su un servizio → `flyToLocation(nome)` (centra mappa + apre popup)
+- **Sub-lista**: una riga per ogni org/squadra con nome + conteggi per tipo
+  - Ogni riga è cliccabile (chevron `›`/`⌄`): click → toggle espansione (`expandedGroups`, chiave `servizio|gruppo`); `stopPropagation` per non attivare `flyToLocation`
+  - Espansa: elenco individuale volontari (`cognome nome`), mezzi (`targa · marca`), materiali (`id-materiale || codice-inventario · tipologia`), nessuna chiamata API aggiuntiva
 
 L'icona nel contatore e nella sub-lista cambia col toggle: `ri-building-line` in modalità **Organizzazione**, `ri-group-line` in modalità **Squadra**. Il toggle chiama `refreshMarkers()` per aggiornare anche i popup sulla mappa.
 

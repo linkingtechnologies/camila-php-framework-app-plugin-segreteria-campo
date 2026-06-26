@@ -53,7 +53,13 @@ note         (testo libero)
 ```js
 const TIPI     = ["CARICO", "SCARICO", "TRASFERIMENTO"];
 const UDM      = ["pezzo", "bancale", "bottiglia", "Kg", "l", "confezione"];
-const ARTICOLI = ["Sacco sabbia vuoto", "Sacco sabbia pieno", "Pasto", "Acqua"];
+const ARTICOLI = [
+  "Sacco sabbia vuoto", "Sacco sabbia pieno",
+  "Sacco juta vuoto",   "Sacco juta pieno",
+  "Sacco PTT vuoto",    "Sacco PTT pieno",
+  "Big Bag vuoto",      "Big Bag pieno",
+  "Pasto", "Acqua",
+];
 const PAGE_SIZE = 50;
 ```
 
@@ -156,7 +162,9 @@ const pageItems  = filtered.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
 
 ## 7. Edit e Delete movimentazioni
 
-**Edit**: click su ✏️ → apre modal pre-compilato con `mode:"edit"` e `editId`. Il campo `data/ora` diventa editabile. Salvataggio via `.update(id, payload)`.
+**Edit**: click su ✏️ → apre modal pre-compilato con `mode:"edit"` e `editId`. Salvataggio via `.update(id, payload)`.
+
+Il campo `data/ora` usa sempre `<input type="datetime-local">` ed è sempre editabile (sia in creazione che in modifica). Il default in creazione è `nowDateTime()`. Il formato interno (`YYYY-MM-DD HH:MM:SS`) viene convertito in `YYYY-MM-DDTHH:MM` per il picker e riconvertito al salvataggio (`.replace("T"," ") + ":00"`).
 
 **Delete**: click su 🗑️ → compare banner giallo sopra la tabella con conferma. Conferma → `.remove(id)` → `load()`. La riga evidenziata in giallo mentre il banner è visibile.
 
@@ -199,7 +207,7 @@ Solo le movimentazioni con campo `servizio` valorizzato contribuiscono.
 ## 11. Note tecniche
 
 - `buildGiacenze` / `buildGiacenzeServizi` restituiscono `Map<articolo, Map<location, qty>>`. La sidebar usa `pivotByLocation()` per ottenere `Map<location, Map<articolo, qty>>`.
-- `initMap` viene chiamato solo se `!leafletMap` (non ad ogni rerender).
+- **`initMap` e re-init della mappa**: `setTimeout(initMap, 0)` viene schedulato ad ogni render del tab Mappa (non solo se `leafletMap === null`). `initMap` stessa decide se procedere: se `mapInitializing === true` esce subito (evita init concorrenti da auto-refresh); se `leafletMap` esiste e `document.contains(leafletMap.getContainer())` è `true` (container ancora nel DOM) esce senza fare nulla. Altrimenti reinizializza. Questo copre il caso in cui lit-html rimuova il `#sm-map-container` al cambio tab, lasciando `leafletMap` puntare a un nodo staccato. Il flag `mapInitializing` (booleano) viene settato a `true` prima di `await loadLeaflet()` e azzerato al termine.
 - `magazzini` e `servizi` sono array di oggetti completi (non solo nomi) per supportare la mappa. `magazziniNomi` e `serviziNomi` sono alias di soli nomi per le select.
 - Nomi campi DB: `quantita` e `unita-di-misura` (senza apostrofi).
 - **Servizi fittizi**: `"IN ATTESA DI SERVIZIO"` e `"USCITA DEFINITIVA"` sono esclusi **solo dalla tendina servizio del modal**. Appaiono normalmente in giacenze e mappa se referenziati da movimentazioni storiche.
