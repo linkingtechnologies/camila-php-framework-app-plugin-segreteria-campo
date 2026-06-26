@@ -169,6 +169,7 @@ export async function CommsFeed({ client, html, render, root }) {
   let markersByName = new Map();
   let groupBy = "organizzazione";
   let sidebarOpen = true;
+  let expandedGroups = new Set();
 
   function rerender() {
     const feed = document.getElementById("cf-feed-panel");
@@ -193,11 +194,11 @@ export async function CommsFeed({ client, html, render, root }) {
                   "tipo-contenuto", "stato-elaborazione",
                   "latitudine", "longitudine"],
         size: 100,
-        order: [["received-date", "desc"]]
+        order: [["data/ora", "desc"]]
       });
       const records = getRecords(res);
 
-      const dateOf = r => norm(r["received-date"]) || norm(r["data/ora"]);
+      const dateOf = r => norm(r["data/ora"]) || norm(r["received-date"]);
 
       const prevDate = lastCommsDate;
       const incoming = prevDate
@@ -418,18 +419,58 @@ export async function CommsFeed({ client, html, render, root }) {
               ${totM   > 0 ? html`<span><i class="ri-truck-line"></i> ${totM}&nbsp;</span>` : ""}
               ${totMat > 0 ? html`<span><i class="ri-tools-line"></i> ${totMat}</span>` : ""}
             </div>
-            ${srvCards.map(c => html`
-              <div style="display:flex;align-items:baseline;justify-content:space-between;
-                padding:1px 6px;font-size:.69rem;color:#6b7280;gap:6px">
-                <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-                  flex:1;min-width:0">${c.groupValue}</span>
-                <span style="flex-shrink:0;white-space:nowrap;color:#888">
-                  ${c.volontari.length > 0 ? html`<i class="ri-user-line"></i>${c.volontari.length}&nbsp;` : ""}
-                  ${c.mezzi.length     > 0 ? html`<i class="ri-truck-line"></i>${c.mezzi.length}&nbsp;` : ""}
-                  ${c.materiali.length > 0 ? html`<i class="ri-tools-line"></i>${c.materiali.length}` : ""}
-                </span>
-              </div>
-            `)}
+            ${srvCards.map(c => {
+              const gKey = `${nome}|${c.groupValue}`;
+              const isExp = expandedGroups.has(gKey);
+              return html`
+                <div>
+                  <div style="display:flex;align-items:baseline;justify-content:space-between;
+                    padding:1px 6px;font-size:.69rem;color:#6b7280;gap:6px;
+                    cursor:pointer;border-radius:3px"
+                    @mouseover=${e => e.currentTarget.style.background = "#f3f4f6"}
+                    @mouseout=${e => e.currentTarget.style.background = ""}
+                    @click=${e => {
+                      e.stopPropagation();
+                      if (expandedGroups.has(gKey)) expandedGroups.delete(gKey);
+                      else expandedGroups.add(gKey);
+                      rerender();
+                    }}>
+                    <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0">
+                      <i class="${isExp ? "ri-arrow-down-s-line" : "ri-arrow-right-s-line"}"
+                        style="font-size:.7rem"></i>
+                      ${c.groupValue}
+                    </span>
+                    <span style="flex-shrink:0;white-space:nowrap;color:#888">
+                      ${c.volontari.length > 0 ? html`<i class="ri-user-line"></i>${c.volontari.length}&nbsp;` : ""}
+                      ${c.mezzi.length     > 0 ? html`<i class="ri-truck-line"></i>${c.mezzi.length}&nbsp;` : ""}
+                      ${c.materiali.length > 0 ? html`<i class="ri-tools-line"></i>${c.materiali.length}` : ""}
+                    </span>
+                  </div>
+                  ${isExp ? html`
+                    <div style="padding-left:1.1rem;font-size:.67rem;color:#4b5563;line-height:1.7">
+                      ${c.volontari.map(v => html`
+                        <div style="display:flex;gap:4px;align-items:center">
+                          <i class="ri-user-line" style="flex-shrink:0;color:#6366f1"></i>
+                          <span>${norm(v.cognome)} ${norm(v.nome)}</span>
+                        </div>
+                      `)}
+                      ${c.mezzi.map(m => html`
+                        <div style="display:flex;gap:4px;align-items:center">
+                          <i class="ri-truck-line" style="flex-shrink:0;color:#f59e0b"></i>
+                          <span>${norm(m.targa)}${norm(m.marca) ? " · " + norm(m.marca) : ""}</span>
+                        </div>
+                      `)}
+                      ${c.materiali.map(a => html`
+                        <div style="display:flex;gap:4px;align-items:center">
+                          <i class="ri-tools-line" style="flex-shrink:0;color:#10b981"></i>
+                          <span>${norm(a["id-materiale"]) || norm(a["codice-inventario"])}${norm(a.tipologia) ? " · " + norm(a.tipologia) : ""}</span>
+                        </div>
+                      `)}
+                    </div>
+                  ` : ""}
+                </div>
+              `;
+            })}
           </div>
         `;
       });
