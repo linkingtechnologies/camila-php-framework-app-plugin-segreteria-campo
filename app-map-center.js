@@ -1,5 +1,6 @@
-// app-map-center.js — Centro Mappe
+﻿// app-map-center.js — Centro Mappe
 import { html, render } from "../../../../../camila/js/lit-html/lit-html.js";
+import "./no-pull-refresh.js";
 
 const VERSION = window.APP_CONFIG?.version || Date.now();
 const root = document.getElementById("app");
