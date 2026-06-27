@@ -18,10 +18,13 @@ Lo step 2 è identico in entrambe le modalità.
 Entrambe le modalità mostrano in cima allo step 1 il titolo:
 
 ```html
-<h3 class="title is-4" style="margin-top:.75rem">
-  <span class="icon is-medium"><i class="ri-building-line ri-lg"></i></span>
-  Stato organizzazione
-</h3>
+<div class="box">
+  <h3 class="title is-4">
+    <span class="icon is-medium" style="vertical-align:middle;margin-right:.4rem">
+      <i class="ri-building-line ri-lg"></i>
+    </span>Stato organizzazione
+  </h3>
+</div>
 ```
 
 ---

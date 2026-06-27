@@ -400,11 +400,13 @@ export async function Step1({ state, client, goTo, html, render, root }) {
 
   function view() {
     const titleEl = html`
-      <h3 class="title is-4" style="margin-top:.75rem">
-        <span class="icon is-medium" style="vertical-align:middle;margin-right:.4rem">
-          <i class="ri-logout-box-line ri-lg"></i>
-        </span>Check-out
-      </h3>
+      <div class="box">
+        <h3 class="title is-4">
+          <span class="icon is-medium" style="vertical-align:middle;margin-right:.4rem">
+            <i class="ri-logout-box-line ri-lg"></i>
+          </span>Check-out
+        </h3>
+      </div>
     `;
 
     if (totemMode) return html`${titleEl}${viewTotem()}`;
@@ -418,6 +420,16 @@ export async function Step1({ state, client, goTo, html, render, root }) {
         )
       : items;
 
+    if (loading) return html`
+      ${titleEl}
+      <section class="section">
+        <div class="container has-text-centered">
+          <p class="has-text-grey mb-2">Caricamento…</p>
+          <progress class="progress is-primary" style="max-width:400px;margin:0 auto"></progress>
+        </div>
+      </section>
+    `;
+
     return html`
       ${titleEl}
       <div class="box">
@@ -430,13 +442,10 @@ export async function Step1({ state, client, goTo, html, render, root }) {
               q = e.target.value;
               rerender();
             }}
-            ?disabled=${loading}
           />
         </div>
 
-        ${loading
-          ? html`<progress class="progress is-small is-primary"></progress>`
-          : html`<p class="help">${filtered.length} risultati</p>`}
+        <p class="help">${filtered.length} risultati</p>
 
         ${error
           ? html`

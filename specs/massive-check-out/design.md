@@ -18,10 +18,24 @@ Gli step 2-4 sono identici in entrambe le modalità.
 Entrambe le modalità mostrano in cima allo step 1 il titolo:
 
 ```html
-<h3 class="title is-4" style="margin-top:.75rem">
-  <span class="icon is-medium"><i class="ri-logout-box-line ri-lg"></i></span>
-  Check-out
-</h3>
+<div class="box">
+  <h3 class="title is-4">
+    <span class="icon is-medium" style="vertical-align:middle;margin-right:.4rem">
+      <i class="ri-logout-box-line ri-lg"></i>
+    </span>Check-out
+  </h3>
+</div>
+```
+
+**Loader iniziale (step 1, modalità normale):** quando `loading === true`, al posto del box di ricerca viene mostrata una section centrata identica a quella del resource-board:
+
+```html
+<section class="section">
+  <div class="container has-text-centered">
+    <p class="has-text-grey mb-2">Caricamento…</p>
+    <progress class="progress is-primary" style="max-width:400px;margin:0 auto"></progress>
+  </div>
+</section>
 ```
 
 ---
