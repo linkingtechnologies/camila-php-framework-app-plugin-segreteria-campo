@@ -487,7 +487,7 @@ export async function Step3({ state, client, goTo, html, render, root }) {
 
         ${loadingExisting
           ? html`
-              <progress class="progress is-small is-primary"></progress>
+              <progress class="progress is-small"></progress>
               <div class="has-text-grey">Verifica volontari già presenti…</div>
             `
           : ""}

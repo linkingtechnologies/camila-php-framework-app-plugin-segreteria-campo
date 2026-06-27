@@ -1033,7 +1033,7 @@ ${hasOrgCol ? html`
           </button>
         </div>
 
-        ${loading ? html`<progress class="progress is-small is-primary"></progress>` : ""}
+        ${loading ? html`<progress class="progress is-small"></progress>` : ""}
 
         ${error ? html`
           <article class="message is-danger">

@@ -41,5 +41,5 @@ async function mount() {
   }
 }
 
-render(html`<div class="notification is-warning">Avvio…</div>`, root);
+render(html`<div></div>`, root);
 mount();

@@ -27,16 +27,7 @@ Entrambe le modalità mostrano in cima allo step 1 il titolo:
 </div>
 ```
 
-**Loader iniziale (step 1, modalità normale):** quando `loading === true`, al posto del box di ricerca viene mostrata una section centrata identica a quella del resource-board:
-
-```html
-<section class="section">
-  <div class="container has-text-centered">
-    <p class="has-text-grey mb-2">Caricamento…</p>
-    <progress class="progress is-primary" style="max-width:400px;margin:0 auto"></progress>
-  </div>
-</section>
-```
+**Loader iniziale (step 1, modalità normale):** quando `loading === true`, al posto del box di ricerca viene mostrato un `<section class="section">` con `<progress class="progress">` (senza modificatore colore, centrata con `max-width:400px;margin:0 auto`) e testo "Caricamento…" in grigio sopra la barra.
 
 ---
 

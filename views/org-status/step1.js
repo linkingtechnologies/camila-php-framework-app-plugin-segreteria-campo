@@ -1,4 +1,4 @@
-// ./views/org-status/step1.js
+﻿// ./views/org-status/step1.js
 
 function getRecords(res) {
   if (Array.isArray(res)) return res;
@@ -405,7 +405,7 @@ export async function Step1({ state, client, goTo, html, render, root }) {
         </div>
 
         ${loading
-          ? html`<progress class="progress is-small is-primary"></progress>`
+          ? html`<progress class="progress is-small"></progress>`
           : html`<p class="help">${filtered.length} risultati</p>`}
 
         ${error

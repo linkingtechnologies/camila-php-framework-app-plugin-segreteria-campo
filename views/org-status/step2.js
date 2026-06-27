@@ -1,4 +1,4 @@
-// ./views/org-status/step2.js
+﻿// ./views/org-status/step2.js
 
 function safe(v) {
   return String(v ?? "").trim();
@@ -512,7 +512,7 @@ export async function Step2({ state, client, goTo, html, render, root }) {
           </button>
         </div>
 
-        ${loading ? html`<progress class="progress is-small is-primary mt-3"></progress>` : ""}
+        ${loading ? html`<progress class="progress is-small mt-3"></progress>` : ""}
 
         <div class="columns is-multiline mt-4">
           ${summaryCard("Volontari", "ri-user-line ri-lg", volIn.length, volNon.length)}

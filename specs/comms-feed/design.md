@@ -142,16 +142,19 @@ La pill usa `position: sticky; top: 0` dentro il pannello scrollabile, quindi ri
 
 ### 5.2 Priorità
 
-Rilevata in questo ordine:
-1. Campo `priorita`: `ALTA` o `EMERGENZA` → `"high"`; `MEDIA` o `ATTENZIONE` → `"medium"`
-2. Keyword nel testo `messaggio` (uppercase): `EMERGENZA`, `SOS`, `URGENTE`, `URGENZA`, `INCENDIO`, `FERITO`, `FERITI`, `PERICOLO`, `MAYDAY` → `"high"`; `ATTENZIONE`, `ALLERTA`, `PROBLEMA` → `"medium"`
-3. Default: `"normal"`
+Rilevata da `detectPriority(r)` che restituisce `{ level, label }`:
+
+1. Campo `priorita`: `ALTA` → `{ level:"high", label:"ALTA" }`; `EMERGENZA` → `{ level:"high", label:"EMERGENZA" }`; `MEDIA` → `{ level:"medium", label:"MEDIA" }`; `ATTENZIONE` → `{ level:"medium", label:"ATTENZIONE" }`
+2. Keyword nel testo `messaggio` (uppercase, solo se `priorita` è vuoto): `EMERGENZA`, `SOS`, `URGENTE`, `URGENZA`, `INCENDIO`, `FERITO`, `FERITI`, `PERICOLO`, `MAYDAY` → `{ level:"high", label:"EMERGENZA" }`; `ATTENZIONE`, `ALLERTA`, `PROBLEMA` → `{ level:"medium", label:"ATTENZIONE" }`
+3. Default: `{ level:"normal", label:"" }`
+
+Nessun badge testuale — la priorità è indicata solo tramite sfondo e bordo laterale della card.
 
 ### 5.3 Card messaggio
 
 ```
 ┌────────────────────────────────────────────────────┐  ← border-left colorato
-│  📱 Telegram          [EMERGENZA]    [📍]  14:53   │
+│  📱 Telegram                        [📍]  14:53   │
 │  Mario Rossi → Centrale  @mario_rossi               │
 │                                                     │
 │  EMERGENZA: incendio al secondo piano, ci sono      │

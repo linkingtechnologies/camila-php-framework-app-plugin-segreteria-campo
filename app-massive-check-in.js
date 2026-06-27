@@ -20,7 +20,7 @@ const root = document.getElementById("app");
 function showError(title, err) {
   render(
     html`
-      <article class="message is-danger">
+      <article class="message ">
         <div class="message-header"><p>${title}</p></div>
         <div class="message-body">
           <pre style="white-space:pre-wrap">
@@ -139,9 +139,6 @@ async function mount() {
    Boot
 ========================== */
 
-render(
-  html`<div class="notification is-warning">App avviata ✅</div>`,
-  root
-);
+render(html`<div></div>`, root);
 
 mount();

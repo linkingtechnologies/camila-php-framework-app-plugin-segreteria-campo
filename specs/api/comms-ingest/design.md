@@ -114,11 +114,18 @@ Base path: `/app/segreteriacampo/cf_api.php/segreteria-campo`
       "timestamp": 1726087976,
       "from": "Squadra A",
       "to": "Centrale",
-      "text": "Siamo arrivati in posizione"
+      "text": "Siamo arrivati in posizione",
+      "highPriority": false
     }
   ]
 }
 ```
+
+**Campo `highPriority`:**
+| Valore | `priorità` in com-digitali |
+|---|---|
+| `true` | `ALTA` |
+| `false` o assente | `MEDIA` |
 
 **Risposta (200):**
 ```json
@@ -175,6 +182,7 @@ Base path: `/app/segreteriacampo/cf_api.php/segreteria-campo`
 | `chiamante` | `entry.from` |
 | `chiamato` | `entry.to` |
 | `messaggio` | `entry.text` |
+| `priorità` | `'ALTA'` se `entry.highPriority === true`, altrimenti `'MEDIA'` |
 | `servizio` | `'Sala Radio'` |
 | `canale-origine` | `'Radio'` |
 | `tipo-contenuto` | `'Testo'` |

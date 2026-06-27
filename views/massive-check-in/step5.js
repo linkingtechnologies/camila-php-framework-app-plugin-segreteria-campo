@@ -436,7 +436,7 @@ export async function Step5({ state, client, goTo, html, render, root }) {
         ` : ""}
 
         ${loadingExisting ? html`
-          <progress class="progress is-small is-primary"></progress>
+          <progress class="progress is-small"></progress>
           <div class="has-text-grey">Verifica mezzi già presenti…</div>
         ` : ""}
 

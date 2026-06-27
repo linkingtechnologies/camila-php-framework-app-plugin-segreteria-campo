@@ -637,7 +637,7 @@ export async function Step3({ state, client, goTo, html, render, root }) {
           </button>
         </div>
 
-        ${loading ? html`<progress class="progress is-small is-primary mt-3"></progress>` : ""}
+        ${loading ? html`<progress class="progress is-small mt-3"></progress>` : ""}
 
         ${error
           ? html`

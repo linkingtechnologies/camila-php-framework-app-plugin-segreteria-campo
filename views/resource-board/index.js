@@ -1,4 +1,4 @@
-// views/resource-board/index.js — Gestione Operativa Risorse
+﻿// views/resource-board/index.js — Gestione Operativa Risorse
 
 const WAITING = "IN ATTESA DI SERVIZIO";
 const USCITA  = "USCITA DEFINITIVA";
@@ -1038,7 +1038,7 @@ export async function GOR({ state, client, html, render, root }) {
         <section class="section">
           <div class="container has-text-centered">
             <p class="has-text-grey mb-2">Caricamento risorse…</p>
-            <progress class="progress is-primary" style="max-width:400px;margin:0 auto"></progress>
+            <progress class="progress" style="max-width:400px;margin:0 auto"></progress>
           </div>
         </section>
       `;

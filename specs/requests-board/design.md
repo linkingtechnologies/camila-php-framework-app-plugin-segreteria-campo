@@ -217,7 +217,7 @@ Durante `loading === true`, il board area mostra uno spinner centrato al posto d
 
 Implementato con un `div` a `display:flex; align-items:center; justify-content:center; height:100%` contenente un cerchio animato (`border-top-color:#6366f1; animation: rb-spin .9s linear infinite`) e il testo "Caricamento…". Il `@keyframes rb-spin` è iniettato una volta via `<style>` nel template.
 
-La progress bar orizzontale (3px, `is-primary`) rimane visibile sopra il board anche durante il loading iniziale.
+La progress bar orizzontale (3px, senza modificatore colore) rimane visibile sopra il board anche durante il loading iniziale.
 
 ---
 

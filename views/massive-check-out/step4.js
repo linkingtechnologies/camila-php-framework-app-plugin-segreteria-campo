@@ -526,7 +526,7 @@ export async function Step4({ state, client, goTo, html, render, root }) {
           ` : ""}
         </div>
 
-        ${loading ? html`<progress class="progress is-small is-primary mt-3"></progress>` : ""}
+        ${loading ? html`<progress class="progress is-small mt-3"></progress>` : ""}
 
         ${error
           ? html`

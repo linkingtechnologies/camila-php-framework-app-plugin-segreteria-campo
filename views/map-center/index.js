@@ -1,4 +1,4 @@
-// views/map-center/index.js — Centro Mappe
+﻿// views/map-center/index.js — Centro Mappe
 
 const WAITING         = "IN ATTESA DI SERVIZIO";
 const SERVIZI_FITTIZI = ["IN ATTESA DI SERVIZIO", "USCITA DEFINITIVA"];
@@ -838,7 +838,7 @@ export async function MapCenter({ state, client, html, render, root }) {
       <section class="section">
         <div class="container has-text-centered">
           <p class="has-text-grey mb-2">Caricamento dati…</p>
-          <progress class="progress is-primary" style="max-width:400px;margin:0 auto"></progress>
+          <progress class="progress" style="max-width:400px;margin:0 auto"></progress>
         </div>
       </section>`;
 

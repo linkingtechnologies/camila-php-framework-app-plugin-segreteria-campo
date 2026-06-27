@@ -1,3 +1,8 @@
+/* === Prevent pull-to-refresh on Android totem === */
+body {
+  overscroll-behavior-y: none;
+}
+
 /* === Kiosk-friendly selected row (custom, no Bulma blue) === */
 .table tr.row-selected td {
   background-color: rgba(72, 199, 116, 0.14); /* soft green */

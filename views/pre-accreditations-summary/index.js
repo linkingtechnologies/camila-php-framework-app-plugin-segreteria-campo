@@ -1,4 +1,4 @@
-// views/pre-accreditations-summary/index.js
+﻿// views/pre-accreditations-summary/index.js
 
 function norm(s) {
   return String(s ?? "").trim().replace(/\s+/g, " ");
@@ -564,7 +564,7 @@ export async function PreAccreditationsSummary({ client, html, render, root }) {
   }
 
   function confrontoView() {
-    if (loadingConfronto) return html`<progress class="progress is-small is-primary"></progress>`;
+    if (loadingConfronto) return html`<progress class="progress is-small"></progress>`;
     if (errorConfronto) return html`
       <div class="notification is-danger is-light">
         Errore caricamento dati operativi.
@@ -610,7 +610,7 @@ export async function PreAccreditationsSummary({ client, html, render, root }) {
           </span>Riepilogo preaccreditamenti
         </h3>
 
-        ${loading ? html`<progress class="progress is-small is-primary mb-3"></progress>` : ""}
+        ${loading ? html`<progress class="progress is-small mb-3"></progress>` : ""}
 
         ${error ? html`
           <div class="notification is-danger is-light mb-3">

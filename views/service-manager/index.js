@@ -1,4 +1,4 @@
-// views/service-manager/index.js — Gestione Servizi
+﻿// views/service-manager/index.js — Gestione Servizi
 
 // ---- costanti ---------------------------------------------------------------
 
@@ -719,7 +719,7 @@ export async function ServiceManager({ state, client, html, render, root }) {
           <section class="section">
             <div class="container has-text-centered">
               <p class="has-text-grey mb-2">Caricamento servizi…</p>
-              <progress class="progress is-primary" style="max-width:400px;margin:0 auto"></progress>
+              <progress class="progress" style="max-width:400px;margin:0 auto"></progress>
             </div>
           </section>
         ` : error ? html`

@@ -361,8 +361,9 @@ SQL;
         };
 
         foreach ($body['messagesPayload'] as $entry) {
-            $msgId   = (string) ($entry['id'] ?? '');
-            $dataOra = isset($entry['timestamp']) ? date('Y-m-d H:i:s', $entry['timestamp']) : date('Y-m-d H:i:s');
+            $msgId    = (string) ($entry['id'] ?? '');
+            $dataOra  = isset($entry['timestamp']) ? date('Y-m-d H:i:s', $entry['timestamp']) : date('Y-m-d H:i:s');
+            $priorita = !empty($entry['highPriority']) ? 'ALTA' : 'MEDIA';
 
             $esisteId = '';
             if ($msgId !== '') {
@@ -385,6 +386,7 @@ SQL;
                      . ", \${"    . SC_WT_COMUNICAZIONI . ".Chiamante}="      . $db->qstr($entry['from'] ?? '')
                      . ", \${"    . SC_WT_COMUNICAZIONI . ".Chiamato}="       . $db->qstr($entry['to']   ?? '')
                      . ", \${"    . SC_WT_COMUNICAZIONI . ".Messaggio}="      . $db->qstr($entry['text'] ?? '')
+                     . ", \${"    . SC_WT_COMUNICAZIONI . ".Priorità}="       . $db->qstr($priorita)
                      . ", \${"    . SC_WT_COMUNICAZIONI . ".Update Type}="    . $db->qstr('edited_message')
                      . ", \${"    . SC_WT_COMUNICAZIONI . ".Payload}="        . $db->qstr(json_encode($entry, JSON_UNESCAPED_UNICODE))
                      . " WHERE id=" . $db->qstr($esisteId);
@@ -397,7 +399,7 @@ SQL;
                     $entry['from'] ?? '',
                     $entry['to']   ?? '',
                     $entry['text'] ?? '',
-                    'Sala Radio', '', '',
+                    'Sala Radio', '', $priorita,
                     'Radio', 'Testo',
                     null, null, '', '',
                     '', $msgId, '', '', '',

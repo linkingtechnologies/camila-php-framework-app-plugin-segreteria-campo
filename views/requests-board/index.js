@@ -1,4 +1,4 @@
-// views/requests-board/index.js
+﻿// views/requests-board/index.js
 
 function norm(s) {
   return String(s ?? "").trim().replace(/\s+/g, " ");
@@ -515,7 +515,7 @@ export async function RequestsBoard({ client, html, render, root }) {
       </div>
 
       ${loading
-        ? html`<progress class="progress is-small is-primary" style="margin:0;height:3px"></progress>`
+        ? html`<progress class="progress is-small" style="margin:0;height:3px"></progress>`
         : ""}
 
       ${error ? html`

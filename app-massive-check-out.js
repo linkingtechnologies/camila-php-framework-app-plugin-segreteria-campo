@@ -108,5 +108,5 @@ async function mount() {
 }
 
 // BOOT
-render(html`<div class="notification is-warning">App avviata ✅</div>`, root);
+render(html`<div></div>`, root);
 mount();

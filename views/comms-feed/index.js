@@ -84,12 +84,14 @@ const MED_KW  = ["ATTENZIONE", "ALLERTA", "PROBLEMA"];
 
 function detectPriority(r) {
   const p = norm(r.priorita).toUpperCase();
-  if (p === "ALTA" || p === "EMERGENZA") return "high";
-  if (p === "MEDIA" || p === "ATTENZIONE") return "medium";
+  if (p === "ALTA")       return { level: "high",   label: "ALTA" };
+  if (p === "EMERGENZA")  return { level: "high",   label: "EMERGENZA" };
+  if (p === "MEDIA")      return { level: "medium", label: "MEDIA" };
+  if (p === "ATTENZIONE") return { level: "medium", label: "ATTENZIONE" };
   const text = norm(r.messaggio).toUpperCase();
-  if (HIGH_KW.some(k => text.includes(k))) return "high";
-  if (MED_KW.some(k => text.includes(k))) return "medium";
-  return "normal";
+  if (HIGH_KW.some(k => text.includes(k))) return { level: "high",   label: "EMERGENZA" };
+  if (MED_KW.some(k => text.includes(k)))  return { level: "medium", label: "ATTENZIONE" };
+  return { level: "normal", label: "" };
 }
 
 // ---- audio ------------------------------------------------------------------
@@ -210,8 +212,8 @@ export async function CommsFeed({ client, html, render, root }) {
         incoming.forEach(r => newIds.add(r.id));
         if (audioEnabled) {
           const top = incoming.reduce((max, r) => {
-            const p = detectPriority(r);
-            return p === "high" ? "high" : (p === "medium" && max !== "high" ? "medium" : max);
+            const { level } = detectPriority(r);
+            return level === "high" ? "high" : (level === "medium" && max !== "high" ? "medium" : max);
           }, "normal");
           playBeep(top);
         }
@@ -545,7 +547,7 @@ export async function CommsFeed({ client, html, render, root }) {
   // ---- feed item --------------------------------------------------------------
 
   function feedItem(r, nowMs) {
-    const priority  = detectPriority(r);
+    const { level: priority, label: priorityLabel } = detectPriority(r);
     const isNew     = newIds.has(r.id);
     const recent    = isRecent(r, nowMs);
     const canale    = norm(r["canale-origine"]);
@@ -568,14 +570,6 @@ export async function CommsFeed({ client, html, render, root }) {
             ${canale || "—"}
           </span>
 
-          ${priority === "high" ? html`
-            <span style="background:#ef4444;color:#fff;font-size:10px;font-weight:700;
-              padding:1px 7px;border-radius:10px;letter-spacing:.04em">EMERGENZA</span>
-          ` : ""}
-          ${priority === "medium" ? html`
-            <span style="background:#f59e0b;color:#fff;font-size:10px;font-weight:700;
-              padding:1px 7px;border-radius:10px">ATTENZIONE</span>
-          ` : ""}
 
           <span style="font-size:11px;color:#9ca3af;margin-left:auto;flex-shrink:0;
             display:flex;align-items:center;gap:6px">

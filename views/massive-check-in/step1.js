@@ -421,7 +421,7 @@ export async function Step1({ state, client, goTo, html, render, root }) {
       <section class="section">
         <div class="container has-text-centered">
           <p class="has-text-grey mb-2">Caricamento…</p>
-          <progress class="progress is-primary" style="max-width:400px;margin:0 auto"></progress>
+          <progress class="progress" style="max-width:400px;margin:0 auto"></progress>
         </div>
       </section>
     `;

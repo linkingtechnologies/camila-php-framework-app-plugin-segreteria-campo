@@ -366,7 +366,7 @@ export async function Step7({ state, client, goTo, html, render, root }) {
         ` : ""}
 
         ${loadingExisting ? html`
-          <progress class="progress is-small is-primary"></progress>
+          <progress class="progress is-small"></progress>
           <div class="has-text-grey">Verifica materiali già presenti…</div>
         ` : ""}
 
