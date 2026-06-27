@@ -50,7 +50,7 @@ $camilaUI->addGridSection(3, function ($colIndex) use ($camilaUI) {
 			break;
 		case 2:
 			$camilaUI->insertButton('?dashboard=m1', 'Report situazione attuale', 'dashboard');
-			$camilaUI->insertButton('?dashboard=m6', 'Attività registrate', 'task');
+			$camilaUI->insertButton('?dashboard=m1&report=02_Finale', 'Report situazione complessiva', 'dashboard');
 			break;
 
 	}

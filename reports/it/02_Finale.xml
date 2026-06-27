@@ -22,6 +22,31 @@
 		</graphs>
 	</report>
 
+<report>
+    <id>1 bis</id>
+    <query>SELECT ${VOLONTARI.PROVINCIA} AS 'PROVINCIA',
+       COUNT(DISTINCT ${VOLONTARI.CODICE FISCALE}) AS 'VOLONTARI UNICI'
+FROM ${VOLONTARI}
+GROUP BY ${VOLONTARI.PROVINCIA}
+ORDER BY ${VOLONTARI.PROVINCIA}</query>
+    <graphs>
+        <graph>
+            <id>1</id>
+            <type>table</type>
+            <title>Volontari unici per provincia</title>
+            <columnWidths>50,50</columnWidths>
+            <sum>1</sum>
+        </graph>
+        <graph>
+            <id>2</id>
+            <width>500</width>
+            <height>400</height>
+            <type>pie</type>
+            <title>Volontari unici per provincia</title>
+        </graph>
+    </graphs>
+</report>
+
 	<report>
 		<id>2</id>
 		<query>SELECT ${VOLONTARI.ORGANIZZAZIONE} AS 'ORGANIZZAZIONE',count(*) AS 'TOT. VOLONTARI' FROM ${VOLONTARI} GROUP BY ${volontari.ORGANIZZAZIONE} ORDER BY ${volontari.ORGANIZZAZIONE}</query>
@@ -44,8 +69,306 @@
 		</graphs>
 	</report>
 
+<report>
+    <id>3</id>
+    <sqliteQuery>WITH RECURSIVE calendario(giorno) AS (
+  SELECT MIN(DATE(${VOLONTARI.DATA INIZIO ATTESTATO})) FROM ${VOLONTARI}
+  UNION ALL
+  SELECT DATE(giorno, '+1 day') FROM calendario
+  WHERE giorno &lt; (SELECT MAX(DATE(${VOLONTARI.DATA FINE ATTESTATO})) FROM ${VOLONTARI})
+)
+SELECT strftime('%d/%m', giorno) AS 'DATA',
+       COUNT(*) AS 'ACCREDITATI'
+FROM calendario
+JOIN ${VOLONTARI}
+  ON DATE(${VOLONTARI.DATA INIZIO ATTESTATO}) &lt;= giorno
+ AND DATE(${VOLONTARI.DATA FINE ATTESTATO})   &gt;= giorno
+GROUP BY giorno
+ORDER BY giorno</sqliteQuery>
+    <mysqlQuery>WITH RECURSIVE calendario(giorno) AS (
+  SELECT MIN(DATE(${VOLONTARI.DATA INIZIO ATTESTATO})) FROM ${VOLONTARI}
+  UNION ALL
+  SELECT DATE_ADD(giorno, INTERVAL 1 DAY) FROM calendario
+  WHERE giorno &lt; (SELECT MAX(DATE(${VOLONTARI.DATA FINE ATTESTATO})) FROM ${VOLONTARI})
+)
+SELECT DATE_FORMAT(giorno, '%d/%m') AS 'DATA',
+       COUNT(*) AS 'ACCREDITATI'
+FROM calendario
+JOIN ${VOLONTARI}
+  ON DATE(${VOLONTARI.DATA INIZIO ATTESTATO}) &lt;= giorno
+ AND DATE(${VOLONTARI.DATA FINE ATTESTATO})   &gt;= giorno
+GROUP BY giorno
+ORDER BY giorno</mysqlQuery>
+    <graphs>
+        <graph>
+            <id>1</id>
+            <type>table</type>
+            <title>Volontari accreditati per giorno</title>
+            <columnWidths>50,50</columnWidths>
+        </graph>
+        <graph>
+            <id>2</id>
+            <width>500</width>
+            <height>350</height>
+            <type>bar</type>
+            <title>Volontari accreditati per giorno</title>
+        </graph>
+    </graphs>
+</report>
+
+<report>
+    <id>4</id>
+    <query>SELECT ${VOLONTARI.ORGANIZZAZIONE} AS 'ORGANIZZAZIONE', COUNT(DISTINCT ${VOLONTARI.CODICE FISCALE}) AS 'VOLONTARI UNICI' FROM ${VOLONTARI} GROUP BY ${VOLONTARI.ORGANIZZAZIONE} ORDER BY ${VOLONTARI.ORGANIZZAZIONE}</query>
+    <graphs>
+        <graph>
+            <id>1</id>
+            <type>table</type>
+            <title>Volontari unici per organizzazione</title>
+            <columnWidths>70,30</columnWidths>
+            <sum>1</sum>
+        </graph>
+        <graph>
+            <id>2</id>
+            <width>500</width>
+            <height>400</height>
+            <type>pie</type>
+            <title>Volontari unici</title>
+        </graph>
+    </graphs>
+</report>
+
+<report>
+    <id>5</id>
+    <sqliteQuery>WITH RECURSIVE calendario(giorno) AS (
+  SELECT MIN(DATE(${VOLONTARI.DATA INIZIO ATTESTATO})) FROM ${VOLONTARI}
+  UNION ALL
+  SELECT DATE(giorno, '+1 day') FROM calendario
+  WHERE giorno &lt; (SELECT MAX(DATE(${VOLONTARI.DATA FINE ATTESTATO})) FROM ${VOLONTARI})
+)
+SELECT strftime('%d/%m', giorno) AS 'DATA',
+       COUNT(DISTINCT ${VOLONTARI.CODICE FISCALE}) AS 'UNICI'
+FROM calendario
+JOIN ${VOLONTARI}
+  ON DATE(${VOLONTARI.DATA INIZIO ATTESTATO}) &lt;= giorno
+ AND DATE(${VOLONTARI.DATA FINE ATTESTATO})   &gt;= giorno
+GROUP BY giorno
+ORDER BY giorno</sqliteQuery>
+    <mysqlQuery>WITH RECURSIVE calendario(giorno) AS (
+  SELECT MIN(DATE(${VOLONTARI.DATA INIZIO ATTESTATO})) FROM ${VOLONTARI}
+  UNION ALL
+  SELECT DATE_ADD(giorno, INTERVAL 1 DAY) FROM calendario
+  WHERE giorno &lt; (SELECT MAX(DATE(${VOLONTARI.DATA FINE ATTESTATO})) FROM ${VOLONTARI})
+)
+SELECT DATE_FORMAT(giorno, '%d/%m') AS 'DATA',
+       COUNT(DISTINCT ${VOLONTARI.CODICE FISCALE}) AS 'UNICI'
+FROM calendario
+JOIN ${VOLONTARI}
+  ON DATE(${VOLONTARI.DATA INIZIO ATTESTATO}) &lt;= giorno
+ AND DATE(${VOLONTARI.DATA FINE ATTESTATO})   &gt;= giorno
+GROUP BY giorno
+ORDER BY giorno</mysqlQuery>
+    <graphs>
+        <graph>
+            <id>1</id>
+            <type>table</type>
+            <title>Volontari unici per giorno</title>
+            <columnWidths>50,50</columnWidths>
+        </graph>
+        <graph>
+            <id>2</id>
+            <width>500</width>
+            <height>350</height>
+            <type>bar</type>
+            <title>Volontari unici per giorno</title>
+        </graph>
+    </graphs>
+</report>
+<report>
+    <id>6</id>
+    <sqliteQuery>WITH RECURSIVE calendario(giorno) AS (
+  SELECT MIN(DATE(${MEZZI.DATA INIZIO ATTESTATO})) FROM ${MEZZI}
+  UNION ALL
+  SELECT DATE(giorno, '+1 day') FROM calendario
+  WHERE giorno &lt; (SELECT MAX(DATE(${MEZZI.DATA FINE ATTESTATO})) FROM ${MEZZI})
+)
+SELECT strftime('%d/%m', giorno) AS 'DATA',
+       COUNT(*) AS 'ACCREDITATI'
+FROM calendario
+JOIN ${MEZZI}
+  ON DATE(${MEZZI.DATA INIZIO ATTESTATO}) &lt;= giorno
+ AND DATE(${MEZZI.DATA FINE ATTESTATO})   &gt;= giorno
+GROUP BY giorno
+ORDER BY giorno</sqliteQuery>
+    <mysqlQuery>WITH RECURSIVE calendario(giorno) AS (
+  SELECT MIN(DATE(${MEZZI.DATA INIZIO ATTESTATO})) FROM ${MEZZI}
+  UNION ALL
+  SELECT DATE_ADD(giorno, INTERVAL 1 DAY) FROM calendario
+  WHERE giorno &lt; (SELECT MAX(DATE(${MEZZI.DATA FINE ATTESTATO})) FROM ${MEZZI})
+)
+SELECT DATE_FORMAT(giorno, '%d/%m') AS 'DATA',
+       COUNT(*) AS 'ACCREDITATI'
+FROM calendario
+JOIN ${MEZZI}
+  ON DATE(${MEZZI.DATA INIZIO ATTESTATO}) &lt;= giorno
+ AND DATE(${MEZZI.DATA FINE ATTESTATO})   &gt;= giorno
+GROUP BY giorno
+ORDER BY giorno</mysqlQuery>
+    <graphs>
+        <graph>
+            <id>1</id>
+            <type>table</type>
+            <title>Mezzi accreditati per giorno</title>
+            <columnWidths>50,50</columnWidths>
+        </graph>
+        <graph>
+            <id>2</id>
+            <width>500</width>
+            <height>350</height>
+            <type>bar</type>
+            <title>Mezzi accreditati per giorno</title>
+        </graph>
+    </graphs>
+</report>
+
+<report>
+    <id>7</id>
+    <sqliteQuery>WITH RECURSIVE calendario(giorno) AS (
+  SELECT MIN(DATE(${MEZZI.DATA INIZIO ATTESTATO})) FROM ${MEZZI}
+  UNION ALL
+  SELECT DATE(giorno, '+1 day') FROM calendario
+  WHERE giorno &lt; (SELECT MAX(DATE(${MEZZI.DATA FINE ATTESTATO})) FROM ${MEZZI})
+)
+SELECT strftime('%d/%m', giorno) AS 'DATA',
+       COUNT(DISTINCT ${MEZZI.TARGA}) AS 'UNICI'
+FROM calendario
+JOIN ${MEZZI}
+  ON DATE(${MEZZI.DATA INIZIO ATTESTATO}) &lt;= giorno
+ AND DATE(${MEZZI.DATA FINE ATTESTATO})   &gt;= giorno
+GROUP BY giorno
+ORDER BY giorno</sqliteQuery>
+    <mysqlQuery>WITH RECURSIVE calendario(giorno) AS (
+  SELECT MIN(DATE(${MEZZI.DATA INIZIO ATTESTATO})) FROM ${MEZZI}
+  UNION ALL
+  SELECT DATE_ADD(giorno, INTERVAL 1 DAY) FROM calendario
+  WHERE giorno &lt; (SELECT MAX(DATE(${MEZZI.DATA FINE ATTESTATO})) FROM ${MEZZI})
+)
+SELECT DATE_FORMAT(giorno, '%d/%m') AS 'DATA',
+       COUNT(DISTINCT ${MEZZI.TARGA}) AS 'UNICI'
+FROM calendario
+JOIN ${MEZZI}
+  ON DATE(${MEZZI.DATA INIZIO ATTESTATO}) &lt;= giorno
+ AND DATE(${MEZZI.DATA FINE ATTESTATO})   &gt;= giorno
+GROUP BY giorno
+ORDER BY giorno</mysqlQuery>
+    <graphs>
+        <graph>
+            <id>1</id>
+            <type>table</type>
+            <title>Mezzi unici per giorno</title>
+            <columnWidths>50,50</columnWidths>
+        </graph>
+        <graph>
+            <id>2</id>
+            <width>500</width>
+            <height>350</height>
+            <type>bar</type>
+            <title>Mezzi unici per giorno</title>
+        </graph>
+    </graphs>
+</report>
+
+<report>
+    <id>9</id>
+    <sqliteQuery>SELECT
+  strftime('%d/%m', date(${Mov. risorse.data/ora})) AS DATA,
+  ${Mov. risorse.a} AS 'INTERVENTO',
+  ${SERVIZI.COMUNE} AS 'COMUNE',
+  ${SERVIZI.PROVINCIA} AS 'PROV.',
+  count(DISTINCT ${Mov. risorse.risorsa}) AS 'NUM. VOLONTARI'
+FROM ${Mov. risorse}
+LEFT JOIN ${SERVIZI} ON ${SERVIZI.NOME} = ${Mov. risorse.a}
+WHERE ${Mov. risorse.tipo risorsa} = 'VOLONTARIO'
+  AND ${Mov. risorse.a} NOT IN ('IN ATTESA DI SERVIZIO', 'USCITA DEFINITIVA')
+  AND ${Mov. risorse.a} NOT LIKE '%NON IN SERVIZIO%'
+  AND ${SERVIZI.INTERVENTO} = 'SI'
+GROUP BY
+  strftime('%d/%m', date(${Mov. risorse.data/ora})),
+  ${Mov. risorse.a},
+  ${SERVIZI.COMUNE},
+  ${SERVIZI.PROVINCIA}
+ORDER BY
+  strftime('%d/%m', date(${Mov. risorse.data/ora}))</sqliteQuery>
+    <mysqlQuery>SELECT
+  DATE_FORMAT(DATE(${Mov. risorse.data/ora}), '%e/%c') AS DATA,
+  ${Mov. risorse.a} AS 'INTERVENTO',
+  ${SERVIZI.COMUNE} AS 'COMUNE',
+  ${SERVIZI.PROVINCIA} AS 'PROV.',
+  count(DISTINCT ${Mov. risorse.risorsa}) AS 'NUM. VOLONTARI'
+FROM ${Mov. risorse}
+LEFT JOIN ${SERVIZI} ON ${SERVIZI.NOME} = ${Mov. risorse.a}
+WHERE ${Mov. risorse.tipo risorsa} = 'VOLONTARIO'
+  AND ${Mov. risorse.a} NOT IN ('IN ATTESA DI SERVIZIO', 'USCITA DEFINITIVA')
+  AND ${Mov. risorse.a} NOT LIKE '%NON IN SERVIZIO%'
+  AND ${SERVIZI.INTERVENTO} = 'SI'
+GROUP BY
+  DATE_FORMAT(DATE(${Mov. risorse.data/ora}), '%e/%c'),
+  ${Mov. risorse.a},
+  ${SERVIZI.COMUNE},
+  ${SERVIZI.PROVINCIA}
+ORDER BY
+  DATE_FORMAT(DATE(${Mov. risorse.data/ora}), '%e/%c')</mysqlQuery>
+    <graphs>
+        <graph>
+            <id>1</id>
+            <type>table</type>
+            <title>Interventi per data</title>
+        </graph>
+    </graphs>
+</report>
+
+<report>
+    <id>4</id>
+    <sqliteQuery>SELECT
+  strftime('%d/%m', date(${Mov. risorse.data/ora})) AS DATA,
+  ${Mov. risorse.a} AS 'SERVIZIO',
+  count(DISTINCT ${Mov. risorse.risorsa}) AS 'NUM. VOLONTARI'
+FROM ${Mov. risorse}
+LEFT JOIN ${SERVIZI} ON ${SERVIZI.NOME} = ${Mov. risorse.a}
+WHERE ${Mov. risorse.tipo risorsa} = 'VOLONTARIO'
+  AND ${Mov. risorse.a} NOT IN ('IN ATTESA DI SERVIZIO', 'USCITA DEFINITIVA')
+  AND ${Mov. risorse.a} NOT LIKE '%NON IN SERVIZIO%'
+  AND (${SERVIZI.INTERVENTO} IS NULL OR ${SERVIZI.INTERVENTO} != 'SI')
+GROUP BY
+  strftime('%d/%m', date(${Mov. risorse.data/ora})),
+  ${Mov. risorse.a}
+ORDER BY
+  strftime('%d/%m', date(${Mov. risorse.data/ora}))</sqliteQuery>
+    <mysqlQuery>SELECT
+  DATE_FORMAT(DATE(${Mov. risorse.data/ora}), '%e/%c') AS DATA,
+  ${Mov. risorse.a} AS 'SERVIZIO',
+  count(DISTINCT ${Mov. risorse.risorsa}) AS 'NUM. VOLONTARI'
+FROM ${Mov. risorse}
+LEFT JOIN ${SERVIZI} ON ${SERVIZI.NOME} = ${Mov. risorse.a}
+WHERE ${Mov. risorse.tipo risorsa} = 'VOLONTARIO'
+  AND ${Mov. risorse.a} NOT IN ('IN ATTESA DI SERVIZIO', 'USCITA DEFINITIVA')
+  AND ${Mov. risorse.a} NOT LIKE '%NON IN SERVIZIO%'
+  AND (${SERVIZI.INTERVENTO} IS NULL OR ${SERVIZI.INTERVENTO} != 'SI')
+GROUP BY
+  DATE_FORMAT(DATE(${Mov. risorse.data/ora}), '%e/%c'),
+  ${Mov. risorse.a}
+ORDER BY
+  DATE_FORMAT(DATE(${Mov. risorse.data/ora}), '%e/%c')</mysqlQuery>
+    <graphs>
+        <graph>
+            <id>1</id>
+            <type>table</type>
+            <title>Servizi per data</title>
+        </graph>
+    </graphs>
+</report>
+
 	<report>
-		<id>3</id>
+		<id>8</id>
 		<mysqlQuery>SELECT ${MEZZI.PROVINCIA} AS 'PROV.', ${MEZZI.ORGANIZZAZIONE} AS 'ORGANIZZAZIONE', ${MEZZI.TARGA} AS 'TARGA', ${MEZZI.MARCA} AS 'MARCA',${MEZZI.MODELLO} AS 'MODELLO', DATE_FORMAT(DATE(${MEZZI.DATA INIZIO ATTESTATO}), '%e/%c') AS 'DA',${MEZZI.KM ALL'ARRIVO} AS 'KM ARRIVO', DATE_FORMAT(DATE(${MEZZI.DATA FINE ATTESTATO}), '%e/%c') AS 'A', ${MEZZI.KM ALLA PARTENZA} AS 'KM PART.' FROM ${MEZZI} ORDER BY ${MEZZI.PROVINCIA},${MEZZI.ORGANIZZAZIONE}</mysqlQuery>
 		<sqliteQuery>SELECT ${MEZZI.PROVINCIA} AS 'PROV.', ${MEZZI.ORGANIZZAZIONE} AS 'ORGANIZZAZIONE', ${MEZZI.TARGA} AS 'TARGA', ${MEZZI.MARCA} AS 'MARCA',${MEZZI.MODELLO} AS 'MODELLO', strftime('%d/%m', date(${MEZZI.DATA INIZIO ATTESTATO})) AS 'DA',${MEZZI.KM ALL'ARRIVO} AS 'KM ARRIVO', strftime('%d/%m', date(${MEZZI.DATA FINE ATTESTATO})) AS 'A', ${MEZZI.KM ALLA PARTENZA} AS 'KM PART.' FROM ${MEZZI} ORDER BY ${MEZZI.PROVINCIA},${MEZZI.ORGANIZZAZIONE}</sqliteQuery>
 		<graphs>
@@ -58,33 +381,6 @@
 			</graph>
 		</graphs>
 	</report>
-	
-	<report>
-		<id>4</id>
-		<query/>
-		<mysqlQuery>SELECT DATE_FORMAT(DATE(${Mov. risorse.data/ora}), '%e/%c') AS DATA,${Mov. risorse.a} AS 'SERVIZIO/INTERVENTO',count(DISTINCT ${Mov. risorse.risorsa}) AS 'NUM. VOLONTARI' FROM ${Mov. risorse} where ${Mov. risorse.tipo risorsa} = 'VOLONTARIO' AND ${Mov. risorse.a} NOT IN ('IN ATTESA DI SERVIZIO','USCITA DEFINITIVA') GROUP BY DATE_FORMAT(DATE(${Mov. risorse.data/ora}), '%e/%c'),${Mov. risorse.a} ORDER BY DATE_FORMAT(DATE(${Mov. risorse.data/ora}), '%e/%c')</mysqlQuery>
-		<sqliteQuery>SELECT 
-  strftime('%d/%m', date(${Mov. risorse.data/ora})) AS DATA,
-  ${Mov. risorse.a} AS 'SERVIZIO/INTERVENTO',
-  count(DISTINCT ${Mov. risorse.risorsa}) AS 'NUM. VOLONTARI'
-FROM ${Mov. risorse}
-WHERE ${Mov. risorse.tipo risorsa} = 'VOLONTARIO'
-  AND ${Mov. risorse.a} NOT IN ('IN ATTESA DI SERVIZIO', 'USCITA DEFINITIVA')
-GROUP BY 
-  strftime('%d/%m', date(${Mov. risorse.data/ora})),
-  ${Mov. risorse.a}
-ORDER BY 
-  strftime('%d/%m', date(${Mov. risorse.data/ora}))
-		</sqliteQuery>
-		<graphs>
-			<graph>
-				<id>1</id>
-				<type>table</type>
-				<title>Servizi/interventi per data</title>
-			</graph>
-		</graphs>
-	</report>
-
 
 	<!--<report>
 		<id>5</id>
@@ -100,7 +396,7 @@ ORDER BY
 	</report>-->
 	
 	<report>
-		<id>6</id>
+		<id>10</id>
 		<mysqlQuery>SELECT ${VISITATORI.ORGANIZZAZIONE/ENTE/SOCIETA'} AS 'ORG./ENTE/SOC.', ${VISITATORI.COGNOME} AS 'COGNOME', ${VISITATORI.NOME} AS 'NOME', DATE_FORMAT(${VISITATORI.ACCESSO DAL}, '%e/%c') AS 'DA',DATE_FORMAT(${VISITATORI.ACCESSO AL}, '%e/%c') AS 'A', ${VISITATORI.MOTIVAZIONE} AS 'MOTIVAZIONE' FROM ${VISITATORI} ORDER BY ${VISITATORI.ORGANIZZAZIONE/ENTE/SOCIETA'},${VISITATORI.COGNOME},${VISITATORI.NOME}</mysqlQuery>
 		<sqliteQuery>SELECT ${VISITATORI.ORGANIZZAZIONE/ENTE/SOCIETA'} AS 'ORG./ENTE/SOC.', ${VISITATORI.COGNOME} AS 'COGNOME', ${VISITATORI.NOME} AS 'NOME', strftime('%d/%m', date(${VISITATORI.ACCESSO DAL})) AS 'DA',strftime('%d/%m', date(${VISITATORI.ACCESSO DA})) AS 'A', ${VISITATORI.MOTIVAZIONE} AS 'MOTIVAZIONE' FROM ${VISITATORI} ORDER BY ${VISITATORI.ORGANIZZAZIONE/ENTE/SOCIETA'},${VISITATORI.COGNOME},${VISITATORI.NOME}</sqliteQuery>
 		<graphs>
@@ -129,7 +425,7 @@ ORDER BY
 	</report>
 
 	<report>
-		<id>8</id>
+		<id>11</id>
 		<query/>
 		<mysqlQuery>(SELECT ${BROGLIACCIO.Data/ora} AS TS,
 		DATE_FORMAT(${BROGLIACCIO.Data/ora}, '%e/%c %H:%i') AS 'Data/ora', 
