@@ -15,7 +15,7 @@
 	<paragraph top="13.5+54*0+11" left="15+6" fill="1" fillcolor="#004487" fontsize="7" lineheight="4" fontstyle="B" fontcolor="#ffffff" position="absolute" border="0" width="44.6" textalign="L">${categoria}</paragraph>
 
 	<paragraph top="13.5+54*0+25" left="15+1" lineheight="5" fontsize="7" textalign="R" position="absolute" border="0" width="20">Materiale</paragraph>
-	<paragraph top="13.5+54*0+25" left="15+21" lineheight="5" font="courier" fontsize="7" position="absolute" border="1" fontstyle="B" width="60">${note}</paragraph>
+        <paragraph top="13.5+54*0+25" left="15+21" lineheight="5" font="courier" fontsize="7" position="absolute" border="1" fontstyle="B" width="60">${note}</paragraph>
 
 	<paragraph top="13.5+54*0+30" left="15+1" lineheight="5" fontsize="7" textalign="R" position="absolute" border="0" width="20">Proprietario</paragraph>
 	<paragraph top="13.5+54*0+30" left="15+21" lineheight="5" font="courier" fontsize="6" position="absolute" border="1" fontstyle="B" width="60">${Proprietario}</paragraph>
