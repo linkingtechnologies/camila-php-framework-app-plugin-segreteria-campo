@@ -222,7 +222,7 @@
 
    <report>
   <id>c04</id>
-  <query>SELECT 'TIPOLOGIA OSPITI', count(*) AS 'TOT.' FROM ${OSPITI}
+  <query>SELECT 'TOTALE OSPITI', count(*) AS 'TOT.' FROM ${OSPITI}
   UNION SELECT 'OSPITI ALLETTATI', count(*) AS 'TOT.' FROM ${OSPITI} WHERE ${OSPITI.ALLETTATO}='S'
   UNION SELECT 'OSPITI INCINTA', count(*) AS 'TOT.' FROM ${OSPITI} WHERE ${OSPITI.INCINTA}='S'
   UNION SELECT 'OSPITI DISABILI', count(*) AS 'TOT.' FROM ${OSPITI} WHERE ${OSPITI.DISABILE}='S'
@@ -250,17 +250,32 @@
  
   <report>
   <id>c05</id>
-  <query>SELECT CASE
-  WHEN ${OSPITI.anno di nascita} &gt;= 2013 THEN 'F1 - 0-3 anni'
-  WHEN ${OSPITI.anno di nascita} &gt;= 2011 AND ${OSPITI.anno di nascita} &lt; 2013 THEN 'F2 - 4-5 anni'
-  WHEN ${OSPITI.anno di nascita} &gt;= 2005 AND ${OSPITI.anno di nascita} &lt; 2010 THEN 'F3 - 6-11 anni'
-  WHEN ${OSPITI.anno di nascita} &gt;= 2003 AND ${OSPITI.anno di nascita} &lt; 2005 THEN 'F4 - 12-13 anni'
-  WHEN ${OSPITI.anno di nascita} &gt;= 1998 AND ${OSPITI.anno di nascita} &lt; 2002 THEN 'F5 - 14-18 anni'
-  WHEN ${OSPITI.anno di nascita} &gt; 1930 AND ${OSPITI.anno di nascita} &lt;= 1951 THEN 'F6 - &gt;65 anni'
-  WHEN ${OSPITI.anno di nascita} &lt;= 1931 THEN 'F7 - &gt;85 anni'
+  <sqliteQuery>WITH y(n) AS (SELECT CAST(strftime('%Y', 'now') AS INTEGER))
+SELECT CASE
+  WHEN ${OSPITI.anno di nascita} &gt;= (SELECT n FROM y) - 3  THEN 'F1 - 0-3 anni'
+  WHEN ${OSPITI.anno di nascita} &gt;= (SELECT n FROM y) - 5  THEN 'F2 - 4-5 anni'
+  WHEN ${OSPITI.anno di nascita} &gt;= (SELECT n FROM y) - 11 THEN 'F3 - 6-11 anni'
+  WHEN ${OSPITI.anno di nascita} &gt;= (SELECT n FROM y) - 13 THEN 'F4 - 12-13 anni'
+  WHEN ${OSPITI.anno di nascita} &gt;= (SELECT n FROM y) - 18 THEN 'F5 - 14-18 anni'
+  WHEN ${OSPITI.anno di nascita} &lt;= (SELECT n FROM y) - 65
+   AND ${OSPITI.anno di nascita} &gt;= (SELECT n FROM y) - 85 THEN 'F6 - &gt;65 anni'
+  WHEN ${OSPITI.anno di nascita} &lt;  (SELECT n FROM y) - 85 THEN 'F7 - &gt;85 anni'
   ELSE 'F9 - altro'
-  END as fascia,
-  COUNT(*) AS TOTALE FROM ${OSPITI} GROUP BY fascia  ORDER BY fascia</query>
+END AS fascia,
+COUNT(*) AS TOTALE FROM ${OSPITI} GROUP BY fascia ORDER BY fascia</sqliteQuery>
+  <mysqlQuery>WITH y(n) AS (SELECT YEAR(NOW()))
+SELECT CASE
+  WHEN ${OSPITI.anno di nascita} &gt;= (SELECT n FROM y) - 3  THEN 'F1 - 0-3 anni'
+  WHEN ${OSPITI.anno di nascita} &gt;= (SELECT n FROM y) - 5  THEN 'F2 - 4-5 anni'
+  WHEN ${OSPITI.anno di nascita} &gt;= (SELECT n FROM y) - 11 THEN 'F3 - 6-11 anni'
+  WHEN ${OSPITI.anno di nascita} &gt;= (SELECT n FROM y) - 13 THEN 'F4 - 12-13 anni'
+  WHEN ${OSPITI.anno di nascita} &gt;= (SELECT n FROM y) - 18 THEN 'F5 - 14-18 anni'
+  WHEN ${OSPITI.anno di nascita} &lt;= (SELECT n FROM y) - 65
+   AND ${OSPITI.anno di nascita} &gt;= (SELECT n FROM y) - 85 THEN 'F6 - &gt;65 anni'
+  WHEN ${OSPITI.anno di nascita} &lt;  (SELECT n FROM y) - 85 THEN 'F7 - &gt;85 anni'
+  ELSE 'F9 - altro'
+END AS fascia,
+COUNT(*) AS TOTALE FROM ${OSPITI} GROUP BY fascia ORDER BY fascia</mysqlQuery>
   <graphs>
    <graph>
     <id>2</id>
