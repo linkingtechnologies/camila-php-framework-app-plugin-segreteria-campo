@@ -22,7 +22,7 @@
  </report>
 
  <report>
-  <id>1bis</id>
+  <id>2</id>
   <query>SELECT ${VOLONTARI.ORGANIZZAZIONE},count(*) AS TOTALE FROM ${VOLONTARI} WHERE ${volontari.SERVIZIO} &lt;&gt; 'USCITA DEFINITIVA' AND ${volontari.SERVIZIO} NOT LIKE '%NON IN SERVIZIO%' GROUP BY ${volontari.ORGANIZZAZIONE} ORDER BY ${volontari.ORGANIZZAZIONE}</query>
   <graphs>
    <graph>
@@ -31,7 +31,7 @@
 	<width>500</width>
 	<height>400</height>
 	<type>pie</type>
-    <title>Volontari in servizio</title>
+    <title>Volontari in servizio per organizzazione</title>
    </graph>
    <graph>
     <id>2</id>
@@ -56,7 +56,7 @@
  
   <report>
   <id>2</id>
-  <query>SELECT ${VOLONTARI.PROVINCIA},count(*) AS TOTALE FROM ${VOLONTARI} WHERE ${volontari.SERVIZIO} &lt;&gt; 'USCITA DEFINITIVA' AND ${volontari.SERVIZIO} NOT LIKE '%NON IN SERVIZIO%' GROUP BY ${volontari.provincia}</query>
+  <query>SELECT ${VOLONTARI.PROVINCIA},count(*) AS TOTALE FROM ${VOLONTARI} WHERE ${volontari.SERVIZIO} &lt;&gt; 'USCITA DEFINITIVA' AND ${volontari.SERVIZIO} NOT LIKE '%NON IN SERVIZIO%' GROUP BY ${VOLONTARI.PROVINCIA} ORDER BY ${VOLONTARI.PROVINCIA}</query>
   <graphs>
    <graph>
     <id>1</id>
@@ -98,7 +98,7 @@
  
   <report>
   <id>3bis</id>
-  <query>SELECT ${VOLONTARI.PROVINCIA},count(DISTINCT ${volontari.codice fiscale})  AS TOTALE FROM ${VOLONTARI} GROUP BY ${volontari.provincia}  ORDER BY ${volontari.provincia}</query>
+  <query>SELECT ${VOLONTARI.PROVINCIA} AS 'PROVINCIA', COUNT(DISTINCT ${VOLONTARI.CODICE FISCALE}) AS 'VOLONTARI UNICI' FROM ${VOLONTARI} GROUP BY ${VOLONTARI.PROVINCIA} ORDER BY ${VOLONTARI.PROVINCIA}</query>
   <graphs>
    <graph>
     <id>1</id>
@@ -112,6 +112,7 @@
     <id>2</id>
 	<type>table</type>
     <title>Volontari unici per provincia</title>
+	<columnWidths>50,50</columnWidths>
 	<sum>1</sum>
    </graph>
   </graphs>
@@ -121,7 +122,7 @@
  
   <report>
   <id>3ter</id>
-  <query>SELECT ${VOLONTARI.PROVINCIA},count(DISTINCT ${volontari.organizzazione})  AS TOTALE FROM ${VOLONTARI} GROUP BY ${volontari.provincia}  ORDER BY ${volontari.provincia}</query>
+  <query>SELECT ${VOLONTARI.PROVINCIA} AS 'PROVINCIA', count(DISTINCT ${VOLONTARI.ORGANIZZAZIONE}) AS 'NUM. ORGANIZZAZIONI' FROM ${VOLONTARI} GROUP BY ${VOLONTARI.PROVINCIA} ORDER BY ${VOLONTARI.PROVINCIA}</query>
   <graphs>
    <graph>
     <id>1</id>
@@ -135,6 +136,7 @@
     <id>2</id>
 	<type>table</type>
     <title>Organizzazioni per provincia</title>
+	<columnWidths>50,50</columnWidths>
 	<sum>1</sum>
    </graph>
   </graphs>
@@ -142,7 +144,7 @@
 
  <report>
   <id>4</id>
-  <query>SELECT ${mezzi.PROVINCIA},count(*) AS TOTALE FROM ${MEZZI} GROUP BY ${mezzi.provincia}</query>
+  <query>SELECT ${mezzi.PROVINCIA},count(*) AS TOTALE FROM ${MEZZI} GROUP BY ${mezzi.provincia} ORDER BY ${mezzi.provincia}</query>
   <graphs>
    <graph>
     <id>1</id>
@@ -163,7 +165,7 @@
 
  <report>
   <id>4bis</id>
-  <query>SELECT ${mezzi.PROVINCIA},count(DISTINCT ${mezzi.targa}) AS TOTALE FROM ${MEZZI} GROUP BY ${mezzi.provincia}</query>
+  <query>SELECT ${mezzi.PROVINCIA},count(DISTINCT ${mezzi.targa}) AS TOTALE FROM ${MEZZI} GROUP BY ${mezzi.provincia} ORDER BY ${mezzi.provincia}</query>
   <graphs>
    <graph>
     <id>1</id>
@@ -220,11 +222,11 @@
 
    <report>
   <id>c04</id>
-  <query>SELECT 'TOTALE OSPITI', count(*) FROM ${OSPITI}
-  UNION SELECT 'OSPITI ALLETTATI', count(*) FROM ${OSPITI} WHERE ${OSPITI.ALLETTATO}='S'
-  UNION SELECT 'OSPITI INCINTA', count(*) FROM ${OSPITI} WHERE ${OSPITI.INCINTA}='S'
-  UNION SELECT 'OSPITI DISABILI', count(*) FROM ${OSPITI} WHERE ${OSPITI.DISABILE}='S'
-  UNION SELECT 'NUCLEI FAMILIARI', count(DISTINCT ${OSPITI.NUCLEO FAMILIARE}) FROM ${OSPITI} WHERE (${OSPITI.NUCLEO FAMILIARE}&lt;&gt;'' AND ${OSPITI.NUCLEO FAMILIARE} IS NOT NULL)
+  <query>SELECT 'TIPOLOGIA OSPITI', count(*) AS 'TOT.' FROM ${OSPITI}
+  UNION SELECT 'OSPITI ALLETTATI', count(*) AS 'TOT.' FROM ${OSPITI} WHERE ${OSPITI.ALLETTATO}='S'
+  UNION SELECT 'OSPITI INCINTA', count(*) AS 'TOT.' FROM ${OSPITI} WHERE ${OSPITI.INCINTA}='S'
+  UNION SELECT 'OSPITI DISABILI', count(*) AS 'TOT.' FROM ${OSPITI} WHERE ${OSPITI.DISABILE}='S'
+  UNION SELECT 'NUCLEI FAMILIARI', count(DISTINCT ${OSPITI.NUCLEO FAMILIARE}) AS 'TOT.' FROM ${OSPITI} WHERE (${OSPITI.NUCLEO FAMILIARE}&lt;&gt;'' AND ${OSPITI.NUCLEO FAMILIARE} IS NOT NULL)
 
   </query>
   <graphs>
