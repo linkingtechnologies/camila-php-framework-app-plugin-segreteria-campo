@@ -429,6 +429,40 @@ SQL;
     }],
 
     // -------------------------------------------------------------------------
+    // PRIVATE: List example import files grouped by table name
+    // GET /segreteria-campo/import/examples
+    // Returns: { byTable: { "<short_title>": { filename, filepath }, ... } }
+    // filepath is relative to CAMILA_APP_PATH (passed as body.filepath to POST /worktables/*/import)
+    // -------------------------------------------------------------------------
+    'GET /import/examples' => function(array $params, ?array $body, array $path): array {
+        $lang = 'it';
+        $dir  = CAMILA_APP_PATH . '/plugins/segreteria-campo/examples/' . $lang;
+        if (!is_dir($dir)) {
+            return ['byTable' => new \stdClass()];
+        }
+        $files = scandir($dir);
+        if ($files === false) {
+            return ['byTable' => new \stdClass()];
+        }
+        $byTable = [];
+        foreach ($files as $file) {
+            if ($file === '.' || $file === '..') continue;
+            $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+            if (!in_array($ext, ['xls', 'xlsx'])) continue;
+            $pos = strpos($file, '_');
+            if ($pos === false) continue;
+            $tableName = substr($file, 0, $pos);
+            if (!isset($byTable[$tableName])) {
+                $byTable[$tableName] = [
+                    'filename' => $file,
+                    'filepath' => '/plugins/segreteria-campo/examples/' . $lang . '/' . $file,
+                ];
+            }
+        }
+        return ['byTable' => $byTable ?: new \stdClass()];
+    },
+
+    // -------------------------------------------------------------------------
     'GET /status' => function(array $params, ?array $body, array $path): array {
         return ['status' => 'ok'];
     },
