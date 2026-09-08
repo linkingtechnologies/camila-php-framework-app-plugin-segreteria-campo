@@ -1,4 +1,4 @@
-import { html, render } from "../../../../../camila/js/lit-html/lit-html.js";
+import { html, render } from "../../../../camila/js/lit-html/lit-html.js";
 
 const root   = document.getElementById("app");
 const client = WorkTableClient(window.APP_CONFIG || {});

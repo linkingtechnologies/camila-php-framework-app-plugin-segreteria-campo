@@ -1,5 +1,5 @@
 ﻿// app-resource-board.js — Gestione Operativa Risorse
-import { html, render } from "../../../../../camila/js/lit-html/lit-html.js";
+import { html, render } from "../../../../camila/js/lit-html/lit-html.js";
 import "./no-pull-refresh.js";
 
 const VERSION = window.APP_CONFIG?.version || Date.now();
