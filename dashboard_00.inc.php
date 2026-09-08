@@ -174,16 +174,21 @@ function isContainerized() {
 
 /* ------------------- ACCESS URLS ------------------- */
 
+// Derived from the currently-executing script's own path, not hardcoded to
+// '/app/<dir>/' — so these links stay correct when the app is served from
+// under a URL prefix (e.g. a reverse-proxied subfolder).
+$appBasePath = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'])), '/');
+
 $url = '';
 if (getenv('COMPUTERNAME') != '') {
-	$url  = 'http://' . getenv('COMPUTERNAME') . ':' . $_SERVER['SERVER_PORT'] . '/app/' . CAMILA_APP_DIR;
+	$url  = 'http://' . getenv('COMPUTERNAME') . ':' . $_SERVER['SERVER_PORT'] . $appBasePath;
 	$link = new CHAW_link($url, $url);
 	$_CAMILA['page']->add_link($link);
 }
 
 $url2 = '';
 if (!empty($_SERVER['SERVER_ADDR'])) {
-	$url2  = 'http://' . $_SERVER['SERVER_ADDR'] . ':' . $_SERVER['SERVER_PORT'] . '/app/' . CAMILA_APP_DIR;
+	$url2  = 'http://' . $_SERVER['SERVER_ADDR'] . ':' . $_SERVER['SERVER_PORT'] . $appBasePath;
 	$link = new CHAW_link($url2, $url2);
 	if ($url2 != $url)
 		$_CAMILA['page']->add_link($link);
@@ -191,7 +196,7 @@ if (!empty($_SERVER['SERVER_ADDR'])) {
 
 $localIP = getHostByName(getHostName());
 if ($localIP != '') {
-	$url3  = 'http://' . $localIP . ':' . $_SERVER['SERVER_PORT'] . '/app/' . CAMILA_APP_DIR;
+	$url3  = 'http://' . $localIP . ':' . $_SERVER['SERVER_PORT'] . $appBasePath;
 	$link = new CHAW_link($url3, $url3);
 	if ($url3 != $url && $url3 != $url2)
 	$_CAMILA['page']->add_link($link);
