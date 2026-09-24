@@ -108,8 +108,12 @@ La sezione è collassabile. Lo stato (espanso/collassato) è persistito in `loca
 ```
 
 - Il **badge** mostra il numero di suggerimenti attivi (`brogliaccioAlert + comuneUnconfigured + !hasServizi`). Visibile solo se `count > 0`.
-- L'intera sezione (header incluso) **non viene renderizzata** se il caricamento è completato e non ci sono suggerimenti attivi (`count === 0`).
-- Durante il caricamento (`loading = true`) la sezione rimane visibile (badge assente).
+- L'intera sezione (header incluso) **non viene renderizzata** se non ci sono suggerimenti attivi (`count === 0`).
+- Durante il caricamento (`loading = true`) **non viene renderizzato nulla**, header compreso.
+  In precedenza l'header restava visibile durante il load: quando poi non c'erano
+  suggerimenti spariva, comparendo e scomparendo in un attimo e facendo saltare il
+  layout della home. L'assistente ora si manifesta solo quando ha davvero qualcosa
+  da dire.
 - La freccia nell'header ruota di −90° quando la sezione è collassata.
 
 ### Card suggerimento (layout uniforme)

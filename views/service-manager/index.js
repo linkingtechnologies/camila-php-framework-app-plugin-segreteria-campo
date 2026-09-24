@@ -572,7 +572,7 @@ export async function ServiceManager({ state, client, html, render, root }) {
     if (!selected) return;
     deleteBusy = true; rerender();
     try {
-      await client.table("servizi").update(selected.id, { _delete: true });
+      await client.table("servizi").remove(selected.id);
       selected = null; form = emptyForm(); formMode = "new";
       deleteConfirm = false; deleteUsage = null; deleteBlocked = false;
       await load();

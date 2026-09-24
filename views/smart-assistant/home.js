@@ -108,7 +108,10 @@ export async function Home({ client, html, render, root }) {
         <!-- Header collassabile -->
         ${(() => {
           const count = !loading ? [brogliaccioAlert, comuneUnconfigured, !error && !hasServizi].filter(Boolean).length : 0;
-          if (!loading && count === 0) return "";
+          // Niente header finche' il caricamento non e' concluso: mostrarlo durante
+          // il load lo faceva comparire e sparire (flicker) ogni volta che non
+          // c'erano suggerimenti da dare, con conseguente salto del layout.
+          if (loading || count === 0) return "";
           return html`
             <div
               style="display:flex;align-items:center;gap:.5rem;cursor:pointer;user-select:none;padding:.25rem 0 .75rem"

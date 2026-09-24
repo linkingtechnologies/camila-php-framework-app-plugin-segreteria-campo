@@ -61,7 +61,7 @@ Una spec directory contiene:
 **La copertura non è ancora completa.** Allo stato attuale:
 
 - senza `use-case.md`: `import-wizard`, `map-center`, `requests-board`, `resource-manager`, `worktable-explorer`
-- senza `design.md`: `smart-assistant`
+- senza `design.md`: nessuna
 
 Quando si modifica una SPA la cui spec manca, scrivere il file mancante seguendo la struttura in §Specification Style prima o insieme alla modifica.
 
