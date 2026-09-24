@@ -15,3 +15,43 @@
   border-top: 3px solid #3273dc;
   box-shadow: 0 2px 3px rgba(10, 10, 10, 0.1), 0 0 0 1px rgba(10, 10, 10, 0.06);
 }
+
+/* === Bottoni secondari della home (tonale azzurro) ===
+   insertSecondaryButton() emette `button is-small` senza modificatore di colore:
+   di default Bulma lo rende bianco, che accanto ai `is-primary` pieni legge come
+   un buco. Qui diventa una variante tonale dello stesso blu — riempita, ma
+   nettamente piu' leggera del pieno, cosi' la gerarchia si vede senza vuoti.
+
+   Ancorato a .sc-home (i box di dashboard_m0) di proposito: non deve toccare i
+   bottoni secondari di pre-accreditations.inc.php ne' quelli dentro le SPA.
+
+   Bulma 1.0.2 calcola i colori dai canali HSL (--bulma-button-h/s/l) mentre
+   camila/css/bulma.css sovrascrive solo l'esadecimale --bulma-primary: le
+   varianti derivate (is-light) uscirebbero col turchese di default, quindi i
+   valori qui sono espliciti. */
+.sc-home .button.is-small:not(.is-primary) {
+  background-color: #e6f1fb;
+  border-color: #b5d4f4;
+  color: #0c447c;
+}
+.sc-home .button.is-small:not(.is-primary):hover {
+  background-color: #d6e7f8;
+  border-color: #85b7eb;
+  color: #042c53;
+}
+
+/* === Bottoni secondari del box anagrafiche (grigio tenue) ===
+   Stesso meccanismo di .sc-home ma neutro: quel box e' materiale di
+   consultazione (database, elenchi, attestati), quindi non compete col blu
+   dei box operativi. Riempito e senza bordo, per non lasciare il vuoto del
+   bianco di default. */
+.sc-home-quiet .button.is-small:not(.is-primary) {
+  background-color: #f1efe8;
+  border-color: transparent;
+  color: #2c2c2a;
+}
+.sc-home-quiet .button.is-small:not(.is-primary):hover {
+  background-color: #e2dfd4;
+  border-color: transparent;
+  color: #2c2c2a;
+}
