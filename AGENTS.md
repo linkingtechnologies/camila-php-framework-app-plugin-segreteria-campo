@@ -34,16 +34,36 @@ Check-in massivo  →  Stato organizzazione  →  Check-out massivo
 
 Each SPA has a dedicated specification directory under `specs/`. Read the relevant spec before modifying a SPA.
 
-| SPA | Entry point | Spec |
-|---|---|---|
-| Massive Check-in | `app-massive-check-in.js` | [`specs/massive-check-in/`](specs/massive-check-in/) |
-| Massive Check-out | `app-massive-check-out.js` | [`specs/massive-check-out/`](specs/massive-check-out/) |
-| Org Status | `app-org-status.js` | [`specs/org-status/`](specs/org-status/) |
-| Smart Assistant | `app-smart-assistant.js` | [`specs/smart-assistant/`](specs/smart-assistant/) |
+| SPA | Entry point | Views | Spec |
+|---|---|---|---|
+| Comunicazioni live | `app-comms-feed.js` | `views/comms-feed/` | [`specs/comms-feed/`](specs/comms-feed/) |
+| Import Wizard | `app-import-wizard.js` | — (inline) | [`specs/import-wizard/`](specs/import-wizard/) |
+| Mappe | `app-map-center.js` | `views/map-center/` | [`specs/map-center/`](specs/map-center/) |
+| Massive Check-in | `app-massive-check-in.js` | `views/massive-check-in/` (7 step) | [`specs/massive-check-in/`](specs/massive-check-in/) |
+| Massive Check-out | `app-massive-check-out.js` | `views/massive-check-out/` (4 step) | [`specs/massive-check-out/`](specs/massive-check-out/) |
+| Org Status | `app-org-status.js` | `views/org-status/` (2 step) | [`specs/org-status/`](specs/org-status/) |
+| Riepilogo preaccreditamenti | `app-pre-accreditations-summary.js` | `views/pre-accreditations-summary/` | [`specs/pre-accreditations-summary/`](specs/pre-accreditations-summary/) |
+| Gestione richieste | `app-requests-board.js` | `views/requests-board/` | [`specs/requests-board/`](specs/requests-board/) |
+| Movimentazione risorse | `app-resource-board.js` | `views/resource-board/` | [`specs/resource-board/`](specs/resource-board/) |
+| Database risorse | `app-resource-manager.js` | `views/resource-manager/` (2 step) | [`specs/resource-manager/`](specs/resource-manager/) |
+| Gestione servizi/interventi | `app-service-manager.js` | `views/service-manager/` | [`specs/service-manager/`](specs/service-manager/) |
+| Smart Assistant | `app-smart-assistant.js` | `views/smart-assistant/` | [`specs/smart-assistant/`](specs/smart-assistant/) |
+| Movimentazione consumabili | `app-stock-manager.js` | `views/stock-manager/` | [`specs/stock-manager/`](specs/stock-manager/) |
+| Gestione magazzini | `app-warehouse-manager.js` | `views/warehouse-manager/` | [`specs/warehouse-manager/`](specs/warehouse-manager/) |
+| WorkTable Explorer | `app-worktable-explorer.js` | `views/worktable-explorer/` | [`specs/worktable-explorer/`](specs/worktable-explorer/) |
 
-Each spec directory contains:
+Gli endpoint API del plugin hanno spec proprie sotto [`specs/api/`](specs/api/).
+
+Una spec directory contiene:
 - `use-case.md` — comportamento atteso (il "cosa"): goal, attori, scenario principale, flussi alternativi in stile Cockburn
 - `design.md` — scelte tecniche (il "come"): state shape, tabelle coinvolte, logica di merge/verifica, payload
+
+**La copertura non è ancora completa.** Allo stato attuale:
+
+- senza `use-case.md`: `import-wizard`, `map-center`, `requests-board`, `resource-manager`, `worktable-explorer`
+- senza `design.md`: `smart-assistant`
+
+Quando si modifica una SPA la cui spec manca, scrivere il file mancante seguendo la struttura in §Specification Style prima o insieme alla modifica.
 
 If implementation and specification disagree, report the discrepancy. Do not silently change behavior.
 
@@ -236,17 +256,83 @@ Each SPA lives in a single `app-<name>.js` file at the plugin root.
 
 An entry point must:
 
-1. Import `html` and `render` from `lit-html`
-2. Define `VERSION` via `APP_CONFIG` or `Date.now()`
-3. Obtain `root` via `document.getElementById("app")`
-4. Check that `WorkTableClient` is available before proceeding
-5. Initialize `client` via `WorkTableClient(window.APP_CONFIG || {})`
-6. Define only the state properties the SPA actually uses
-7. Call `mount()` to start rendering
+1. Import `html` and `render` from lit-html, con il path relativo esatto usato da tutte le SPA:
+   ```js
+   import { html, render } from "../../../../camila/js/lit-html/lit-html.js";
+   ```
+2. Importare `./no-pull-refresh.js` (side effect: disabilita il pull-to-refresh sui totem Android).
+   Tutte le SPA lo fanno tranne `app-import-wizard.js`.
+   ```js
+   import "./no-pull-refresh.js";
+   ```
+3. Define `VERSION` via `APP_CONFIG` or `Date.now()`
+4. Obtain `root` via `document.getElementById("app")`
+5. Check that `WorkTableClient` is available before proceeding
+6. Initialize `client` via `WorkTableClient(window.APP_CONFIG || {})`
+7. Define only the state properties the SPA actually uses
+8. Call `mount()` to start rendering
+
+Una SPA non è raggiungibile finché non viene registrata lato PHP: vedere §SPA Registration (wiring PHP).
 
 Single-view SPAs (no wizard) must not carry unused `step`, `org`, or wizard state.
 
 Wizard SPAs must guard each step transition: if required preceding state is missing, redirect back to step 1.
+
+---
+
+# SPA Registration (wiring PHP)
+
+Il modulo JS da solo non è raggiungibile. Per una SPA con id `<id>` servono quattro innesti PHP, tutti nella root del plugin.
+
+**1. `<id>.inc.php` — mount del modulo**
+
+```php
+<?php
+$camilaUI = new CamilaUserInterface();
+$dir = __DIR__;
+$pluginName = basename($dir);
+
+$camilaUI->mountMiniApp($pluginName, '/app-<id>.js', '/app.css');
+```
+
+**2. `dashboard_<id>.inc.php` — voce di dashboard**
+
+```php
+<?php
+require('<id>.inc.php');
+```
+
+**3. `conf/menu.xml` — aggiungere `<id>` all'elenco `<pages>` del tab che lo ospita**
+
+Il routing vive in `dashboards.inc.php`: `?dashboard=<id>` viene risolto in
+`plugins/segreteria-campo/dashboard_<id>.inc.php`. Il default è `m0`.
+
+**4. `dashboard_m0.inc.php` — pulsante di accesso**
+
+```php
+$camilaUI->insertButton('?dashboard=<id>', 'Etichetta visibile', 'icona-remix');
+```
+
+L'ultimo argomento è un nome di icona Remix **senza** prefisso `ri-` e senza suffisso
+(`login-box`, `file-list-3`, `route`, `inbox`, …).
+
+## Modalità totem
+
+`dashboards.inc.php` e `dashboard_m0.inc.php` riconoscono l'utente totem con:
+
+```php
+$_isTotemUser = strncasecmp($_CAMILA['user'] ?? '', 'totem', 5) === 0;
+```
+
+Per un utente totem il menu di navigazione non viene stampato e `dashboard_m0.inc.php`
+mostra un ramo alternativo con i soli pulsanti kiosk, con `&totem=1` in query string.
+Lato JS la modalità si legge così:
+
+```js
+const totemMode = new URLSearchParams(window.location.search).get("totem") === "1";
+```
+
+Aggiungere una SPA al ramo totem solo se richiesto esplicitamente.
 
 ---
 
@@ -281,7 +367,14 @@ client.table(tableName).update(id, payload)
 client.table(tableName).remove(id)
 client.table(tableName).describe(query)
 client.table(tableName).permissions(query)
+client.table(tableName).sequence(query)
 client.table(tableName).distinct(column, query)
+client.table(tableName).uploadAttachment(id, file)
+client.table(tableName).fetchAttachment(id)
+client.table(tableName).hasAttachment(id)
+client.table(tableName).listAttachments()
+client.table(tableName).deleteAttachment(id)
+client.table(tableName).attachmentUrl(id)
 ```
 
 Allowed public operations:
@@ -294,12 +387,69 @@ client.update(tableName, id, payload)
 client.remove(tableName, id)
 client.describe(tableName, query)
 client.permissions(tableName, query)
+client.sequence(tableName, query)
 client.distinct(tableName, column, query)
+client.tables(query)
+client.importTable(name, filepath, sheet)
+client.importTableUpload(name, file, sheet)
+client.call(method, path, body, query)
 client.filter(column, operator, ...values)
 client.negate(operator)
 ```
 
 Do not introduce alternative API clients or abstraction layers unless explicitly requested.
+
+## Endpoint custom del plugin
+
+Gli endpoint non-CRUD vivono in `api/handlers.inc.php`, che ritorna una mappa
+`"<VERB> /<path>" => handler`. Base path lato client:
+`/app/segreteriacampo/cf_api.php/segreteria-campo`.
+
+```php
+// privato (sessione Camila)
+'GET /status' => function(array $params, ?array $body, array $path): array {
+    return ['status' => 'ok'];
+},
+
+// pubblico (auth propria, es. Basic Auth)
+'POST /telegram/webhook' => [
+    'public'  => true,
+    'handler' => function(array $params, ?array $body, array $path): array { ... },
+],
+```
+
+Regole:
+
+* un handler ritorna sempre un array; `__status` imposta lo status HTTP
+  (`['__status' => 500, 'message' => '...']`)
+* `'public' => true` disattiva il controllo di sessione: l'handler deve allora
+  implementare la propria autenticazione (vedere `/radio/*`, Basic Auth con
+  credenziali da `var/segreteria-campo-*.json`)
+* passare ogni testo libero in `sc_utf8_sanitize()` prima dell'insert: le colonne
+  sono `utf8`, non `utf8mb4`, e i caratteri a 4 byte (emoji) fanno fallire la query
+* accesso DB tramite `CamilaWorkTable` + `$_CAMILA['db']`; i nomi worktable nelle
+  query SQL usano la sintassi `${NOME TABELLA.NOME COLONNA}`
+
+Lato SPA si chiamano con `client.call()`:
+
+```js
+const res = await client.call("GET", "/segreteria-campo/totem/organization-codes");
+```
+
+Endpoint attuali: `/telegram/webhook`, `/totem/organization-codes`, `/radio/health`,
+`/radio/messages`, `/import/examples`, `/status`. Spec in [`specs/api/`](specs/api/).
+
+## Operazioni già in uso
+
+Queste non sono estensioni da introdurre: fanno già parte della superficie esercitata dalle SPA esistenti.
+
+| Operazione | Usata da |
+|---|---|
+| `sequence()` | `views/massive-check-in/step6.js`, `views/resource-manager/step2.js` — prefill di id progressivi |
+| `call()` | lookup codice totem in check-in / check-out / org-status; `views/smart-assistant/home.js` |
+| allegati | `views/worktable-explorer/index.js` — upload da fotocamera, preview via blob URL, delete |
+| `importTable*`, `tables()` | `app-import-wizard.js` |
+| `permissions()` | `views/resource-manager/step1.js` (unica SPA con read-only fallback) |
 
 ---
 
@@ -390,10 +540,20 @@ client.table("volontari").list({
 | `eq` | uguale |
 | `neq` | diverso (`negate("eq")`) |
 | `cs` | contiene stringa (case-sensitive) |
-| `gt` | maggiore di |
-| `lt` | minore di |
+| `sw` / `ew` | inizia con / finisce con |
+| `gt` / `gte` | maggiore di / maggiore o uguale |
+| `lt` / `lte` | minore di / minore o uguale |
+| `is` | IS NULL (`"null"`) / IS NOT NULL (`"notnull"`) |
+| `in` | in lista (valori multipli) |
+| `bt` | between (due valori) |
 
 Per negare un operatore: `client.negate("eq")` → `"neq"`
+
+In pratica le SPA esistenti usano **solo `eq`**. Gli altri operatori sono supportati
+dal client ma non ancora esercitati contro queste tabelle: verificare il risultato
+prima di darlo per acquisito.
+
+Riferimento completo del client: [`specs/api/worktable-client.md`](specs/api/worktable-client.md).
 
 ### Filtri OR
 
@@ -805,25 +965,28 @@ Do not log sensitive payloads unless explicitly requested.
 
 Agents must consult project specifications before changing behavior.
 
-Recommended structure:
+Struttura effettiva:
 
 ```text
 AGENTS.md
 specs/
   <app-id>/
-    requirements.md
+    use-case.md
     design.md
-    tasks.md
-    uispec/
-      <page-id>.yaml
+  api/
+    worktable-client.md
+    <endpoint-id>/
+      use-case.md
+      design.md
 ```
 
 Use:
 
-* `requirements.md` for product behavior
-* `design.md` for implementation decisions
-* `tasks.md` for implementation checklist
-* `uispec/*.yaml` for page-level behavior contracts
+* `use-case.md` for product behavior (il "cosa")
+* `design.md` for implementation decisions (il "come")
+
+Il formato dei due file è definito in §Specification Style. In questo repository non
+esistono `requirements.md`, `tasks.md` né `uispec/*.yaml`: non crearli e non cercarli.
 
 If implementation and specification disagree, report the discrepancy.
 
@@ -852,7 +1015,7 @@ For each generated or modified SPA page, verify:
 * derived field synchronization
 * async render safety (no stale re-render after navigation)
 
-Acceptance criteria should be derived from UISpec when available.
+Acceptance criteria should be derived from the SPA's `use-case.md` (sezioni Main Success Scenario ed Extensions) when available.
 
 ---
 
