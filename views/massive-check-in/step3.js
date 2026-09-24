@@ -425,7 +425,7 @@ export async function Step3({ state, client, goTo, html, render, root }) {
     const mezziDisabled = submitting || loadingExisting || !canProceedToMezzi();
 
     return html`
-      <div class="box">
+      <div class="box spa-title-box">
         <p>
           <strong>${safe(org.name)}</strong>
           ${org.code ? html`<span class="tag ml-2">${safe(org.code)}</span>` : ""}

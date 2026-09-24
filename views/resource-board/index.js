@@ -1202,7 +1202,7 @@ export async function GOR({ state, client, html, render, root }) {
         }
       </style>
 
-      <div class="box" style="padding:0;overflow:hidden">
+      <div class="box spa-title-box" style="padding:0;overflow:hidden">
 
       <!-- Toolbar -->
       <div style="background:#f8f9fa;border-bottom:1px solid #e8e8e8">

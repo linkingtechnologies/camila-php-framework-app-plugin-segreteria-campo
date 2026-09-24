@@ -1,6 +1,7 @@
 <?php
 
-$camilaUI->openBox();
+// primo box della pagina: attaccato alla tab bar (vedi .spa-title-box in dashboard.css)
+$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="box spa-title-box">'));
 $camilaUI->insertTitle(CAMILA_APPLICATION_NAME, 'question-sign');
 
 $camilaUI->insertText('Versione del ' . date('d-m-Y', strtotime(CamilaPlugins::getRepositoryInformation(basename(dirname(__FILE__)))['pushed_at'])));

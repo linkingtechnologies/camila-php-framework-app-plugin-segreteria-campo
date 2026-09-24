@@ -1146,7 +1146,7 @@ export async function WorktableExplorer({ state, client, html, render, root }) {
 
   function view() {
     return html`
-      <div class="box" style="padding:0;overflow:hidden;margin:1rem">
+      <div class="box spa-title-box" style="padding:0;overflow:hidden;margin:0 0 1rem 0">
 
         ${renderToolbar()}
 

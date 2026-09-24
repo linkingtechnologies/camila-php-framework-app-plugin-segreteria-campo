@@ -396,7 +396,7 @@ export async function Step1({ state, client, goTo, html, render, root }) {
 
   function view() {
     const titleEl = html`
-      <div class="box">
+      <div class="box spa-title-box">
         <h3 class="title is-4">
           <span class="icon is-medium" style="vertical-align:middle;margin-right:.4rem">
             <i class="ri-login-box-line ri-lg"></i>

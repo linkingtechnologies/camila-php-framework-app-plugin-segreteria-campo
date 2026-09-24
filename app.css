@@ -32,3 +32,35 @@ tr.is-readonly select,
 tr.is-readonly input {
   cursor: not-allowed;
 }
+
+/* === Smaller SPA typography (travel-planner plugin) === */
+#app {
+  font-size: 0.85rem;
+}
+#app .title.is-4 {
+  font-size: 1.25rem;
+}
+#app .title.is-6 {
+  font-size: 0.95rem;
+}
+#app .label {
+  font-size: 0.85rem;
+}
+#app .input,
+#app .button,
+#app .textarea,
+#app .select select {
+  font-size: 0.85rem;
+}
+#app .help {
+  font-size: 0.75rem;
+}
+#app table.table {
+  font-size: 0.85rem;
+}
+#app pre {
+  font-size: 0.8rem;
+}
+
+/* La regola .spa-title-box vive in dashboard.css, caricato da dashboards.inc.php
+   per ogni dashboard: serve anche alle pagine PHP, che non caricano app.css. */

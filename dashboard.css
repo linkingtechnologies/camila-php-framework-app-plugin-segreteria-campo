@@ -1,0 +1,17 @@
+/* Stili condivisi da TUTTE le dashboard del plugin (SPA e pagine PHP).
+   Caricato da dashboards.inc.php, che e' il dispatcher di ogni ?dashboard=.
+   Per gli stili specifici delle sole mini-app vedere app.css. */
+
+/* === Title box visually attached to the tab bar above it ===
+   Primo box della pagina: spigoli superiori squadrati e filetto colorato,
+   cosi' si salda visivamente alla tab bar che lo precede.
+   Due selettori: dentro #app (box renderizzati dalle SPA in lit-html)
+   e .box.spa-title-box (box emessi da openBox() nelle dashboard PHP,
+   che sono fratelli di #app, non discendenti). */
+#app .spa-title-box,
+.box.spa-title-box {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  border-top: 3px solid #3273dc;
+  box-shadow: 0 2px 3px rgba(10, 10, 10, 0.1), 0 0 0 1px rgba(10, 10, 10, 0.06);
+}

@@ -854,7 +854,7 @@ export async function MapCenter({ state, client, html, render, root }) {
       </div></section>`;
 
     return html`
-      <div class="box" style="padding:0;overflow:hidden;margin:.75rem">
+      <div class="box spa-title-box" style="padding:0;overflow:hidden;margin:0 0 1rem 0">
 
         <div class="tabs is-boxed is-small mb-0"
           style="padding:0 1.25rem;border-bottom:1px solid #dbdbdb;position:relative">

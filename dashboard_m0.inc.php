@@ -15,7 +15,8 @@ $dir = __DIR__;
 $pluginName = basename($dir);
 $camilaUI->mountMiniApp($pluginName, '/app-smart-assistant.js', '/app.css');
 
-$camilaUI->openBox();
+// primo box della home: attaccato alla tab bar (vedi .spa-title-box in app.css)
+$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="box spa-title-box">'));
 $camilaUI->insertTitle('Risorse', 'team');
 $camilaUI->addGridSection(3, function ($colIndex) use ($camilaUI) {
 	switch ($colIndex) {

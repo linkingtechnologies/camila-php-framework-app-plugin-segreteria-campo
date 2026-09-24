@@ -21,7 +21,8 @@ if (isset($_REQUEST['gid'])) {
 
 
 if (!isset($_REQUEST['format'])) {
-	$camilaUI->openBox();
+	// primo box della pagina: attaccato alla tab bar (vedi .spa-title-box in dashboard.css)
+	$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="box spa-title-box">'));
 	$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="row columns">'));
 	$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div class="row columns">'));
 	$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="row columns">'));

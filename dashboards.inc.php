@@ -1,37 +1,13 @@
 <?php
-/*  This File is part of Camila PHP Framework
-    Copyright (C) 2006-2026 Umberto Bresciani
+// Dashboard tab dispatch — delegated to the shared camila-core implementation
+// so all plugins in this app get the same sanitized routing and cross-plugin
+// "<plugin>--<dashboard>" namespacing. See camila/views/plugin_dashboards.inc.php.
+$_camilaPluginDir = __DIR__;
 
-    Camila PHP Framework is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+// Stili comuni a ogni dashboard del plugin, SPA e pagine PHP (vedi dashboard.css).
+// Va prima del dispatch: le dashboard iniziano a emettere markup appena incluse.
+$_CAMILA['page']->camila_add_js(
+    "<link href=\"plugins/" . basename(__DIR__) . "/dashboard.css\" rel=\"stylesheet\">\n"
+);
 
-    Camila PHP Framework is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with Camila PHP Framework. If not, see <http://www.gnu.org/licenses/>. */
-
-$camilaUI = new CamilaUserInterface();
-
-$_CAMILA['page']->camila_export_enabled = false;
-
-$_isTotemUser = strncasecmp($_CAMILA['user'] ?? '', 'totem', 5) === 0;
-$_menuXml = CAMILA_HOMEDIR.'/plugins/'.basename(dirname(__FILE__)).'/conf/menu.xml';
-$_pluginBase = 'plugins/'.basename(dirname(__FILE__));
-
-if (isset($_REQUEST['dashboard'])) {
-	if (!$_isTotemUser)
-		$currentTab = $camilaUI->printHomeMenu($_menuXml);
-    require($_pluginBase . '/dashboard_' . $_REQUEST['dashboard'] . '.inc.php');
-} else {
-	$defaultId = 'm0';
-	if (!$_isTotemUser)
-		$currentTab = $camilaUI->printHomeMenu($_menuXml, $defaultId);
-	require($_pluginBase . '/dashboard_' . $defaultId . '.inc.php');
-}
-
-?>
+require_once(CAMILA_DIR . '/views/plugin_dashboards.inc.php');

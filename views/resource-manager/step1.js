@@ -905,7 +905,7 @@ export async function Step1(props) {
             </ul>
           </div>
 
-          <div class="box p-3">
+          <div class="box spa-title-box p-3">
             <div class="is-flex" style="gap:.75rem;align-items:flex-end;">
 
               <div style="width:200px;flex-shrink:0;">

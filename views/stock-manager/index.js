@@ -1117,7 +1117,7 @@ export async function StockManager({ state, client, html, render, root }) {
     const articoli = distinctArticoli();
 
     return html`
-      <div class="box" style="padding:0;overflow:hidden;margin:.75rem">
+      <div class="box spa-title-box" style="padding:0;overflow:hidden;margin:0 0 1rem 0">
 
         <!-- Tab bar -->
         <div class="tabs is-boxed is-small mb-0"

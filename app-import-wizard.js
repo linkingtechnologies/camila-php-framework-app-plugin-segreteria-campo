@@ -73,7 +73,7 @@ function App() {
   });
 
   return html`
-    <div class="box mb-4">
+    <div class="box spa-title-box mb-4">
       <h3 class="title is-4 mb-0">
         <span class="icon is-medium" style="vertical-align: middle; margin-right: 0.4rem;">
           <i class="ri-upload-2-line ri-lg"></i>

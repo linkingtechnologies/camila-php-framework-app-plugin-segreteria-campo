@@ -689,7 +689,7 @@ function cellMansioneServizio(r, rowReadOnly) {
     const org = state.org || { name: "", code: "", province: "" };
 
     return html`
-      <div class="box">
+      <div class="box spa-title-box">
         <p>
           <strong>${org.name}</strong>
           ${org.code ? html`<span class="tag ml-2">${org.code}</span>` : ""}

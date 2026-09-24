@@ -314,7 +314,7 @@ export async function Step7({ state, client, goTo, html, render, root }) {
     const nFailed = rows.filter(r => r.status === "failed").length;
 
     return html`
-      <div class="box">
+      <div class="box spa-title-box">
         <p>
           <strong>${safe(org.name)}</strong>
           ${org.code ? html`<span class="tag ml-2">${safe(org.code)}</span>` : ""}

@@ -603,7 +603,7 @@ export async function PreAccreditationsSummary({ client, html, render, root }) {
 
     return html`
       <!-- filtri -->
-      <div class="box mb-3">
+      <div class="box spa-title-box mb-3">
         <h3 class="title is-4 mb-4">
           <span class="icon is-medium" style="vertical-align:middle;margin-right:.4rem">
             <i class="ri-calendar-event-line ri-lg"></i>

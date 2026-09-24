@@ -9,7 +9,8 @@ if ($_REQUEST['camila_custom']!='')
 {
 
 	if (array_key_exists('fix', $_REQUEST)) {
-		$camilaUI->openBox();
+		// primo box della pagina: attaccato alla tab bar (vedi .spa-title-box in dashboard.css)
+		$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="box spa-title-box">'));
 		$camilaUI->insertTitle('Problema sui dati', 'warning-sign');
 		$camilaWT  = new CamilaWorkTable();
 		$camilaWT->db = $_CAMILA['db'];
@@ -129,7 +130,8 @@ if ($_REQUEST['camila_custom']!='')
 		
 
 	} else {
-		$camilaUI->openBox();
+		// primo box della pagina: attaccato alla tab bar (vedi .spa-title-box in dashboard.css)
+		$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="box spa-title-box">'));
 		
 		$camilaUI->openButtonBar();
 		$camilaUI->insertButton('?dashboard='.$_REQUEST['dashboard'],'TORNA INDIETRO','chevron-left',false);
@@ -177,7 +179,8 @@ if ($_REQUEST['camila_custom']!='')
 	}
 
 } else {
-	$camilaUI->openBox();
+	// primo box della pagina: attaccato alla tab bar (vedi .spa-title-box in dashboard.css)
+	$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="box spa-title-box">'));
 	$camilaUI->insertTitle('Controllo dati', 'warning-sign');
 	//$camilaUI->insertDivider();
 

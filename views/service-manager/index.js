@@ -713,7 +713,7 @@ export async function ServiceManager({ state, client, html, render, root }) {
         .sm-coords-preview { color:#555; flex:1; }
       </style>
 
-      <div class="box" style="padding:0;overflow:hidden;margin:.75rem">
+      <div class="box spa-title-box" style="padding:0;overflow:hidden;margin:0 0 1rem 0">
 
         ${loading ? html`
           <section class="section">

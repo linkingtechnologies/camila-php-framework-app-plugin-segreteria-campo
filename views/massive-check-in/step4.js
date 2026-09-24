@@ -942,7 +942,7 @@ ${hasOrgCol ? html`
 
   function view() {
     return html`
-      <div class="box">
+      <div class="box spa-title-box">
         <p>
           <strong>${state.org.name}</strong>
           ${state.org.code ? html`<span class="tag ml-2">${state.org.code}</span>` : ""}

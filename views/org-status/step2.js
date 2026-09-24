@@ -485,7 +485,7 @@ export async function Step2({ state, client, goTo, html, render, root }) {
     const org = state.org || {};
 
     return html`
-      <div class="box">
+      <div class="box spa-title-box">
         <p>
           <strong>${org.name}</strong>
           ${org.code ? html`<span class="tag ml-2">${org.code}</span>` : ""}

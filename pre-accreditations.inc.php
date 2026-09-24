@@ -12,7 +12,8 @@ if (!isset($_REQUEST['camila_xml2pdf'])) {
 	$sql = "SELECT DISTINCT \${VOLONTARI PREACCREDITATI.TURNO} FROM \${VOLONTARI PREACCREDITATI} ORDER BY \${VOLONTARI PREACCREDITATI.TURNO}";
 	$r = $camilaWT->queryWorktableDatabase($sql);
 
-	$camilaUI->openBox();
+	// primo box della pagina: attaccato alla tab bar (vedi .spa-title-box in dashboard.css)
+	$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="box spa-title-box">'));
 
 	$turniCsv = implode(',',array_keys($r));
 	$turni = array_filter(array_map('trim', explode(',', $turniCsv)), fn($v) => $v !== '');

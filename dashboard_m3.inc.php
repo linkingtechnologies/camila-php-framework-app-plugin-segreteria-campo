@@ -6,7 +6,8 @@ $vSheet = $camilaWT->getWorktableSheetId('VOLONTARI ATTESI');
 $mSheet = $camilaWT->getWorktableSheetId('MEZZI ATTESI');
 $aSheet = $camilaWT->getWorktableSheetId('MATERIALI ATTESI');
 
-$camilaUI->openBox();
+// primo box della pagina: attaccato alla tab bar (vedi .spa-title-box in dashboard.css)
+$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="box spa-title-box">'));
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="row columns">'));	
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-4 column is-12-mobile is-4-desktop">'));
 $camilaUI->insertTitle('Volontari', 'user');

@@ -1,5 +1,6 @@
 <?php
-$camilaUI->openBox();
+// primo box della pagina: attaccato alla tab bar (vedi .spa-title-box in dashboard.css)
+$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="box spa-title-box">'));
 
 $camilaUI->insertTitle('Verifica integrità dati', 'check');
 //$camilaUI->insertDivider();
