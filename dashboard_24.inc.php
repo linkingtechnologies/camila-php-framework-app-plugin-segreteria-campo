@@ -2,7 +2,7 @@
 $resourceType='MEZZO';
 $serviceColumn = 'SERVIZIO';
 $groupColumn = 'ORGANIZZAZIONE';
-$resourceTable = 'MEZZI ATTESI';
+$resourceTable = 'MEZZI PREACCREDITATI';
 $serviceTable = 'SERVIZI';
 $brogliaccio = '';
 $col1='MARCA';

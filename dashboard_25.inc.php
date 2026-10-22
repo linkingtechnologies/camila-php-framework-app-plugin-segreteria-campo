@@ -1,5 +1,5 @@
 <?php
-$resourceTable = 'VOLONTARI ATTESI';
+$resourceTable = 'VOLONTARI PREACCREDITATI';
 $organizationColumn = 'ORGANIZZAZIONE';
 $provinceColumn = 'PROVINCIA';
 $personalVisibilityColumn = 'COD. ORGANIZZAZIONE';

@@ -2,7 +2,7 @@
 $resourceType='VOLONTARIO';
 $serviceColumn = 'SERVIZIO';
 $groupColumn = 'ORGANIZZAZIONE';
-$resourceTable = 'VOLONTARI ATTESI';
+$resourceTable = 'VOLONTARI PREACCREDITATI';
 $serviceTable = 'SERVIZI';
 $brogliaccio = '';
 $col1='COGNOME';

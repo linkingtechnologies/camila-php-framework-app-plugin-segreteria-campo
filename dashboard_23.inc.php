@@ -2,7 +2,7 @@
 $resourceType='MATERIALE';
 $serviceColumn = 'SERVIZIO';
 $groupColumn = 'ORGANIZZAZIONE';
-$resourceTable = 'MATERIALI ATTESI';
+$resourceTable = 'MATERIALI PREACCREDITATI';
 $serviceTable = 'SERVIZI';
 $brogliaccio = '';
 $col1='TIPOLOGIA';
