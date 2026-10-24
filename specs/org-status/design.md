@@ -1,6 +1,6 @@
 # Design: Org Status
 
-**Pulsante dashboard:** "Stato registrazione Organizzazione"
+**Pulsante dashboard:** "Stato registrazione" (box "Accreditamento risorse" di `dashboard_m0.inc.php`, fra check-in e check-out)
 
 ## Modalità operative
 

@@ -56,6 +56,7 @@ export async function RequestsBoard({ client, html, render, root }) {
   let filterTipo = "";
   let filterPrio = "";
   let filterAss  = "";
+  let filterServ = "";
   let search     = "";
 
   let dragId     = null;
@@ -65,6 +66,7 @@ export async function RequestsBoard({ client, html, render, root }) {
   // { mode:"create"|"edit", draft:{}, saving:false, error:null, recordId:null }
 
   let volontariNames = [];
+  let serviziNames = [];
 
   function rerender() { render(view(), root); }
 
@@ -73,7 +75,7 @@ export async function RequestsBoard({ client, html, render, root }) {
     try {
       const res = await Table.list({
         include: ["id", "data", "richiedente", "richiesta", "tipo-richiesta",
-                  "priorita", "assegnatario-richiesta", "stato", "note"],
+                  "priorita", "assegnatario-richiesta", "stato", "servizio", "note"],
         size: 2000
       });
       records = getRecords(res);
@@ -87,6 +89,7 @@ export async function RequestsBoard({ client, html, render, root }) {
         client.table("volontari").list({ include: ["cognome", "nome"], size: 5000 }),
         client.table("operatori").list({ include: ["cognome", "nome"], size: 1000 })
       ]);
+      loadServizi();
       const seen = new Set();
       volontariNames = [];
       const sources = [
@@ -104,6 +107,15 @@ export async function RequestsBoard({ client, html, render, root }) {
     } catch {}
   }
 
+  async function loadServizi() {
+    try {
+      const res = await client.table("servizi").list({ include: ["nome"], size: 2000 });
+      serviziNames = [...new Set(getRecords(res).map(r => norm(r.nome)).filter(Boolean))]
+        .sort((a, b) => a.localeCompare(b, "it"));
+      rerender();
+    } catch {}
+  }
+
   /* ── filters ─────────────────────────────────────────────── */
 
   function filtered() {
@@ -111,6 +123,7 @@ export async function RequestsBoard({ client, html, render, root }) {
       if (filterTipo && norm(r["tipo-richiesta"]) !== filterTipo) return false;
       if (filterPrio && norm(r.priorita)          !== filterPrio) return false;
       if (filterAss  && norm(r["assegnatario-richiesta"]) !== filterAss) return false;
+      if (filterServ && norm(r.servizio) !== filterServ) return false;
       if (search) {
         const q = search.toLowerCase();
         if (!norm(r.richiesta).toLowerCase().includes(q) &&
@@ -118,6 +131,10 @@ export async function RequestsBoard({ client, html, render, root }) {
       }
       return true;
     });
+  }
+
+  function serviziUsati() {
+    return [...new Set(records.map(r => norm(r.servizio)).filter(Boolean))].sort();
   }
 
   function assegnatari() {
@@ -131,7 +148,8 @@ export async function RequestsBoard({ client, html, render, root }) {
   function openCreate() {
     const today = new Date().toISOString().slice(0, 10);
     modal = { mode: "create",
-              draft: { stato: STATI[0], priorita: PRIORITA[2], "tipo-richiesta": TIPI[0], data: today },
+              draft: { stato: STATI[0], priorita: PRIORITA[2], "tipo-richiesta": TIPI[0],
+                       data: today, servizio: "" },
               saving: false, error: null, recordId: null };
     rerender();
   }
@@ -144,6 +162,7 @@ export async function RequestsBoard({ client, html, render, root }) {
                        priorita: norm(r.priorita) || PRIORITA[2],
                        "assegnatario-richiesta": norm(r["assegnatario-richiesta"]),
                        stato: norm(r.stato) || STATI[0],
+                       servizio: norm(r.servizio),
                        note: norm(r.note) },
               saving: false, error: null, recordId: r.id };
     rerender();
@@ -155,10 +174,16 @@ export async function RequestsBoard({ client, html, render, root }) {
     if (!modal) return;
     modal.saving = true; modal.error = null; rerender();
     try {
+      // I campi opzionali vuoti vanno inviati come null, non omessi: omettendoli
+      // il valore precedente resterebbe in tabella e non si potrebbe piu'
+      // staccare una richiesta dal servizio, ne' togliere un assegnatario.
+      // Gli obbligatori restano omessi se vuoti, per non farli rifiutare dall'API.
+      const AZZERABILI = ["assegnatario-richiesta", "servizio", "note"];
       const payload = {};
       for (const [k, v] of Object.entries(modal.draft)) {
         const s = norm(String(v ?? ""));
         if (s) payload[k] = s;
+        else if (AZZERABILI.includes(k)) payload[k] = null;
       }
       if (modal.mode === "create") await Table.create(payload);
       else                          await Table.update(modal.recordId, payload);
@@ -221,6 +246,8 @@ export async function RequestsBoard({ client, html, render, root }) {
           flex-wrap:wrap;margin-bottom:.3rem">
           ${norm(r.richiedente)
             ? html`<span><i class="ri-user-line"></i> ${norm(r.richiedente)}</span>` : ""}
+          ${norm(r.servizio)
+            ? html`<span title="Servizio o intervento collegato"><i class="ri-pushpin-line"></i> ${norm(r.servizio)}</span>` : ""}
           ${norm(r.data)
             ? html`<span><i class="ri-calendar-line"></i> ${fmtDate(norm(r.data))}</span>` : ""}
         </div>
@@ -399,6 +426,17 @@ export async function RequestsBoard({ client, html, render, root }) {
                 </div>
               </div>
               <div class="field">
+                <label class="label is-small">Servizio / intervento</label>
+                <div class="control">
+                  <input class="input is-small" type="text"
+                    list="rb-servizi"
+                    autocomplete="off"
+                    placeholder="Nessuno"
+                    .value=${d.servizio || ""}
+                    @input=${e => set("servizio", e.target.value)}>
+                </div>
+              </div>
+              <div class="field">
                 <label class="label is-small">Stato</label>
                 <div class="control">
                   <div class="select is-small is-fullwidth">
@@ -456,6 +494,9 @@ export async function RequestsBoard({ client, html, render, root }) {
       <datalist id="rb-assignees">
         ${volontariNames.map(n => html`<option value=${n}></option>`)}
       </datalist>
+      <datalist id="rb-servizi">
+        ${serviziNames.map(n => html`<option value=${n}></option>`)}
+      </datalist>
 
       ${renderModal()}
 
@@ -494,6 +535,16 @@ export async function RequestsBoard({ client, html, render, root }) {
             @change=${e => { filterAss = e.target.value; rerender(); }}>
             <option value="">Tutti gli assegnatari</option>
             ${ass.map(a => html`<option value=${a} ?selected=${filterAss === a}>${a}</option>`)}
+          </select>
+        ` : ""}
+
+        ${serviziUsati().length ? html`
+          <select style="background:#334155;border:1px solid #475569;color:#fff;
+            border-radius:4px;padding:3px 6px;font-size:.78rem;outline:none"
+            @change=${e => { filterServ = e.target.value; rerender(); }}>
+            <option value="">Tutti i servizi</option>
+            ${serviziUsati().map(v => html`
+              <option value=${v} ?selected=${filterServ === v}>${v}</option>`)}
           </select>
         ` : ""}
 

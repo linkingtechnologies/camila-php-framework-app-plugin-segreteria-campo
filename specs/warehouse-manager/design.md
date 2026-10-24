@@ -1,6 +1,6 @@
 # Design — warehouse-manager
 
-**Pulsante dashboard:** "Gestione magazzini"
+**Pulsante dashboard:** "Magazzini" (box "Anagrafiche" di `dashboard_m0.inc.php`)
 
 ## 1. Struttura
 

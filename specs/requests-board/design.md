@@ -38,6 +38,7 @@ error:          Any | null     // errore API grezzo
 filterTipo:     String         // "" | "Interna" | "Esterna"
 filterPrio:     String         // "" | "1 - Urgente" | "2 - Alta" | …
 filterAss:      String         // "" | nome assegnatario da valori distinti in records
+filterServ:     String         // "" | nome servizio/intervento fra quelli usati
 search:         String         // ricerca libera su `richiesta` e `richiedente`
 
 // drag & drop
@@ -49,6 +50,9 @@ modal:          ModalState | null
 
 // autocomplete assegnatario
 volontariNames: Array<String>  // nomi "Cognome Nome" da volontari + operatori, ordinati
+
+// autocomplete servizio
+serviziNames:   Array<String>  // nomi da `servizi`, ordinati
 ```
 
 ```js
@@ -108,6 +112,7 @@ Il badge mostra solo la parte testuale (es. "Urgente", "Alta") senza il prefisso
 |---|---|
 | Lettura richieste | `richieste` |
 | Autocomplete assegnatario | `volontari` (cognome, nome) + `operatori` (cognome, nome) |
+| Autocomplete servizio | `servizi` (nome) |
 | Aggiornamento stato (drag) | `richieste` (`.update(id, { stato })`) |
 | Creazione richiesta | `richieste` (`.create({...})`) |
 | Modifica richiesta | `richieste` (`.update(id, {...})`) |
@@ -150,6 +155,7 @@ Chiamata in parallelo con `load()` al mount. Usa `Promise.allSettled` per toller
 | Tipo | `tipo-richiesta` | match esatto normalizzato |
 | Priorità | `priorita` | match esatto normalizzato |
 | Assegnatario | `assegnatario-richiesta` | match esatto; opzioni da `distinct` sui `records` già caricati |
+| Servizio | `servizio` | match esatto; opzioni dai **soli servizi usati** dalle richieste caricate, non dall'intero catalogo |
 
 Il dropdown assegnatari appare solo se ci sono valori distinti nei record. Il contatore "N richieste" in toolbar riflette sempre il numero di record dopo i filtri.
 
@@ -192,10 +198,21 @@ Chiusa da:
 | Tipo | select | Interna / Esterna; default: Interna |
 | Priorità | select | 5 opzioni; default: 3 - Normale |
 | Assegnatario | text + datalist | Autocomplete da `volontari` + `operatori`; valore libero |
+| Servizio / intervento | text + datalist | Autocomplete dai nomi in `servizi`; valore libero. Lega la richiesta a un servizio o intervento |
 | Stato | select | 6 opzioni; default: A - Presa in carico su create |
 | Note | textarea (2 righe) | — |
 
-Header e footer sono `position: sticky` per restare visibili su modali con contenuto alto. Il payload di salvataggio include solo i campi con valore non vuoto (dopo `norm()`).
+Header e footer sono `position: sticky` per restare visibili su modali con contenuto alto.
+
+**Payload di salvataggio.** I campi valorizzati vengono inviati dopo `norm()`. Per i
+vuoti la regola è diversa a seconda del campo:
+
+- `assegnatario-richiesta`, `servizio` e `note` sono inviati come `null`, così possono
+  essere **azzerati** modificando un record. Omettendoli, il valore precedente
+  resterebbe in tabella e non ci sarebbe modo di staccare una richiesta dal servizio.
+- gli altri — `data`, `richiedente`, `richiesta`, `tipo-richiesta`, `priorita`, `stato` —
+  se vuoti vengono **omessi**: sono obbligatori in tabella e inviarli a `null` li
+  farebbe rifiutare dall'API, mentre omettendoli il valore precedente resta.
 
 ---
 
@@ -230,3 +247,21 @@ La progress bar orizzontale (3px, senza modificatore colore) rimane visibile sop
 | `requests-board.inc.php` | Mount PHP tramite `CamilaUserInterface::mountMiniApp` |
 | `dashboard_requests-board.inc.php` | Alias PHP per dashboard (`require 'requests-board.inc.php'`) |
 | `conf/menu.xml` | `requests-board` aggiunto alle `pages` del tab `m0` (GESTIONE EVENTO) |
+
+
+## 13. Collegamento con gli interventi
+
+Il campo `servizio` lega una richiesta a un record di `servizi`, che sia un
+servizio di campo o un intervento. L'aggancio è **per nome**, non per id: se il
+servizio viene rinominato, le richieste collegate restano puntate al nome
+precedente.
+
+Le richieste possono nascere da due punti:
+
+| Da dove | Cosa fa |
+|---|---|
+| Questa SPA | crea la richiesta e permette di scegliere il servizio, anche nessuno |
+| [`intervention-manager`](../intervention-manager/) | crea la richiesta col servizio già valorizzato sull'intervento aperto |
+
+La **modifica** resta solo qui: il riquadro in `intervention-manager` crea e
+mostra in sola lettura, e rimanda a questa SPA per lavorare la richiesta.

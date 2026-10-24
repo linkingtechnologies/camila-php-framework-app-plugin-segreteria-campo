@@ -1,6 +1,6 @@
 # Design — pre-accreditations-summary
 
-**Pulsante dashboard:** "Riepilogo preaccreditamenti"
+**Pulsante dashboard:** "Riepilogo preaccreditamenti" (box "Accreditamento risorse" di `dashboard_m0.inc.php`)
 **Icona:** `ri-calendar-event-line`
 
 ## 1. Struttura

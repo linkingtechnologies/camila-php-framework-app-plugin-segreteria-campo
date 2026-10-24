@@ -28,6 +28,30 @@ Check-in massivo  →  Stato organizzazione  →  Check-out massivo
 2. **Stato organizzazione**: real-time dashboard showing in-service and out-of-service resources per organization.
 3. **Check-out massivo**: registers the departure. Sets `servizio = "USCITA DEFINITIVA"`, `data-fine-attestato = today`, `data/ora-uscita-definitiva`, and writes a movement record to `mov-risorse`.
 
+### Risorse registrate e squadre dichiarate
+
+Il sistema conosce le risorse a **due risoluzioni**, e rispondono alla stessa
+domanda — chi c'e' su un servizio:
+
+| | Dove | Cosa si sa |
+|---|---|---|
+| **Risorse registrate** | `volontari`, `mezzi`, `materiali` | i nominativi, uno per riga |
+| **Squadre dichiarate** | `squadre-dichiarate` | solo i conteggi, dichiarati dall'organizzazione |
+
+Le squadre dichiarate servono quando i nominativi non ci sono: emergenze "flash"
+senza campo di ammassamento, squadre che operano da remoto, elenchi che
+arriveranno a consuntivo giorni dopo — o mai.
+
+**Non sono un ripiego temporaneo**: dove non c'e' un campo, sono l'unica
+registrazione che esistera'. E **non passano dal check-in**, quindi le date di
+attestato possono restare vuote: le SPA che le mostrano non applicano loro il
+filtro sulle date usato per le risorse registrate.
+
+Il campo `squadra` su volontari, mezzi e materiali e' **l'altra faccia**: dopo un
+check-in, le risorse portano il nome della squadra. Il nome e' la continuita' fra
+le due fasi, e permette di affiancare *dichiarati* e *registrati* — vedere
+`specs/team-manager/design.md` §Dichiarati e registrati.
+
 ---
 
 ## SPA Specifications
@@ -46,11 +70,21 @@ Each SPA has a dedicated specification directory under `specs/`. Read the releva
 | Gestione richieste | `app-requests-board.js` | `views/requests-board/` | [`specs/requests-board/`](specs/requests-board/) |
 | Movimentazione risorse | `app-resource-board.js` | `views/resource-board/` | [`specs/resource-board/`](specs/resource-board/) |
 | Database risorse | `app-resource-manager.js` | `views/resource-manager/` (2 step) | [`specs/resource-manager/`](specs/resource-manager/) |
+| Gestione interventi | `app-intervention-manager.js` | `views/intervention-manager/` | [`specs/intervention-manager/`](specs/intervention-manager/) |
 | Gestione servizi/interventi | `app-service-manager.js` | `views/service-manager/` | [`specs/service-manager/`](specs/service-manager/) |
+| Squadre dichiarate | `app-team-manager.js` | `views/team-manager/` | [`specs/team-manager/`](specs/team-manager/) |
 | Smart Assistant | `app-smart-assistant.js` | `views/smart-assistant/` | [`specs/smart-assistant/`](specs/smart-assistant/) |
 | Movimentazione consumabili | `app-stock-manager.js` | `views/stock-manager/` | [`specs/stock-manager/`](specs/stock-manager/) |
 | Gestione magazzini | `app-warehouse-manager.js` | `views/warehouse-manager/` | [`specs/warehouse-manager/`](specs/warehouse-manager/) |
 | WorkTable Explorer | `app-worktable-explorer.js` | `views/worktable-explorer/` | [`specs/worktable-explorer/`](specs/worktable-explorer/) |
+
+I moduli condivisi fra piu' viste stanno in `views/shared/` e non hanno una SPA
+propria: vedere §Moduli condivisi.
+
+**Squadre dichiarate** e' raggiungibile da due punti con lo stesso codice: un
+pulsante nel box amministrativo per tenere l'anagrafica, e la terza vista di
+`intervention-manager` per usarla mentre si lavora a un intervento. Non e' una
+duplicazione — vedere §Pannelli incorporabili.
 
 Gli endpoint API del plugin hanno spec proprie sotto [`specs/api/`](specs/api/).
 
@@ -215,6 +249,76 @@ Use:
 
 Do not introduce additional UI frameworks unless explicitly requested.
 
+### Due fogli di stile, due ambiti
+
+| File | Caricato da | Per cosa |
+|---|---|---|
+| `app.css` | `mountMiniApp()`, quindi solo dove c'e' una mini-app | stili delle SPA: tipografia ridotta sotto `#app`, righe selezionate, sola lettura |
+| `dashboard.css` | `dashboards.inc.php`, quindi su **ogni** `?dashboard=` | cio' che vale anche per le pagine PHP senza SPA |
+
+Una regola che deve valere anche fuori da `#app` va in `dashboard.css`: le
+dashboard PHP non caricano `app.css`.
+
+### `spa-title-box` — il primo box della pagina
+
+Il primo box renderizzato va marcato `spa-title-box`: azzera gli spigoli
+superiori e aggiunge un filetto, cosi' si salda alla tab bar che lo precede.
+
+```html
+<div class="box spa-title-box" style="padding:0;overflow:hidden;margin:0 0 1rem 0">
+```
+
+Vale per il primo box **effettivamente reso**, non per il primo che si incontra
+nel sorgente: in un wizard e' il box di testata di ciascuno step. La regola sta
+in `dashboard.css` perche' serve anche ai box emessi da `openBox()` nelle
+dashboard PHP, che sono fratelli di `#app` e non discendenti — per questo il
+selettore e' `#app .spa-title-box, .box.spa-title-box`.
+
+### Gerarchia dei pulsanti nelle dashboard PHP
+
+`insertButton()` rende un pulsante pieno (`is-primary`), `insertSecondaryButton()`
+uno neutro. Il pieno marca le poche azioni che contano: con tutti i pulsanti
+pieni non esiste un ordine di lettura.
+
+La home e' divisa in quattro box, per criterio e non per tipo di oggetto.
+**L'ordine segue la frequenza d'uso**, non il ciclo di vita: in evento si sta
+quasi sempre nell'operativita', mentre arrivi e partenze arrivano a ondate.
+
+| # | Box | Risponde a | Pulsanti |
+|---|---|---|---|
+| 1 | Operatività | cosa si fa ogni giorno | movimentazioni, interventi, richieste |
+| 2 | Monitoraggio | come sta andando | comunicazioni live, mappe, report |
+| 3 | Accreditamento risorse | chi entra e chi esce | check-in, riepilogo preaccreditamenti, stato registrazione, check-out |
+| 4 | Anagrafiche | dati di riferimento | servizi, magazzini, squadre dichiarate |
+| 5 | Volontari / Mezzi / Materiali | anagrafiche delle risorse | database, registrazione, elenchi, attestati |
+
+Nel box Anagrafiche le etichette sono **sostantivi semplici** — "Servizi", non
+"Anagrafica servizi": il titolo del box lo dice gia'.
+
+Nel box Monitoraggio i pulsanti sono **tutti secondari**: guardare non e' agire.
+Il criterio e' il **flusso di lavoro dell'operatore**, non la natura tecnica
+della SPA.
+
+In Accreditamento stanno insieme le quattro schermate dell'arco di
+un'organizzazione — chi deve arrivare, chi e' arrivato, come sta messa, chi esce
+— anche se due di esse (`pre-accreditations-summary` e `org-status`) sono di
+sola lettura. La sola lettura decide semmai il **colore** del pulsante: sono
+entrambe tonali.
+
+Servizi, magazzini e squadre dichiarate scrivono eccome, ma sono dati di
+riferimento: si impostano a inizio evento e si ritoccano di rado, quindi stanno
+in Anagrafiche.
+
+Due classi sui box governano l'aspetto dei secondari:
+
+| Classe | Resa | Dove |
+|---|---|---|
+| `sc-home` | tonale azzurro | box operativi |
+| `sc-home-quiet` | grigio tenue | box di consultazione (anagrafiche, elenchi) |
+
+`openBox()` non accetta classi: il box si emette con `add_raw()`, come in
+`dashboard_m0.inc.php`.
+
 ## Layout
 
 Use responsive, non-fragile layouts.
@@ -247,6 +351,126 @@ const VERSION = window.APP_CONFIG?.version || Date.now();
 ```
 
 Do not introduce a bundler requirement unless explicitly requested.
+
+## Moduli condivisi
+
+Il codice usato da piu' viste sta in `views/shared/`. Oggi ci sono
+`map-picker.js` (selettore di posizione su mappa, Leaflet + Nominatim) e
+`org-picker.js` (selezione multipla di organizzazioni con ricerca e filtro per
+provincia).
+
+**Contratto**: un modulo condiviso non renderizza da se'. Esporta una fabbrica
+che riceve `html` e un `rerender` dell'ospite, e restituisce un `template()`:
+
+```js
+export function createQualcosa({ client, html, rerender, onConfirm }) {
+  let statoInterno = ...;
+  function template(opzioni) { return html`…`; }
+  return { template, load, /* … */ };
+}
+```
+
+Cosi' lo stesso componente vive in viste diverse senza che due `render()`
+si contendano la stessa radice.
+
+Quando il componente deve agire **dopo** il render — montare una mappa, misurare
+un nodo — espone un `afterRender()` che l'ospite chiama dentro il proprio
+`rerender()`.
+
+**Cosa non mettere qui**: gli helper che ogni vista gia' duplica
+(`getRecords`, `norm`, `normalizeApiError`, `userFriendlyErrorText`,
+`withRetry`). La duplicazione e' la convenzione del plugin e un'estrazione
+toccherebbe quindici file funzionanti.
+
+### L'import deve essere dinamico
+
+I moduli sotto `views/shared/` (e qualsiasi modulo importato da un'altra view)
+vanno caricati **dinamicamente, con la versione in coda**:
+
+```js
+const VERSION = window.APP_CONFIG?.version || Date.now();
+
+export async function MiaVista({ client, html, render, root }) {
+  const { createMapPicker } = await import(`../shared/map-picker.js?v=${VERSION}`);
+  ...
+}
+```
+
+**Un `import` statico non funziona.** Il cache-busting del plugin vive nella
+query string dell'`import()` dinamico che l'entry point usa per caricare la
+view. Quella query **non si propaga**: le dipendenze importate staticamente
+dalla view vengono richieste senza versione, il browser le mette in cache e le
+modifiche smettono di comparire — anche dopo un refresh, perche' il file e'
+tecnicamente lo stesso URL.
+
+Il sintomo e' insidioso: la view si aggiorna, il modulo condiviso no, e si vede
+codice vecchio in mezzo a codice nuovo.
+
+Moduli che usano questo schema: `views/shared/map-picker.js`,
+`views/shared/org-picker.js`, e `views/team-manager/index.js` quando e'
+incorporato in `intervention-manager`.
+
+## Pannelli incorporabili
+
+Una vista puo' vivere **sia come SPA a se' sia dentro un'altra**. Lo fa
+`team-manager`, che e' la terza vista di `intervention-manager`.
+
+Il file esporta due cose:
+
+```js
+// la fabbrica del pannello: non renderizza, compone
+export async function createTeamPanel({ client, html, rerender, embedded = false }) {
+  …
+  return { template: view, start, reload };
+}
+
+// la SPA a se', che avvolge il pannello
+export async function TeamManager({ client, html, render, root }) {
+  let panel;
+  const rerender = () => render(panel.template(), root);
+  panel = await createTeamPanel({ client, html, rerender });
+  await panel.start();
+  return panel.template();
+}
+```
+
+`embedded: true` omette box esterno e intestazione, che li mette gia' l'ospite.
+
+**Avvio pigro**: l'ospite chiama `start()` alla prima apertura della vista, non
+al mount, cosi' chi non la apre non paga le chiamate.
+
+**Il pannello resta disaccoppiato** dal contesto che lo ospita: non legge ne'
+scrive nulla dell'intervento aperto. E' cio' che permette di spostarlo o di
+riattivarlo come pagina autonoma senza toccare il codice.
+
+## Creazione in popup
+
+Per le schede lunghe, la creazione avviene in una **finestra con i soli campi
+essenziali**; il record nasce e viene subito selezionato nella scheda completa,
+dove si prosegue.
+
+Lo fanno `intervention-manager` (nome, oggetto, data segnalazione, comune,
+provincia) e il pannello squadre (nome, organizzazioni, due conteggi).
+
+Due conseguenze volute: non esiste uno stato "form in creazione", quindi la
+scheda lavora sempre su un record salvato e il dirty check resta onesto; e la
+popup va tenuta **minima**, perche' ogni campo aggiunto la riavvicina al form
+completo da cui l'abbiamo separata.
+
+## Si crea da dove serve, si gestisce dove appartiene
+
+Quando da una scheda serve creare un oggetto che vive altrove, si offre la
+**creazione**, non la gestione completa. La modifica resta nella SPA proprietaria,
+raggiungibile da un collegamento.
+
+| Da | Si crea | Si gestisce in |
+|---|---|---|
+| scheda intervento | nota di brogliaccio | `brogliaccio` (tabella) |
+| scheda intervento | richiesta | `requests-board` |
+| scheda intervento | squadra dichiarata | vista Squadre dichiarate |
+
+Evita di avere due interfacce di modifica sugli stessi dati da tenere
+allineate.
 
 ---
 
@@ -304,8 +528,12 @@ require('<id>.inc.php');
 
 **3. `conf/menu.xml` — aggiungere `<id>` all'elenco `<pages>` del tab che lo ospita**
 
-Il routing vive in `dashboards.inc.php`: `?dashboard=<id>` viene risolto in
-`plugins/segreteria-campo/dashboard_<id>.inc.php`. Il default è `m0`.
+Il routing vive in `dashboards.inc.php`, che **delega** al dispatcher condiviso
+`camila/views/plugin_dashboards.inc.php`. Quello risolve `?dashboard=<id>`
+provando prima `dashboard-<id>.inc.php` col trattino e poi
+`dashboard_<id>.inc.php` con l'underscore, che e' la forma usata da tutti i file
+di questo plugin. Il default e' il primo `<tab>` di `conf/menu.xml`, non `m0`
+cablato, e un id `<plugin>--<dashboard>` punta a un altro plugin.
 
 **4. `dashboard_m0.inc.php` — pulsante di accesso**
 
@@ -911,6 +1139,75 @@ Example:
 Derived fields must be kept synchronized in UI and before save.
 
 If a selected value is no longer present in the catalog, render it as out-of-list rather than dropping it silently.
+
+---
+
+# Convenzioni sui dati
+
+## Vocabolari: la fonte e' la colonna
+
+Gli elenchi di valori (`stato`, `mansione`, `priorita`, `tipo`) sono definiti
+nella worktable stessa, come `listbox_options` di una colonna
+`string-listofvalues`. **E' quella la fonte**, non un elenco cablato in un'altra
+SPA.
+
+Prima di scrivere un vocabolario, leggerlo dalla definizione della tabella. Due
+casi concreti di questa sessione: `servizi.stato` sembrava senza vocabolario
+perche' nessuna SPA lo scriveva, e invece la colonna dichiarava
+`,Segnalato,In corso,Concluso`; i tre vocabolari di `richieste` cablati in
+`requests-board` combaciavano con la colonna, ma non c'era nulla che lo
+garantisse.
+
+Se un vocabolario va copiato in piu' punti, copiarlo **identico** e annotare da
+dove viene: due elenchi divergenti danno due verita' sulla stessa colonna.
+
+## Campi vuoti: `null`, non stringa vuota
+
+Nei payload di `create` e `update`, un campo vuoto si invia come `null`:
+
+```js
+for (const k of EDITABLE) payload[k] = norm(form[k]) || null;
+if (payload.ordine !== null) payload.ordine = parseInt(payload.ordine, 10) || null;
+```
+
+Ometterlo lascerebbe in tabella il valore precedente, quindi un campo svuotato
+dall'operatore non si svuoterebbe mai. La stringa vuota su una colonna numerica
+e' a rischio di rifiuto o di diventare zero.
+
+**Eccezione per i campi obbligatori**: se vuoti, vanno omessi e non inviati a
+`null`, altrimenti l'API li rifiuta. Vedere `requests-board`, dove solo
+`assegnatario-richiesta`, `servizio` e `note` sono azzerabili.
+
+## Chiavi funzionali per nome
+
+Alcune relazioni passano per il **nome**, non per l'id:
+
+| Chi referenzia | Cosa |
+|---|---|
+| `volontari.servizio`, `mezzi.servizio`, `materiali.servizio` | `servizi.nome` |
+| `volontari.squadra`, `mezzi.squadra`, `materiali.squadra` | `squadre-dichiarate.nome` |
+| `servizi.squadre-attivate` | nomi di squadre e organizzazioni |
+| `brogliaccio.servizio`, `richieste.servizio` | `servizi.nome` |
+
+Ne discende che il nome **non puo' essere vuoto**, che una rinomina **non si
+propaga** — chi referenziava resta puntato al nome vecchio, e la SPA deve
+avvisare — e che prima di eliminare va contato chi lo usa, bloccando se qualcuno
+lo usa.
+
+## Fotografia o riferimento
+
+`mov-risorse` conserva `risorsa` e `gruppo` come **testo**, non come id: e' un
+registro storico, non un collegamento. Un intervento di giugno deve continuare a
+dire quale squadra fu attivata e con quali organizzazioni, anche se a settembre
+quella squadra si e' ricomposta.
+
+Quando un dato serve come **storia**, si copia il valore. Quando serve come
+**stato corrente**, si legge la sorgente. Lo stesso oggetto puo' comparire in
+entrambi i modi: `squadre-dichiarate.servizio` dice dov'e' adesso,
+`servizi.squadre-attivate` dice chi ha lavorato li'.
+
+La scrittura del movimento **non deve far fallire l'operazione principale**: se
+fallisce, si avvisa e si tiene il salvataggio.
 
 ---
 

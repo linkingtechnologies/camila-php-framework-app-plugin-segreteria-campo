@@ -29,7 +29,7 @@ function normalizeError(e) {
 // ---- data loading ----------------------------------------------------------
 
 async function loadAll(client) {
-  const [resV, resM, resMat, resSrv] = await Promise.all([
+  const [resV, resM, resMat, resSrv, resSq] = await Promise.all([
     client.table("volontari").list({
       include: ["id","cognome","nome","codice-fiscale","organizzazione","provincia","squadra",
                 "servizio","data-inizio-attestato","data-fine-attestato"],
@@ -45,7 +45,14 @@ async function loadAll(client) {
                 "organizzazione","provincia","squadra","servizio","data-inizio-attestato","data-fine-attestato"],
       size: 5000
     }),
-    client.table("servizi").list({ include: ["nome"], size: 1000 })
+    client.table("servizi").list({ include: ["nome"], size: 1000 }),
+    // Squadre dichiarate: quarta risorsa, con `servizio` come le altre.
+    // allSettled a parte, cosi' se la tabella non esiste la bacheca funziona.
+    client.table("squadre-dichiarate").list({
+      include: ["id", "nome", "organizzazioni", "n-volontari", "n-mezzi",
+                "attrezzature", "servizio", "data-inizio-attestato", "data-fine-attestato"],
+      size: 2000
+    }).catch(() => null)
   ]);
 
   const filterActive = r => isActive(r) && norm(r.servizio) !== USCITA;
@@ -54,6 +61,13 @@ async function loadAll(client) {
     volontari:    getRecords(resV).filter(filterActive),
     mezzi:        getRecords(resM).filter(filterActive),
     materiali:    getRecords(resMat).filter(filterActive),
+    // Le squadre dichiarate non passano dal check-in: nelle emergenze senza
+    // campo le date di attestato possono restare vuote per sempre. Filtrarle
+    // come le risorse registrate le farebbe sparire tutte. Resta fuori solo
+    // chi e' stato portato a USCITA DEFINITIVA.
+    squadreDich: resSq
+      ? getRecords(resSq).filter(r => norm(r.servizio) !== USCITA)
+      : [],
     serviziTable: getRecords(resSrv)
       .map(r => norm(r.nome))
       .filter(s => s && s !== USCITA)
@@ -62,20 +76,35 @@ async function loadAll(client) {
 
 // ---- card building ---------------------------------------------------------
 
-function buildCards(volontari, mezzi, materiali, groupBy) {
+function buildCards(volontari, mezzi, materiali, groupBy, squadreDich = []) {
   const map = new Map();
-
-  function getGroup(r) {
-    if (groupBy === "squadra") return norm(r.squadra) || norm(r.organizzazione) || "—";
-    return norm(r.organizzazione) || "—";
-  }
 
   function ensure(groupValue, service) {
     const key = `${groupValue}|||${service}`;
     if (!map.has(key)) {
-      map.set(key, { key, groupValue, service, volontari: [], mezzi: [], materiali: [] });
+      map.set(key, {
+        key, groupValue, service,
+        volontari: [], mezzi: [], materiali: [], squadra: null
+      });
     }
     return map.get(key);
+  }
+
+  // Modalita' dedicata: una scheda per squadra dichiarata, niente risorse
+  // registrate. Sono due oggetti di natura diversa e mescolarli renderebbe
+  // ambigui i conteggi della scheda.
+  if (groupBy === "squadre-dichiarate") {
+    for (const sq of squadreDich) {
+      const c = ensure(norm(sq.nome) || "(senza nome)", norm(sq.servizio) || WAITING);
+      c.squadra = sq;
+    }
+    return Array.from(map.values())
+      .sort((a, b) => a.groupValue.localeCompare(b.groupValue, "it"));
+  }
+
+  function getGroup(r) {
+    if (groupBy === "squadra") return norm(r.squadra) || norm(r.organizzazione) || "—";
+    return norm(r.organizzazione) || "—";
   }
 
   for (const r of volontari) ensure(getGroup(r), norm(r.servizio) || WAITING).volontari.push(r);
@@ -111,6 +140,7 @@ function cardMatchesSearch(card, q) {
   const hay = [
     card.groupValue,
     card.service,
+    card.squadra ? `${norm(card.squadra.nome)} ${norm(card.squadra.organizzazioni)}` : "",
     ...card.volontari.map(r  => `${norm(r.cognome)} ${norm(r.nome)} ${norm(r["codice-fiscale"])}`),
     ...card.mezzi.map(r      => `${norm(r.targa)} ${norm(r.marca)} ${norm(r.modello)}`),
     ...card.materiali.map(r  => `${norm(r["id-materiale"])} ${norm(r["codice-inventario"])} ${norm(r.categoria)} ${norm(r.tipologia)}`)
@@ -132,6 +162,20 @@ async function writeMov(client, { groupValue, risorsa, tipoRisorsa, da, a }) {
 }
 
 async function applyServiceChange(client, card, newService, selectedTypes) {
+  // Scheda di una squadra dichiarata: un solo oggetto da spostare.
+  if (card.squadra) {
+    const sq = card.squadra;
+    await client.table("squadre-dichiarate").update(sq.id, { servizio: newService });
+    await writeMov(client, {
+      groupValue:  norm(sq.organizzazioni),
+      risorsa:     norm(sq.nome),
+      tipoRisorsa: "SQUADRA DICHIARATA",
+      da: card.service,
+      a:  newService
+    });
+    return;
+  }
+
   for (const r of (selectedTypes.has("volontari") ? card.volontari : [])) {
     await client.table("volontari").update(r.id, { servizio: newService });
     await writeMov(client, {
@@ -227,11 +271,16 @@ export async function GOR({ state, client, html, render, root }) {
   let loading          = true;
   let error            = null;
   let search           = "";
-  let groupBy          = "organizzazione";
+  // `vista` dice COSA si guarda, `groupBy` COME e' raggruppato. Sono due cose
+  // diverse e stavano in un controllo solo: le squadre dichiarate non sono un
+  // raggruppamento alternativo delle risorse, sono un altro insieme.
+  let vista            = "risorse";        // "risorse" | "squadre-dichiarate"
+  let groupBy          = "organizzazione"; // vale solo per la vista risorse
 
   let allVolontari     = [];
   let allMezzi         = [];
   let allMateriali     = [];
+  let allSquadreDich   = [];
   let serviziTable     = [];
 
   let cards             = [];
@@ -329,7 +378,13 @@ export async function GOR({ state, client, html, render, root }) {
     const fM   = allMezzi.filter(match);
     const fMat = allMateriali.filter(match);
 
-    cards             = buildCards(fV, fM, fMat, groupBy);
+    // Le squadre dichiarate hanno `organizzazioni` al plurale e nessuna
+    // provincia: il filtro per organizzazione le confronta per contenuto.
+    const fSq = allSquadreDich.filter(sq =>
+      (!filterOrg || norm(sq.organizzazioni).includes(filterOrg)) && !filterProvincia);
+
+    cards             = buildCards(fV, fM, fMat,
+      vista === "squadre-dichiarate" ? "squadre-dichiarate" : groupBy, fSq);
     const svc         = buildServices(cards, serviziTable);
     activeServices    = svc.active;
     availableServices = svc.available;
@@ -351,6 +406,7 @@ export async function GOR({ state, client, html, render, root }) {
       allVolontari  = data.volontari;
       allMezzi      = data.mezzi;
       allMateriali  = data.materiali;
+      allSquadreDich = data.squadreDich;
       serviziTable  = data.serviziTable;
       rebuildDerived();
     } catch (e) {
@@ -367,6 +423,7 @@ export async function GOR({ state, client, html, render, root }) {
       allVolontari  = data.volontari;
       allMezzi      = data.mezzi;
       allMateriali  = data.materiali;
+      allSquadreDich = data.squadreDich;
       serviziTable  = data.serviziTable;
       rebuildDerived();
     } catch (e) {
@@ -497,7 +554,7 @@ export async function GOR({ state, client, html, render, root }) {
       card,
       newService:    "",
       selectedTypes: new Set(
-        ["volontari", "mezzi", "materiali"].filter(t => card[t].length > 0)
+        card.squadra ? [] : ["volontari", "mezzi", "materiali"].filter(t => card[t].length > 0)
       ),
       busy:  false,
       error: null
@@ -550,7 +607,8 @@ export async function GOR({ state, client, html, render, root }) {
 
   async function confirmServiceChange() {
     if (!modal || modal.type !== "cambio-servizio") return;
-    if (!modal.newService || modal.busy || modal.selectedTypes.size === 0) return;
+    if (!modal.newService || modal.busy) return;
+    if (!modal.card.squadra && modal.selectedTypes.size === 0) return;
 
     modal.busy  = true;
     modal.error = null;
@@ -717,7 +775,14 @@ export async function GOR({ state, client, html, render, root }) {
         </div>
 
         <!-- counts -->
-        <div class="is-size-7 has-text-grey mt-1" style="display:flex;gap:10px">
+        <div class="is-size-7 has-text-grey mt-1" style="display:flex;gap:10px;flex-wrap:wrap">
+          ${card.squadra ? html`
+            <span title="Dichiarati"><i class="ri-user-line"></i> ${norm(card.squadra["n-volontari"]) || 0}</span>
+            <span title="Dichiarati"><i class="ri-truck-line"></i> ${norm(card.squadra["n-mezzi"]) || 0}</span>
+            <span style="flex-basis:100%;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+              <i class="ri-building-line"></i> ${norm(card.squadra.organizzazioni) || "—"}
+            </span>
+          ` : ""}
           ${card.volontari.length  > 0 ? html`<span><i class="ri-user-line"></i> ${card.volontari.length}</span>`  : ""}
           ${card.mezzi.length      > 0 ? html`<span><i class="ri-truck-line"></i> ${card.mezzi.length}</span>`      : ""}
           ${card.materiali.length  > 0 ? html`<span><i class="ri-tools-line"></i> ${card.materiali.length}</span>`  : ""}
@@ -734,11 +799,13 @@ export async function GOR({ state, client, html, render, root }) {
             title="Cambia servizio"
             @click=${e => { e.stopPropagation(); openServiceChangeModal(card); }}
           ><span class="icon"><i class="ri-swap-line"></i></span></button>
-          <button
-            class="button is-small is-warning is-light"
-            title="Cambia squadra"
-            @click=${e => { e.stopPropagation(); openSquadraModal(card); }}
-          ><span class="icon"><i class="ri-team-line"></i></span></button>
+          ${card.squadra ? "" : html`
+            <button
+              class="button is-small is-warning is-light"
+              title="Cambia squadra"
+              @click=${e => { e.stopPropagation(); openSquadraModal(card); }}
+            ><span class="icon"><i class="ri-team-line"></i></span></button>
+          `}
         </div>
       </div>
     `;
@@ -926,7 +993,7 @@ export async function GOR({ state, client, html, render, root }) {
 
     const canConfirm = !modal.busy
       && modal.newService
-      && modal.selectedTypes.size > 0;
+      && (card.squadra || modal.selectedTypes.size > 0);
 
     function toggleType(type, checked) {
       checked
@@ -965,7 +1032,7 @@ export async function GOR({ state, client, html, render, root }) {
               </div>
             </div>
 
-            <div class="field">
+            <div class="field" style=${card.squadra ? "display:none" : ""}>
               <label class="label is-small">Tipi di risorsa da spostare</label>
               <div class="control">
                 ${hasVol ? html`
@@ -1004,7 +1071,7 @@ export async function GOR({ state, client, html, render, root }) {
               </div>
             </div>
 
-            ${modal.selectedTypes.size === 0 ? html`
+            ${!card.squadra && modal.selectedTypes.size === 0 ? html`
               <p class="help is-danger">Seleziona almeno un tipo di risorsa.</p>
             ` : ""}
 
@@ -1226,8 +1293,27 @@ export async function GOR({ state, client, html, render, root }) {
           ` : ""}
         </div>
 
-        <!-- Raggruppa per -->
+        <!-- Cosa si guarda -->
         <div style="display:flex;align-items:center;gap:6px">
+          <span class="is-size-7 has-text-grey" style="white-space:nowrap">Mostra:</span>
+          <div class="field has-addons mb-0">
+            <p class="control">
+              <button
+                class="button is-small ${vista === "risorse" ? "is-info" : ""}"
+                @click=${() => { vista = "risorse"; rebuildDerived(); rerender(); }}
+              >Risorse registrate</button>
+            </p>
+            <p class="control">
+              <button
+                class="button is-small ${vista === "squadre-dichiarate" ? "is-info" : ""}"
+                @click=${() => { vista = "squadre-dichiarate"; rebuildDerived(); rerender(); }}
+              >Squadre dichiarate</button>
+            </p>
+          </div>
+        </div>
+
+        <!-- Come e' raggruppato: solo per le risorse registrate -->
+        <div style=${`display:${vista === "risorse" ? "flex" : "none"};align-items:center;gap:6px`}>
           <span class="is-size-7 has-text-grey" style="white-space:nowrap">Raggruppa:</span>
           <div class="field has-addons mb-0">
             <p class="control">

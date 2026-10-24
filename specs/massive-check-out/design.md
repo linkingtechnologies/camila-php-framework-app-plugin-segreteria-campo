@@ -1,6 +1,6 @@
 # Design: Massive Check-out
 
-**Pulsante dashboard:** "Check-out massivo Organizzazione"
+**Pulsante dashboard:** "Check-out massivo" (box "Accreditamento risorse")
 
 ## Modalità operative
 

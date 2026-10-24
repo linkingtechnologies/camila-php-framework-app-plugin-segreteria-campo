@@ -1,6 +1,6 @@
 # Design — service-manager
 
-**Pulsante dashboard:** "Gestione servizi"
+**Pulsante dashboard:** "Servizi" (box "Anagrafiche" di `dashboard_m0.inc.php`)
 
 ## 1. Struttura
 
@@ -48,7 +48,8 @@ deleteUsage:    { v: Number, m: Number, mat: Number } | null
 deleteBlocked:  Boolean
 
 // filtro lista
-filterIntervento: Boolean       // true = mostra solo servizi con intervento="SI"
+mostraInterventi: Boolean       // false (default) = nasconde i record con
+                                // intervento="SI", gestiti da intervention-manager
 
 // UI
 colorDropOpen:  Boolean         // dropdown colore aperto
@@ -113,7 +114,9 @@ Servizi protetti (`PROTECTED`): `IN ATTESA DI SERVIZIO`, `USCITA DEFINITIVA`
 - I servizi protetti non hanno drag handle e non sono draggabili
 - La riga selezionata ha classe `is-selected`
 - Filtro testo libero su nome, comune, descrizione (case-insensitive)
-- **Filtro interventi** (`filterIntervento`): pulsante toggle con icona `ri-alarm-warning-line` nella toolbar. Quando attivo (stile `is-warning`) mostra solo i servizi con `intervento === "SI"`. I due filtri (testo e intervento) si combinano in AND.
+- **Filtro interventi** (`mostraInterventi`): pulsante toggle con icona `ri-alarm-warning-line` ed etichetta "Solo servizi" / "Con interventi". **Di default e' spento e la lista esclude i record con `intervento === "SI"`**, che hanno una SPA dedicata ([`intervention-manager`](../intervention-manager/)). Attivandolo (stile `is-warning`) gli interventi rientrano nell'elenco. I due filtri (testo e intervento) si combinano in AND.
+
+  Il toggle esiste, invece di un'esclusione fissa, perche' `intervention-manager` **non** gestisce `ordine`, `lettera`, `colore`, `latitudine` e `longitudine`: senza questa via gli interventi non potrebbero piu' essere posizionati sulla mappa ne' avere colore e lettera. Vedere §Divisione dei ruoli.
 
 ### 4.2 Dropdown colore custom
 
@@ -194,3 +197,33 @@ Al drop, la funzione `applyReorder` riceve `fromId` e `toId`:
 | `views/service-manager/index.js` | Intera logica e template della SPA (~1100 righe) |
 | `service-manager.inc.php` | Mount PHP tramite `CamilaUserInterface::mountMiniApp` |
 | `dashboard_service-manager.inc.php` | Alias PHP per dashboard (include service-manager.inc.php) |
+
+
+## Divisione dei ruoli con `intervention-manager`
+
+Le due SPA lavorano sulla stessa tabella `servizi` ma su campi disgiunti.
+
+| Campo | service-manager | intervention-manager |
+|---|---|---|
+| `nome`, `descrizione` | si | si |
+| `comune`, `provincia`, `indirizzo` | si | si |
+| `inizio`, `fine`, `operatori-a-supporto`, `note` | si | si |
+| `ordine`, `lettera`, `colore` | si | si |
+| `latitudine`, `longitudine` | si | si (solo come numeri) |
+| selettore cartografico con geocoding | **solo qui** | no |
+| riordino drag & drop | **solo qui** | no |
+| strumenti massivi | **solo qui** | no |
+| `data-ora-segnalazione`, `riferimento-vvf` | no | **solo li'** |
+| i quattro `*-segnalante` | no | **solo li'** |
+| `data/ora-sopralluogo`, `squadre-attivate` | no | **solo li'** |
+| `intervento` | letto per il filtro | forzato a `"SI"` in creazione |
+
+Un record con `intervento = "SI"` e' quindi modificabile da entrambe. La
+differenza non e' piu' nei campi ma negli **strumenti**: il posizionamento sulla
+mappa con ricerca dell'indirizzo, il riordino per trascinamento e le operazioni
+massive restano esclusivi di questa SPA; li' ci sono i campi della scheda
+operativa che qui non compaiono.
+
+I campi condivisi possono essere scritti da tutte e due e **l'ultimo salvataggio
+vince**: non c'e' merge ne' blocco concorrente. Due operatori che tengono aperte
+le due SPA sullo stesso intervento si sovrascrivono a vicenda senza avviso.

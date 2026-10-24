@@ -248,3 +248,87 @@ groupBy === "squadra"
 - **Filtro org/provincia**: `filterOrg` e `filterProvincia` sono filtri client-side applicati in `rebuildDerived()`. I valori distinti (`distinctOrgs`, `distinctProvince`) sono calcolati sull'intero dataset (pre-filtro) per popolare i dropdown. Quando almeno un filtro è attivo compare un banner giallo con il contatore "stai vedendo X di Y (👤 N · 🚚 N · 🛠 N) risorse" e un pulsante ✕ per rimuovere il filtro.
 - **Modale cambio-risorsa**: ogni riga del dettaglio espanso porta un pulsante icona `ri-swap-line` che apre la modale `cambio-risorsa` per spostare quella singola risorsa senza trascinare. Il pulsante ha `@dragstart stopPropagation` per non interferire con il drag di riga.
 - **Pulsanti azione card**: in fondo ad ogni card compaiono due pulsanti icon-only (nessun testo): `ri-swap-line` (`is-info is-light`) per aprire la modale cambio-servizio, `ri-team-line` (`is-warning is-light`) per aprire la modale cambio-squadra. Il tooltip è esposto via `title`. Nessun testo visibile per ridurre l'ingombro.
+
+
+## Squadre dichiarate
+
+Le squadre dichiarate (tabella `squadre-dichiarate`) sono una **quarta risorsa**:
+hanno `servizio` come volontari, mezzi e materiali, quindi si spostano fra
+servizi allo stesso modo.
+
+### Due controlli distinti: vista e raggruppamento
+
+In toolbar ci sono **due selettori**, non uno:
+
+| Controllo | Valori | Cosa decide |
+|---|---|---|
+| **Mostra** | Risorse registrate / Squadre dichiarate | *cosa* si sta guardando |
+| **Raggruppa** | Organizzazione / Squadra | *come* e' raggruppato |
+
+Il secondo **compare solo nella vista risorse**: nella vista squadre dichiarate
+c'e' un solo raggruppamento possibile, una scheda per squadra, quindi un
+selettore sarebbe finto.
+
+Le squadre dichiarate non sono un terzo modo di raggruppare le stesse risorse:
+sono **un altro insieme**. Tenerle come terzo pulsante accanto a Organizzazione e
+Squadra mescolava due concetti in un controllo solo.
+
+Internamente `groupBy` riceve `"squadre-dichiarate"` quando la vista e' quella,
+cosi' `buildCards` resta una funzione sola.
+
+Le squadre dichiarate **non compaiono** negli altri due raggruppamenti. Mescolare
+in una stessa scheda risorse registrate e un'entita' squadra renderebbe ambiguo
+il conteggio della scheda — sei volontari registrati piu' una squadra da sei
+sono sei o dodici? La vista che affianca dichiarati e registrati esiste gia', ed
+e' il pannello Squadre dichiarate in `intervention-manager`.
+
+### Una scheda per squadra
+
+```
+┌ IDRO 1 — MONTODINE ────┐  ┌ MOTOSEGHE 3 — MONTODINE ┐
+│ 6👤 2🚚                │  │ 5👤 1🚚                 │
+│ G.C. DOVERA            │  │ G.C. DOVERA             │
+└────────────────────────┘  └─────────────────────────┘
+```
+
+`groupValue` e' il **nome della squadra**, non le sue organizzazioni. Una squadra
+e' gia' un gruppo di persone: raggrupparla per organizzazione aggiungeva un
+livello di troppo, e una squadra congiunta avrebbe avuto per titolo due sigle
+unite. Le organizzazioni diventano una riga dentro la scheda.
+
+Il campo `card.squadra` contiene il record quando la scheda e' di questo tipo,
+`null` altrimenti: e' il discriminante usato in tutta la vista.
+
+### Differenze di comportamento
+
+| | Scheda normale | Scheda squadra dichiarata |
+|---|---|---|
+| Cambio servizio | per tipo selezionato | l'intera squadra, nessuna scelta di tipi |
+| Cambio squadra | disponibile | **nascosto** — la squadra non ha un campo `squadra`, lo *e'* |
+| Movimento scritto | `VOLONTARIO` / `MEZZO` / `MATERIALE` | `SQUADRA DICHIARATA`, con le organizzazioni come `gruppo` |
+| Conteggi mostrati | risorse presenti | conteggi **dichiarati** |
+
+### Filtri
+
+Il filtro per organizzazione confronta **per contenuto**, perche'
+`organizzazioni` e' plurale. Il filtro per provincia **esclude** le squadre
+dichiarate: non hanno quel campo.
+
+### Filtro di attivita': diverso dalle risorse registrate
+
+Volontari, mezzi e materiali compaiono solo se **attivi**: data inizio attestato
+valorizzata, data fine vuota, servizio diverso da `USCITA DEFINITIVA`.
+
+Le squadre dichiarate **non passano da quel filtro sulle date**. Non attraversano
+il check-in — nelle emergenze senza campo di ammassamento non c'e' un arrivo da
+registrare — quindi le date di attestato possono restare vuote per sempre.
+Applicare lo stesso criterio le farebbe sparire tutte.
+
+Resta la sola esclusione di `servizio = "USCITA DEFINITIVA"`: una squadra chiusa
+non ha motivo di occupare la bacheca.
+
+### Tabella assente
+
+Il caricamento di `squadre-dichiarate` ha un `.catch(() => null)` dedicato: se la
+tabella non esiste, la bacheca funziona come prima e il terzo raggruppamento
+risulta vuoto.

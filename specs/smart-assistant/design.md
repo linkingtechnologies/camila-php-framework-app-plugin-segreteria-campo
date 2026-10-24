@@ -1,7 +1,7 @@
 # Design: Smart Assistant
 
 **Posizione:** non ha un pulsante di dashboard proprio. È montato in cima alla home
-(`dashboard_m0.inc.php`) e appare sopra i box "Risorse", "Attività" e le colonne
+(`dashboard_m0.inc.php`) e appare sopra i box "Gestione amministrativa", "Operatività", "Monitoraggio" e le colonne
 Volontari / Mezzi / Materiali.
 
 ---

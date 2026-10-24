@@ -1,6 +1,6 @@
 # Design: Massive Check-in
 
-**Pulsante dashboard:** "Check-in massivo Organizzazione"
+**Pulsante dashboard:** "Check-in massivo" (box "Accreditamento risorse")
 
 ## Modalità operative
 

@@ -1,4 +1,7 @@
-﻿// views/service-manager/index.js — Gestione Servizi
+// Modulo condiviso: import dinamico con la versione in coda. Un `import`
+// statico non porta la query string e resterebbe in cache.
+const VERSION = window.APP_CONFIG?.version || Date.now();
+// views/service-manager/index.js — Gestione Servizi
 
 // ---- costanti ---------------------------------------------------------------
 
@@ -104,61 +107,12 @@ function formToPayload(f) {
   return p;
 }
 
-// ---- Leaflet lazy load ------------------------------------------------------
-
-let _leafletReady = false;
-
-async function loadLeaflet() {
-  if (_leafletReady || window.L) { _leafletReady = true; return; }
-  await new Promise((resolve, reject) => {
-    const link = document.createElement("link");
-    link.rel  = "stylesheet";
-    link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-    document.head.appendChild(link);
-    const script = document.createElement("script");
-    script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
-    script.onload = resolve;
-    script.onerror = reject;
-    document.head.appendChild(script);
-  });
-  _leafletReady = true;
-}
-
-// ---- Nominatim geocoding ----------------------------------------------------
-
-async function nominatimSearch(query) {
-  const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=6&addressdetails=1&accept-language=it`;
-  const res = await fetch(url, { headers: { "Accept-Language": "it" } });
-  return res.json();
-}
-
-async function nominatimReverse(lat, lon) {
-  const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1&accept-language=it`;
-  const res = await fetch(url);
-  return res.json();
-}
-
-function extractAddress(data) {
-  const a = data?.address || {};
-  console.log("[extractAddress] raw address:", JSON.stringify(a, null, 2));
-  // comune: proviamo tutti i campi in ordine di granularità
-  const comune = a.city || a.town || a.village || a.municipality ||
-                 a.city_district || a.suburb || a.hamlet || a.quarter || "";
-  // provincia: preferita via ISO3166-2-lvl6 ("IT-MI" → "MI"),
-  // fallback su ISO3166-2-lvl5, poi su state_code (alcuni result italiani lo hanno come "MI")
-  const isoLvl6 = a["ISO3166-2-lvl6"] || a["ISO3166-2-lvl5"] || "";
-  let provincia = isoLvl6 ? isoLvl6.replace(/^[A-Z]{2}-/, "").slice(0, 2).toUpperCase() : "";
-  if (!provincia && a.state_code) provincia = a.state_code.slice(0, 2).toUpperCase();
-  return {
-    comune,
-    provincia,
-    indirizzo: [a.road, a.house_number].filter(Boolean).join(" "),
-  };
-}
-
 // ---- main export ------------------------------------------------------------
 
 export async function ServiceManager({ state, client, html, render, root }) {
+  const { createMapPicker, MAP_PICKER_CSS } =
+    await import(`../shared/map-picker.js?v=${VERSION}`);
+
 
   // --- local state ---
   let loading      = true;
@@ -195,143 +149,47 @@ export async function ServiceManager({ state, client, html, render, root }) {
   let colorDropOpen  = false;
 
   // filtro intervento (pannello sinistro)
-  let filterIntervento = false;
+  // Gli interventi hanno una SPA propria (intervention-manager), quindi di
+  // default questa lista mostra i soli servizi. Restano pero' raggiungibili col
+  // toggle, perche' ordine, lettera, colore e coordinate si impostano solo qui.
+  let mostraInterventi = false;
 
   // dirty form / conferma cambio servizio
   let formDirty      = false;
   let pendingSelect  = null;   // servizio che l'utente vuole selezionare prima di confermare
 
-  // mappa
-  let showMap      = false;
-  let mapSearch    = "";
-  let mapResults   = [];
-  let mapSearching = false;
-  let mapReversing = false;
-  let mapLat       = null;
-  let mapLon       = null;
-  let mapAddress   = {};          // { comune, provincia, indirizzo }
-  let _map         = null;        // istanza Leaflet
-  let _marker      = null;        // marker Leaflet
-  let _mapInited   = false;
+  // mappa: vedi views/shared/map-picker.js
+  const mapPicker = createMapPicker({
+    html,
+    rerender: () => rerender(),
+    onConfirm: pos => {
+      form = {
+        ...form,
+        latitudine:  String(pos.lat),
+        longitudine: String(pos.lon),
+        comune:    pos.comune    || form.comune,
+        provincia: pos.provincia || form.provincia,
+        indirizzo: pos.indirizzo || form.indirizzo
+      };
+      formDirty = true;
+      rerender();
+    }
+  });
+
+  function openMap() {
+    mapPicker.open({
+      lat: parseFloat(form.latitudine),
+      lon: parseFloat(form.longitudine),
+      query: [norm(form.indirizzo), norm(form.comune), norm(form.provincia)]
+        .filter(Boolean).join(", ")
+    });
+  }
 
   // ---
 
   function rerender() {
     render(view(), root);
-    if (showMap) initMap();
-  }
-
-  // ---- Leaflet map init (eseguita dopo ogni render se showMap=true) ---------
-
-  function initMap() {
-    const el = document.getElementById("sm-leaflet-container");
-    if (!el || _mapInited) return;
-    _mapInited = true;
-
-    const startLat = mapLat ?? 42.0;
-    const startLon = mapLon ?? 12.5;
-    const startZoom = mapLat ? 14 : 6;
-
-    _map = window.L.map(el).setView([startLat, startLon], startZoom);
-    window.L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: "© OpenStreetMap contributors",
-      maxZoom: 19,
-    }).addTo(_map);
-
-    if (mapLat !== null) {
-      _marker = window.L.marker([mapLat, mapLon], { draggable: true }).addTo(_map);
-      _marker.on("dragend", () => onMarkerMove(_marker.getLatLng().lat, _marker.getLatLng().lng));
-    }
-
-    _map.on("click", e => onMapClick(e.latlng.lat, e.latlng.lng));
-  }
-
-  async function onMapClick(lat, lon) {
-    mapLat = lat; mapLon = lon;
-    if (_marker) { _marker.setLatLng([lat, lon]); }
-    else {
-      _marker = window.L.marker([lat, lon], { draggable: true }).addTo(_map);
-      _marker.on("dragend", () => onMarkerMove(_marker.getLatLng().lat, _marker.getLatLng().lng));
-    }
-    await reverseAndUpdate(lat, lon);
-  }
-
-  async function onMarkerMove(lat, lon) {
-    mapLat = lat; mapLon = lon;
-    await reverseAndUpdate(lat, lon);
-  }
-
-  async function reverseAndUpdate(lat, lon) {
-    mapReversing = true; rerender();
-    try {
-      const data = await nominatimReverse(lat, lon);
-      mapAddress = extractAddress(data);
-    } catch (_) { mapAddress = {}; }
-    mapReversing = false; rerender();
-    // il re-render ri-crea la mappa se _mapInited fosse false, ma qui è già inited
-    // quindi non serve reinit, ma aggiorniamo le etichette
-  }
-
-  // ---- apri mappa ----------------------------------------------------------
-
-  async function openMap() {
-    mapLat = parseFloat(form.latitudine) || null;
-    mapLon = parseFloat(form.longitudine) || null;
-    mapSearch   = [norm(form.indirizzo), norm(form.comune), norm(form.provincia)].filter(Boolean).join(", ");
-    mapResults  = [];
-    mapSearching= false;
-    mapAddress  = {};
-    showMap     = true;
-    _mapInited  = false;
-    _map        = null;
-    _marker     = null;
-    await loadLeaflet();
-    rerender();
-  }
-
-  function closeMap() {
-    showMap = false;
-    _map?.remove();
-    _map = null; _marker = null; _mapInited = false;
-    rerender();
-  }
-
-  function confirmMap() {
-    if (mapLat === null) { closeMap(); return; }
-    form = {
-      ...form,
-      latitudine:  String(mapLat.toFixed(6)),
-      longitudine: String(mapLon.toFixed(6)),
-      comune:    mapAddress.comune    !== undefined ? (mapAddress.comune    || form.comune)    : form.comune,
-      provincia: mapAddress.provincia !== undefined ? (mapAddress.provincia || form.provincia) : form.provincia,
-      indirizzo: mapAddress.indirizzo !== undefined ? (mapAddress.indirizzo || form.indirizzo) : form.indirizzo,
-    };
-    closeMap();
-  }
-
-  async function doGeoSearch() {
-    if (!mapSearch.trim()) return;
-    mapSearching = true; mapResults = []; rerender();
-    try {
-      mapResults = await nominatimSearch(mapSearch);
-    } catch (_) { mapResults = []; }
-    mapSearching = false; rerender();
-  }
-
-  function selectGeoResult(r) {
-    mapLat = parseFloat(r.lat);
-    mapLon = parseFloat(r.lon);
-    mapAddress = extractAddress(r);
-    mapResults = [];
-    if (_map) {
-      _map.setView([mapLat, mapLon], 15);
-      if (_marker) { _marker.setLatLng([mapLat, mapLon]); }
-      else {
-        _marker = window.L.marker([mapLat, mapLon], { draggable: true }).addTo(_map);
-        _marker.on("dragend", () => onMarkerMove(_marker.getLatLng().lat, _marker.getLatLng().lng));
-      }
-    }
-    rerender();
+    mapPicker.afterRender();
   }
 
   // ---- data loading --------------------------------------------------------
@@ -654,7 +512,7 @@ export async function ServiceManager({ state, client, html, render, root }) {
   function view() {
     const q = search.toLocaleLowerCase("it");
     const visible = services
-      .filter(s => !filterIntervento || norm(s.intervento).toUpperCase() === "SI")
+      .filter(s => mostraInterventi || norm(s.intervento).toUpperCase() !== "SI")
       .filter(s => !q ||
         norm(s.nome).toLocaleLowerCase("it").includes(q) ||
         norm(s.comune).toLocaleLowerCase("it").includes(q) ||
@@ -662,7 +520,6 @@ export async function ServiceManager({ state, client, html, render, root }) {
       );
 
     const isProtected = selected && PROTECTED.includes(norm(selected.nome));
-    const hasCoords = mapLat !== null;
 
     return html`
       <style>
@@ -698,19 +555,7 @@ export async function ServiceManager({ state, client, html, render, root }) {
         .sm-color-opt.is-selected { background:#eff5fb; font-weight:600; }
         /* dirty banner */
         .sm-dirty-banner { background:#fff8e1; border:1px solid #ffe082; border-radius:6px; padding:.5rem .75rem; font-size:.82rem; display:flex; align-items:center; gap:.5rem; margin-bottom:.75rem; }
-        /* mappa modale */
-        .sm-map-overlay { position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:9000; display:flex; align-items:center; justify-content:center; }
-        .sm-map-modal { background:#fff; border-radius:8px; width:90vw; max-width:860px; height:80vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 8px 32px rgba(0,0,0,.25); }
-        .sm-map-header { padding:.75rem 1rem; border-bottom:1px solid #dbdbdb; display:flex; align-items:center; gap:.5rem; }
-        .sm-map-body { display:flex; flex:1; overflow:hidden; }
-        .sm-map-sidebar { width:280px; flex-shrink:0; border-right:1px solid #dbdbdb; display:flex; flex-direction:column; padding:.75rem; gap:.5rem; overflow-y:auto; }
-        .sm-map-results { list-style:none; margin:0; padding:0; }
-        .sm-map-results li { padding:.4rem .5rem; font-size:.8rem; cursor:pointer; border-radius:4px; border-bottom:1px solid #f0f0f0; }
-        .sm-map-results li:hover { background:#f0f5ff; }
-        .sm-map-canvas { flex:1; }
-        #sm-leaflet-container { width:100%; height:100%; }
-        .sm-map-footer { padding:.6rem 1rem; border-top:1px solid #dbdbdb; display:flex; align-items:center; gap:.5rem; font-size:.82rem; }
-        .sm-coords-preview { color:#555; flex:1; }
+        ${MAP_PICKER_CSS}
       </style>
 
       <div class="box spa-title-box" style="padding:0;overflow:hidden;margin:0 0 1rem 0">
@@ -751,10 +596,11 @@ export async function ServiceManager({ state, client, html, render, root }) {
                   <span class="icon"><i class="ri-refresh-line"></i></span>
                 </button>
                 <button
-                  class="button is-small ${filterIntervento ? 'is-warning' : 'is-light'}"
-                  title="${filterIntervento ? 'Mostra tutti i servizi' : 'Mostra solo interventi'}"
-                  @click=${() => { filterIntervento = !filterIntervento; rerender(); }}>
+                  class="button is-small ${mostraInterventi ? 'is-warning' : 'is-light'}"
+                  title="${mostraInterventi ? 'Nascondi gli interventi' : 'Mostra anche gli interventi (gestiti in Gestione interventi)'}"
+                  @click=${() => { mostraInterventi = !mostraInterventi; rerender(); }}>
                   <span class="icon"><i class="ri-alarm-warning-line"></i></span>
+                  <span>${mostraInterventi ? 'Con interventi' : 'Solo servizi'}</span>
                 </button>
                 <div class="dropdown is-hoverable is-right" style="margin-left:auto">
                   <div class="dropdown-trigger">
@@ -1144,96 +990,7 @@ export async function ServiceManager({ state, client, html, render, root }) {
       </div>
 
       <!-- MODALE MAPPA (fuori dal box) -->
-      ${showMap ? html`
-        <div class="sm-map-overlay" @click=${e => { if (e.target === e.currentTarget) closeMap(); }}>
-          <div class="sm-map-modal">
-
-            <!-- header -->
-            <div class="sm-map-header">
-              <span class="icon"><i class="ri-map-pin-2-line"></i></span>
-              <strong style="flex:1">Seleziona posizione</strong>
-              <button class="delete" @click=${closeMap}></button>
-            </div>
-
-            <!-- body -->
-            <div class="sm-map-body">
-
-              <!-- sidebar: ricerca + risultati + coordinate -->
-              <div class="sm-map-sidebar">
-                <div class="field">
-                  <label class="label is-small">Cerca indirizzo</label>
-                  <div class="field has-addons mb-1">
-                    <div class="control is-expanded">
-                      <input class="input is-small" type="text"
-                        placeholder="Es. Via Roma 1, Milano"
-                        .value=${mapSearch}
-                        @input=${e => { mapSearch = e.target.value; }}
-                        @keydown=${e => { if (e.key === "Enter") doGeoSearch(); }}
-                      />
-                    </div>
-                    <div class="control">
-                      <button class="button is-small is-info ${mapSearching ? 'is-loading' : ''}"
-                        ?disabled=${mapSearching} @click=${doGeoSearch}>
-                        <span class="icon"><i class="ri-search-line"></i></span>
-                      </button>
-                    </div>
-                  </div>
-                  ${mapResults.length > 0 ? html`
-                    <ul class="sm-map-results">
-                      ${mapResults.map(r => html`
-                        <li @click=${() => selectGeoResult(r)} title="${r.display_name}">
-                          ${r.display_name.length > 60 ? r.display_name.slice(0,60) + "…" : r.display_name}
-                        </li>
-                      `)}
-                    </ul>
-                  ` : ""}
-                </div>
-
-                <hr style="margin:.25rem 0">
-
-                <p class="is-size-7 has-text-grey">
-                  Clicca sulla mappa o trascina il marker per selezionare il punto esatto.
-                </p>
-
-                ${hasCoords ? html`
-                  <div style="font-size:.8rem;margin-top:.25rem">
-                    <div><strong>Lat:</strong> ${mapLat?.toFixed(6)}</div>
-                    <div><strong>Lon:</strong> ${mapLon?.toFixed(6)}</div>
-                    ${mapReversing ? html`<div class="has-text-grey"><i class="ri-loader-4-line"></i> Ricerca indirizzo…</div>` : html`
-                      ${mapAddress.comune ? html`<div><strong>Comune:</strong> ${mapAddress.comune}</div>` : ""}
-                      ${mapAddress.provincia ? html`<div><strong>Prov.:</strong> ${mapAddress.provincia}</div>` : ""}
-                      ${mapAddress.indirizzo ? html`<div><strong>Indirizzo:</strong> ${mapAddress.indirizzo}</div>` : ""}
-                    `}
-                  </div>
-                ` : html`
-                  <p class="is-size-7 has-text-grey-light">Nessuna posizione selezionata</p>
-                `}
-              </div>
-
-              <!-- mappa Leaflet -->
-              <div class="sm-map-canvas">
-                <div id="sm-leaflet-container"></div>
-              </div>
-
-            </div>
-
-            <!-- footer -->
-            <div class="sm-map-footer">
-              <span class="sm-coords-preview">
-                ${hasCoords
-                  ? `📍 ${mapLat?.toFixed(5)}, ${mapLon?.toFixed(5)}${mapAddress.comune ? " — " + mapAddress.comune : ""}`
-                  : "Nessuna posizione selezionata"}
-              </span>
-              <button class="button is-small" @click=${closeMap}>Annulla</button>
-              <button class="button is-small is-primary" ?disabled=${!hasCoords || mapReversing} @click=${confirmMap}>
-                <span class="icon"><i class="ri-check-line"></i></span>
-                <span>Conferma posizione</span>
-              </button>
-            </div>
-
-          </div>
-        </div>
-      ` : ""}
+      ${mapPicker.template()}
     `;
   }
 
