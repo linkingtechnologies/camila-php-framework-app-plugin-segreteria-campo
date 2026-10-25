@@ -16,6 +16,9 @@ const INCLUDE_M   = ["id","targa","codice-inventario","categoria","marca","model
                      "organizzazione","provincia","squadra","servizio","data-inizio-attestato","data-fine-attestato"];
 const INCLUDE_MAT = ["id","id-materiale","codice-inventario","categoria","tipologia",
                      "organizzazione","provincia","squadra","servizio","data-inizio-attestato","data-fine-attestato"];
+// Declared squads carry counts, not names, and have no coordinates of their
+// own: they surface inside the service marker popup, like registered resources.
+const INCLUDE_SQ  = ["id","nome","organizzazioni","n-volontari","n-mezzi","servizio"];
 const INCLUDE_ORG = ["id","denominazione","codice","sezione","tipologia-sezione",
                      "comune","provincia","indirizzo","latitudine","longitudine","colore","lettera"];
 
@@ -103,6 +106,22 @@ function buildCards(volontari, mezzi, materiali, groupBy) {
   return Array.from(map.values()).sort((a, b) => a.groupValue.localeCompare(b.groupValue, "it"));
 }
 
+// Declared squads totalled per service. Kept apart from buildCards() on
+// purpose: a squad declaring 8 volunteers is not 8 rows of `volontari`, and
+// summing the two would state a number that is true of neither.
+function squadreByService(squadre) {
+  const map = new Map();
+  for (const r of squadre) {
+    const srv = norm(r.servizio) || WAITING;
+    if (!map.has(srv)) map.set(srv, { squadre: 0, volontari: 0, mezzi: 0 });
+    const e = map.get(srv);
+    e.squadre++;
+    e.volontari += parseInt(r["n-volontari"], 10) || 0;
+    e.mezzi     += parseInt(r["n-mezzi"], 10) || 0;
+  }
+  return map;
+}
+
 // ---- map helpers ------------------------------------------------------------
 
 function traduciColore(c) {
@@ -133,19 +152,30 @@ function popupGiacenze(nome, tipo, movimentazioni) {
   return `<table style="font-size:.78rem;border-collapse:collapse">${rows}</table>`;
 }
 
-function popupRisorse(servizio, cards) {
+function popupRisorse(servizio, cards, sq) {
   const totV   = cards.reduce((s, c) => s + c.volontari.length, 0);
   const totM   = cards.reduce((s, c) => s + c.mezzi.length, 0);
   const totMat = cards.reduce((s, c) => s + c.materiali.length, 0);
+  const nulla  = totV + totM + totMat === 0 && !sq;
 
   let h = `<div style="min-width:240px;max-height:400px;overflow-y:auto">
     <p style="font-weight:600;margin:0 0 4px">${servizio}</p>
-    <p style="font-size:.75rem;color:#666;margin:0 0 8px">
+    <p style="font-size:.75rem;color:#666;margin:0 0 ${sq ? 2 : 8}px">
       ${totV   > 0 ? `<i class="ri-user-line"></i> ${totV} &nbsp;` : ""}
       ${totM   > 0 ? `<i class="ri-truck-line"></i> ${totM} &nbsp;` : ""}
       ${totMat > 0 ? `<i class="ri-tools-line"></i> ${totMat}` : ""}
-      ${totV + totM + totMat === 0 ? "Nessuna risorsa assegnata" : ""}
+      ${nulla ? "Nessuna risorsa assegnata" : ""}
     </p>`;
+
+  // Separate line: these are declared counts, not registered rows, so they are
+  // never added to the totals above.
+  if (sq) {
+    h += `<p style="font-size:.75rem;color:#8a6d1f;background:#fffbeb;border-radius:4px;
+      padding:2px 6px;margin:0 0 8px">
+      <i class="ri-group-line"></i> ${sq.squadre} squadr${sq.squadre === 1 ? "a" : "e"} dichiarat${sq.squadre === 1 ? "a" : "e"}
+      ${sq.volontari > 0 ? ` · ${sq.volontari} vol.` : ""}${sq.mezzi > 0 ? ` · ${sq.mezzi} mezzi` : ""}
+    </p>`;
+  }
 
   for (const card of cards) {
     const cv = card.volontari.length, cm = card.mezzi.length, cmat = card.materiali.length;
@@ -204,6 +234,7 @@ export async function MapCenter({ state, client, html, render, root }) {
 
   // risorse
   let volontari = [], mezzi = [], materiali = [];
+  let squadreDich = [];
   let groupBy   = "organizzazione";
 
   // organizzazioni
@@ -233,7 +264,7 @@ export async function MapCenter({ state, client, html, render, root }) {
   async function load(silent = false) {
     if (!silent) { loading = true; error = null; rerender(); }
     try {
-      const [resMov, resMag, resSrv, resV, resM, resMat, resOrg] = await Promise.all([
+      const [resMov, resMag, resSrv, resV, resM, resMat, resOrg, resSq] = await Promise.all([
         client.table("mov-consumabili").list({ include: INCLUDE_MOV, size: 5000 }),
         client.table("magazzini").list({ include: INCLUDE_MAG, size: 500 }),
         client.table("servizi").list({ include: INCLUDE_SRV, size: 500 }),
@@ -241,6 +272,9 @@ export async function MapCenter({ state, client, html, render, root }) {
         client.table("mezzi").list({ include: INCLUDE_M, size: 5000 }),
         client.table("materiali").list({ include: INCLUDE_MAT, size: 5000 }),
         client.table("db-organizzazioni").list({ include: INCLUDE_ORG, size: 5000 }),
+        // caught apart: if the table is missing the map still works
+        client.table("squadre-dichiarate").list({ include: INCLUDE_SQ, size: 2000 })
+          .catch(() => null),
       ]);
 
       movimentazioni = getRecords(resMov)
@@ -260,6 +294,12 @@ export async function MapCenter({ state, client, html, render, root }) {
       volontari    = getRecords(resV).filter(filterActive);
       mezzi        = getRecords(resM).filter(filterActive);
       materiali    = getRecords(resMat).filter(filterActive);
+
+      // No attestato-date filter here: those columns do not exist on
+      // `squadre-dichiarate`, since squads never go through check-in.
+      squadreDich = resSq
+        ? getRecords(resSq).filter(r => norm(r.servizio) !== "USCITA DEFINITIVA")
+        : [];
 
       organizzazioni = getRecords(resOrg).filter(r => norm(r.denominazione))
         .sort((a, b) => norm(a.denominazione).localeCompare(norm(b.denominazione), "it"));
@@ -369,6 +409,7 @@ export async function MapCenter({ state, client, html, render, root }) {
   function addMarkersRisorse(L) {
     markersByName.clear();
     const cards = buildCards(volontari, mezzi, materiali, groupBy);
+    const bySq = squadreByService(squadreDich);
     const byService = new Map();
     for (const c of cards) {
       if (!byService.has(c.service)) byService.set(c.service, []);
@@ -383,7 +424,7 @@ export async function MapCenter({ state, client, html, render, root }) {
       const srvCards = byService.get(nome) || [];
       const m = L.marker([lat, lon], { icon: makeIcon(L, r.colore, r.lettera) })
         .addTo(leafletMap)
-        .bindPopup(popupRisorse(nome, srvCards), { maxWidth: 320 });
+        .bindPopup(popupRisorse(nome, srvCards, bySq.get(nome) || null), { maxWidth: 320 });
       markersByName.set(nome, { marker: m, lat, lon });
       bounds.extend([lat, lon]);
     }

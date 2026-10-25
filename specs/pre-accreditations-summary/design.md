@@ -3,6 +3,22 @@
 **Pulsante dashboard:** "Riepilogo preaccreditamenti" (box "Accreditamento risorse" di `dashboard_m0.inc.php`)
 **Icona:** `ri-calendar-event-line`
 
+**Raggiungibile da due punti**, con una sola implementazione: quel pulsante in
+home, e il pulsante nella pagina d'ingresso del tab PREACCREDITAMENTI
+(`dashboard_pre-accreditations.inc.php`), dove e' l'unico primario. C'e' anche
+la voce "Riepilogo" nella sezione di menu di `pre-accreditations.inc.php`, utile
+per saltarci dai pivot.
+
+La SPA appartiene alle `<pages>` di quel tab, non piu' a quelle di `m0`:
+aprendola si illumina PREACCREDITAMENTI anche quando ci si arriva dalla home.
+
+**Da non confondere con `pre-accreditations-by-service`** e con gli altri due
+pivot dello stesso file PHP. Quelli sono tabelle pivot organizzazione x turno,
+costruite in SQL e rese dalla classe `report`, e rispondono a "chi fa cosa, e
+quando"; producono anche la modulistica PDF. Questa SPA risponde a "quanti ne
+aspetto e quanti ne sono arrivati", lavora su organizzazione e conteggi, e ha il
+confronto con gli arrivati che i pivot non hanno.
+
 ## 1. Struttura
 
 SPA a singolo step, nessun wizard. Caricamento unico al mount delle tre tabelle preaccreditati in parallelo; tutto il filtraggio e il raggruppamento avvengono client-side sui dati in memoria.

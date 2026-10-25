@@ -18,7 +18,6 @@ const FIELDS = [
   "n-volontari", "n-mezzi", "attrezzature",
   "cognome-referente", "nome-referente", "cellulare-referente",
   "servizio", "turno",
-  "data-inizio-attestato", "data-fine-attestato",
   "data/ora-registrazione", "data/ora-uscita-definitiva",
   "note"
 ];
@@ -29,24 +28,16 @@ const EDITABLE = FIELDS.filter(f => f !== "id");
 // e dai totali in testa all'elenco.
 const NUMERICI = ["n-volontari", "n-mezzi"];
 
-// Vocabolario identico alla colonna MANSIONE di `volontari`: due elenchi
-// divergenti darebbero due verita' diverse sulla stessa nomenclatura.
-const MANSIONI = [
-  "OPERATORE LOGISTICO", "OPERATORE IDROGEOLOGICO", "OPERATORE MOVIMENTO TERRA",
-  "OPERATORE INSACCHETTAMENTO", "OPERATORE MOTOSEGA", "OPERATORE SUB",
-  "OPERATORE CINOFILO", "OPERATORE SEGRETERIA", "OPERATORE SALA OPERATIVA",
-  "OPERATORE RADIO", "OPERATORE NAUTICO", "ELETTRICISTA", "MURATORE", "IDRAULICO",
-  "OPERATORE SANITARIO", "OPERATORE CUCINA", "OPERATORE ANTINCENDIO",
-  "OPERATORE A CAVALLO", "OPERATORE SUBACQUEO"
-];
+// Vocabulary of `squadre-dichiarate.mansione-principale`, read from that
+// column's own listbox_options (views/shared/vocabularies.js).
+//
+// Deliberately NOT `volontari.mansione`: they are two columns on two tables.
+// They hold the same values today, but each dropdown must offer what its own
+// column accepts - writing a value the column does not allow would be wrong
+// even if the other table allows it. The two may therefore diverge, and that
+// is a configuration choice, not a defect.
+let MANSIONI = [];
 
-const STATI = ["In servizio", "Non in servizio", "Da registrare"];
-
-const STATO_COLOR = {
-  "In servizio": "#3B6D11",
-  "Non in servizio": "#888780",
-  "Da registrare": "#BA7517"
-};
 
 /* ==========================
    Utils
@@ -136,11 +127,6 @@ function fmtDate(v) {
   return m ? `${m[3]}/${m[2]}/${m[1]}` : "";
 }
 
-function statoOf(r) {
-  if (!norm(r["data-inizio-attestato"])) return "Da registrare";
-  if (!norm(r["data-fine-attestato"])) return "In servizio";
-  return "Non in servizio";
-}
 
 function num(v) {
   return parseInt(v, 10) || 0;
@@ -182,8 +168,15 @@ function serialize(f) {
  *                                li mette gia' l'ospite
  */
 export async function createTeamPanel({ client, html, rerender, embedded = false }) {
-  const { createOrgPicker, splitOrg } =
-    await import(`../shared/org-picker.js?v=${VERSION}`);
+  const [{ createOrgPicker, splitOrg }, vocab] = await Promise.all([
+    import(`../shared/org-picker.js?v=${VERSION}`),
+    import(`../shared/vocabularies.js?v=${VERSION}`)
+  ]);
+
+  {
+    const voc = await vocab.loadVocabularies(client, TABLE);
+    MANSIONI = vocab.parseCsvOptions(voc["mansione-principale"]);
+  }
 
   const API = client.table(TABLE);
 
@@ -193,7 +186,6 @@ export async function createTeamPanel({ client, html, rerender, embedded = false
   let retrying = false;
 
   let search = "";
-  let filtroStato = "";
   let filtroServizio = "";
 
   let selected = null;
@@ -500,7 +492,6 @@ export async function createTeamPanel({ client, html, rerender, embedded = false
   function filtered() {
     const q = search ? search.toLocaleLowerCase("it-IT") : "";
     return records.filter(r => {
-      if (filtroStato && statoOf(r) !== filtroStato) return false;
       // `organizzazioni` contiene piu' valori: confronto per contenuto, non `eq`
       if (filtroServizio && norm(r.servizio) !== filtroServizio) return false;
       if (!q) return true;
@@ -825,8 +816,6 @@ export async function createTeamPanel({ client, html, rerender, embedded = false
 
         ${block("Periodo", "calendar-line", html`
           <div class="is-flex" style="gap:.75rem;flex-wrap:wrap">
-            ${field("Inizio attestato", "data-inizio-attestato", { type: "date", width: "170px" })}
-            ${field("Fine attestato", "data-fine-attestato", { type: "date", width: "170px" })}
             ${field("Registrazione", "data/ora-registrazione", { type: "datetime-local", width: "220px" })}
             ${field("Uscita definitiva", "data/ora-uscita-definitiva", { type: "datetime-local", width: "220px" })}
           </div>
@@ -857,14 +846,6 @@ export async function createTeamPanel({ client, html, rerender, embedded = false
         <div style="padding:.75rem;border-bottom:1px solid #dbdbdb">
           <input class="input is-small mb-2" type="text" placeholder="Cerca…"
             .value=${search} @input=${e => { search = e.target.value; rerender(); }} />
-
-          <div class="select is-small is-fullwidth mb-2">
-            <select @change=${e => { filtroStato = e.target.value; rerender(); }}>
-              <option value="" ?selected=${filtroStato === ""}>Tutti gli stati</option>
-              ${STATI.map(v => html`
-                <option value=${v} ?selected=${filtroStato === v}>${v}</option>`)}
-            </select>
-          </div>
 
           ${servizi.length ? html`
             <div class="select is-small is-fullwidth mb-2">
@@ -905,15 +886,12 @@ export async function createTeamPanel({ client, html, rerender, embedded = false
                        ${records.length === 0 ? "Nessuna squadra registrata." : "Nessun risultato."}
                      </p>`
               : rows.map(r => {
-                  const st = statoOf(r);
                   const isSel = selected?.id === r.id;
                   return html`
                     <a class="is-block"
                       style=${`padding:.5rem .75rem;border-bottom:1px solid #f0f0f0;text-decoration:none;color:inherit;${isSel ? "background:#e6f1fb" : ""}`}
                       @click=${e => { e.preventDefault(); selectRecord(r); }}>
                       <div class="is-flex is-align-items-center" style="gap:.4rem">
-                        <span title=${st}
-                          style=${`display:inline-block;width:8px;height:8px;border-radius:50%;background:${STATO_COLOR[st]};flex-shrink:0`}></span>
                         <strong class="is-size-7" style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
                           ${norm(r.nome) || "(senza nome)"}
                         </strong>
@@ -934,8 +912,6 @@ export async function createTeamPanel({ client, html, rerender, embedded = false
                           return html`<span class="tag is-success is-light" style="font-size:.6rem">nominativi completi</span>`;
                         })()}
                         ${norm(r.servizio) ? html` · ${norm(r.servizio)}` : ""}
-                        ${fmtDate(r["data-inizio-attestato"])
-                          ? html` · dal ${fmtDate(r["data-inizio-attestato"])}` : ""}
                       </div>
                     </a>
                   `;

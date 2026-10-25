@@ -1,4 +1,9 @@
 // ./views/massive-check-out/step2.js
+
+// Cache-busting dell'import dinamico: la query dell'entry point non si propaga
+// ai moduli importati dalla view (AGENTS.md §L'import deve essere dinamico).
+const VERSION = window.APP_CONFIG?.version || Date.now();
+
 function safe(v) {
   return String(v ?? "").trim();
 }
@@ -27,10 +32,17 @@ function getRecords(res) {
 
 const DEFAULT_SERVIZIO = "IN ATTESA DI SERVIZIO";
 
-const MANSIONI_CSV =
-  "OPERATORE LOGISTICO,OPERATORE IDROGEOLOGICO,OPERATORE MOVIMENTO TERRA,OPERATORE INSACCHETTAMENTO,OPERATORE MOTOSEGA,OPERATORE SUB,OPERATORE CINOFILO,OPERATORE SEGRETERIA,OPERATORE SALA OPERATIVA,OPERATORE RADIO,OPERATORE NAUTICO,ELETTRICISTA,MURATORE,IDRAULICO,OPERATORE SANITARIO,OPERATORE CUCINA,OPERATORE ANTINCENDIO,OPERATORE A CAVALLO,OPERATORE SUBACQUEO";
+// Vocabolario letto dalle listbox_options di `volontari.mansione`
+// (views/shared/vocabularies.js): era copiato qui e in
+// views/massive-check-in/step3.js. La copia di riserva vive nel modulo.
+let MANSIONI = [];
 
-const MANSIONI = MANSIONI_CSV.split(",").map(normMansione).filter(Boolean);
+async function caricaMansioni(client) {
+  const { parseCsvOptions, loadVocabularies } =
+    await import(`../shared/vocabularies.js?v=${VERSION}`);
+  const voc = await loadVocabularies(client, "volontari");
+  MANSIONI = parseCsvOptions(voc.mansione).map(normMansione).filter(Boolean);
+}
 
 
 /* =========================
@@ -147,6 +159,8 @@ function siNoSelect(value, onChange, disabled = false, html) {
    ========================= */
 
 export async function Step2({ state, client, goTo, html, render, root }) {
+  await caricaMansioni(client);
+
   let loading = true;
   let error = null;
   let successMsg = null;

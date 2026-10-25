@@ -10,24 +10,32 @@ function getRecords(res) {
   return [];
 }
 
-const STATI = [
-  "A - Presa in carico",
-  "B - In valutazione",
-  "C1 - In lavorazione",
-  "C2 - In attesa di lavorazione",
-  "D1 - Eseguita",
-  "D2 - Respinta"
-];
+// Cache-busting dell'import dinamico: la query dell'entry point non si propaga
+// ai moduli importati dalla view (AGENTS.md §L'import deve essere dinamico).
+const VERSION = window.APP_CONFIG?.version || Date.now();
 
-const TIPI = ["Interna", "Esterna"];
+// Vocabolari letti dalle listbox_options delle colonne di `richieste`
+// (views/shared/vocabularies.js). Riempiti da caricaVocabolari() prima del
+// primo render; la copia di riserva vive nel modulo condiviso.
+let STATI = [];
+let TIPI = [];
+let PRIORITA = [];
 
-const PRIORITA = [
-  "1 - Urgente",
-  "2 - Alta",
-  "3 - Normale",
-  "4 - Bassa",
-  "5 - Molto bassa"
-];
+async function caricaVocabolari(client) {
+  const { parseCsvOptions, loadVocabularies } =
+    await import(`../shared/vocabularies.js?v=${VERSION}`);
+  const voc = await loadVocabularies(client, "richieste");
+  STATI = parseCsvOptions(voc.stato);
+  TIPI = parseCsvOptions(voc["tipo-richiesta"]);
+  PRIORITA = parseCsvOptions(voc.priorita);
+}
+
+// Valori iniziali di una nuova richiesta. Restano scelti per **posizione**,
+// come prima: lo stato e il tipo sono il primo, la priorita' la terza — cioe'
+// "Normale" nell'elenco attuale. Riordinando il vocabolario della colonna
+// cambia anche il valore predefinito: e' voluto fin qui, ma e' un legame fra
+// l'ordine dell'elenco e il significato, non una coincidenza.
+const primo = (arr, i = 0) => arr[i] ?? arr[0] ?? "";
 
 const PRIO_STYLE = {
   "1 - Urgente":      { border: "#ef4444", bg: "#fef2f2", text: "#b91c1c" },
@@ -47,6 +55,8 @@ const STATO_COLOR = {
 };
 
 export async function RequestsBoard({ client, html, render, root }) {
+  await caricaVocabolari(client);
+
   const Table = client.table("richieste");
 
   let records   = [];
@@ -148,7 +158,7 @@ export async function RequestsBoard({ client, html, render, root }) {
   function openCreate() {
     const today = new Date().toISOString().slice(0, 10);
     modal = { mode: "create",
-              draft: { stato: STATI[0], priorita: PRIORITA[2], "tipo-richiesta": TIPI[0],
+              draft: { stato: primo(STATI), priorita: primo(PRIORITA, 2), "tipo-richiesta": primo(TIPI),
                        data: today, servizio: "" },
               saving: false, error: null, recordId: null };
     rerender();
@@ -158,10 +168,10 @@ export async function RequestsBoard({ client, html, render, root }) {
     modal = { mode: "edit",
               draft: { data: norm(r.data), richiedente: norm(r.richiedente),
                        richiesta: norm(r.richiesta),
-                       "tipo-richiesta": norm(r["tipo-richiesta"]) || TIPI[0],
-                       priorita: norm(r.priorita) || PRIORITA[2],
+                       "tipo-richiesta": norm(r["tipo-richiesta"]) || primo(TIPI),
+                       priorita: norm(r.priorita) || primo(PRIORITA, 2),
                        "assegnatario-richiesta": norm(r["assegnatario-richiesta"]),
-                       stato: norm(r.stato) || STATI[0],
+                       stato: norm(r.stato) || primo(STATI),
                        servizio: norm(r.servizio),
                        note: norm(r.note) },
               saving: false, error: null, recordId: r.id };
@@ -483,7 +493,7 @@ export async function RequestsBoard({ client, html, render, root }) {
     const byStato = new Map(STATI.map(s => [s, []]));
     for (const r of recs) {
       const s = norm(r.stato);
-      const target = byStato.has(s) ? s : STATI[0];
+      const target = byStato.has(s) ? s : primo(STATI);
       byStato.get(target).push(r);
     }
 

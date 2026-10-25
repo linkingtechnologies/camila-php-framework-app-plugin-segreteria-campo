@@ -2,15 +2,26 @@
 
 // ---- costanti ---------------------------------------------------------------
 
-const TIPI = ["CARICO", "SCARICO", "TRASFERIMENTO"];
-const UDM      = ["pezzo", "bancale", "bottiglia", "Kg", "l", "confezione"];
-const ARTICOLI = [
-  "Sacco sabbia vuoto", "Sacco sabbia pieno",
-  "Sacco juta vuoto",   "Sacco juta pieno",
-  "Sacco PTT vuoto",    "Sacco PTT pieno",
-  "Big Bag vuoto",      "Big Bag pieno",
-  "Pasto", "Acqua",
-];
+// Cache-busting for the dynamic import: the entry point's query string does
+// not propagate to modules the view imports (AGENTS.md, Module loading).
+const VERSION = window.APP_CONFIG?.version || Date.now();
+
+// Read from the listbox_options of `mov-consumabili.tipologia`, `.articolo`
+// and `.unita-di-misura` (views/shared/vocabularies.js). The fallback copy
+// lives in that module.
+let TIPI = [];
+let UDM = [];
+let ARTICOLI = [];
+
+async function loadVocabularies_(client) {
+  const { parseCsvOptions, loadVocabularies } =
+    await import(`../shared/vocabularies.js?v=${VERSION}`);
+  const voc = await loadVocabularies(client, "mov-consumabili");
+  TIPI = parseCsvOptions(voc.tipologia);
+  ARTICOLI = parseCsvOptions(voc.articolo);
+  UDM = parseCsvOptions(voc["unita-di-misura"]);
+}
+
 const PAGE_SIZE = 50;
 
 const INCLUDE_MOV = [
@@ -64,7 +75,7 @@ function emptyModal(record) {
     tipo:                    "",
     articolo:                "",
     "quantita":             "",
-    "unita-di-misura":      "pezzo",
+    "unita-di-misura":      UDM[0] ?? "",
     "magazzino-origine":     "",
     "magazzino-destinazione":"",
     servizio:                "",
@@ -128,6 +139,8 @@ function buildGiacenzeServizi(movimentazioni) {
 // ---- main export ------------------------------------------------------------
 
 export async function StockManager({ state, client, html, render, root }) {
+  await loadVocabularies_(client);
+
 
   // --- local state ---
   let loading         = true;

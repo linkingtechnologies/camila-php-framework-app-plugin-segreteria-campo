@@ -20,6 +20,10 @@ if (!isset($_REQUEST['camila_xml2pdf'])) {
 
 	$camilaUI->openMenuSection('Preaccreditamenti');
 
+	// The summary SPA is the entry point of this tab, so it comes first. It is
+	// also reachable from the home button in the "Accreditamento risorse" box:
+	// two entry points, one implementation.
+	$camilaUI->addItemToMenuSection('?dashboard=pre-accreditations-summary','Riepilogo');
 	$camilaUI->addItemToMenuSection('?dashboard=pre-accreditations-by-service','Volontari');
 	$camilaUI->addItemToMenuSection('?dashboard=pre-accreditations-vehicles-by-service','Mezzi');
 	$camilaUI->closeMenuSection();

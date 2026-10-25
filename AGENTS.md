@@ -43,9 +43,12 @@ senza campo di ammassamento, squadre che operano da remoto, elenchi che
 arriveranno a consuntivo giorni dopo — o mai.
 
 **Non sono un ripiego temporaneo**: dove non c'e' un campo, sono l'unica
-registrazione che esistera'. E **non passano dal check-in**, quindi le date di
-attestato possono restare vuote: le SPA che le mostrano non applicano loro il
-filtro sulle date usato per le risorse registrate.
+registrazione che esistera'. E **non passano dal check-in**, quindi non hanno
+affatto le date di attestato: quelle due colonne sono state rimosse dalla
+tabella, e le SPA che mostrano le squadre non applicano loro il filtro sulle
+date usato per le risorse registrate. Restano `data/ora-registrazione` e
+`data/ora-uscita-definitiva`, che dicono quando la squadra e' stata presa in
+carico e quando e' uscita.
 
 Il campo `squadra` su volontari, mezzi e materiali e' **l'altra faccia**: dopo un
 check-in, le risorse portano il nome della squadra. Il nome e' la continuita' fra
@@ -85,6 +88,34 @@ propria: vedere §Moduli condivisi.
 pulsante nel box amministrativo per tenere l'anagrafica, e la terza vista di
 `intervention-manager` per usarla mentre si lavora a un intervento. Non e' una
 duplicazione — vedere §Pannelli incorporabili.
+
+Anche **Riepilogo preaccreditamenti** ha due ingressi: il pulsante nel box
+Accreditamento della home e quello nella pagina d'ingresso del tab
+PREACCREDITAMENTI. La SPA sta nelle `<pages>` di quel tab, non di `m0`, cosi' si
+illumina il tab giusto da qualunque parte si arrivi.
+
+Quel tab ha una **pagina d'ingresso propria**, `dashboard_pre-accreditations.inc.php`,
+con i pulsanti verso il riepilogo e i tre pivot. Prima il tab apriva dritto sul
+pivot dei volontari, e le altre viste si raggiungevano solo dalla sezione di
+menu interna — che la SPA non stampa, perche' renderizza dentro `#app`. La
+modulistica PDF e gli elenchi grezzi **non** sono duplicati li': si costruiscono
+per turno da una query `DISTINCT` che gira in `pre-accreditations.inc.php`, e
+restano sulle pagine dei pivot dove quella query gia' c'e'.
+
+### Non confondere le due viste sui preaccreditati
+
+| | `pre-accreditations-summary` (SPA) | `pre-accreditations*-by-*` (PHP) |
+|---|---|---|
+| Asse | organizzazione | organizzazione x turno (pivot) |
+| Contenuto | conteggi di volontari, mezzi, materiali | il servizio, o il pernottamento, assegnato |
+| Confronto con gli arrivati | si', e' il suo tratto distintivo | no |
+| Modulistica PDF | no | si', complessiva e per turno |
+| Come e' fatta | tre `list()`, tutto in memoria | SQL pivot + classe `report`, sola lettura |
+
+Sono tre dashboard PHP (`by-service`, `vehicles-by-service`,
+`by-overnight-stay`) servite dallo stesso `pre-accreditations.inc.php`, che si
+distinguono leggendo `$_REQUEST['dashboard']`. Rispondono a "chi fa cosa e
+quando"; la SPA risponde a "quanti ne aspetto e quanti ne sono arrivati".
 
 Gli endpoint API del plugin hanno spec proprie sotto [`specs/api/`](specs/api/).
 
@@ -280,7 +311,7 @@ selettore e' `#app .spa-title-box, .box.spa-title-box`.
 uno neutro. Il pieno marca le poche azioni che contano: con tutti i pulsanti
 pieni non esiste un ordine di lettura.
 
-La home e' divisa in quattro box, per criterio e non per tipo di oggetto.
+La home e' divisa in **quattro** box, per criterio e non per tipo di oggetto.
 **L'ordine segue la frequenza d'uso**, non il ciclo di vita: in evento si sta
 quasi sempre nell'operativita', mentre arrivi e partenze arrivano a ondate.
 
@@ -288,9 +319,15 @@ quasi sempre nell'operativita', mentre arrivi e partenze arrivano a ondate.
 |---|---|---|---|
 | 1 | Operatività | cosa si fa ogni giorno | movimentazioni, interventi, richieste |
 | 2 | Monitoraggio | come sta andando | comunicazioni live, mappe, report |
-| 3 | Accreditamento risorse | chi entra e chi esce | check-in, riepilogo preaccreditamenti, stato registrazione, check-out |
-| 4 | Anagrafiche | dati di riferimento | servizi, magazzini, squadre dichiarate |
-| 5 | Volontari / Mezzi / Materiali | anagrafiche delle risorse | database, registrazione, elenchi, attestati |
+| 3 | Accreditamento risorse | chi entra e chi esce | check-in, riepilogo preaccreditamenti, stato registrazione, check-out, attestati |
+| 4 | Anagrafiche | dati di riferimento | squadre dichiarate, i tre database risorse, servizi, magazzini |
+
+**C'era un quinto box**, "Volontari / Mezzi / Materiali", con registrazione,
+movimentazione ed elenco per ciascun tipo. E' stato rimosso: la registrazione la
+fa il check-in massivo, la movimentazione ha la sua SPA in Operatività e ci
+arrivano anche i link dei report (`?dashboard=02/03/04`), gli elenchi grezzi
+restano raggiungibili da WorkTable Explorer. Non riaggiungerlo senza una ragione
+nuova.
 
 Nel box Anagrafiche le etichette sono **sostantivi semplici** — "Servizi", non
 "Anagrafica servizi": il titolo del box lo dice gia'.
@@ -299,7 +336,12 @@ Nel box Monitoraggio i pulsanti sono **tutti secondari**: guardare non e' agire.
 Il criterio e' il **flusso di lavoro dell'operatore**, non la natura tecnica
 della SPA.
 
-In Accreditamento stanno insieme le quattro schermate dell'arco di
+Gli **attestati** stanno sotto Check-out massivo perche' si producono alla
+partenza: sono l'ultimo atto dell'arco, non una funzione dell'anagrafica. Li'
+l'etichetta "Attestati" da sola non direbbe di chi, quindi sono "Attestati
+volontari" e "Attestati mezzi". I materiali non ne hanno.
+
+In Accreditamento stanno insieme le schermate dell'arco di
 un'organizzazione — chi deve arrivare, chi e' arrivato, come sta messa, chi esce
 — anche se due di esse (`pre-accreditations-summary` e `org-status`) sono di
 sola lettura. La sola lettura decide semmai il **colore** del pulsante: sono
@@ -308,6 +350,19 @@ entrambe tonali.
 Servizi, magazzini e squadre dichiarate scrivono eccome, ma sono dati di
 riferimento: si impostano a inizio evento e si ritoccano di rado, quindi stanno
 in Anagrafiche.
+
+Dentro Anagrafiche l'ordine delle colonne e': squadre dichiarate a sinistra, i
+tre database al centro, servizi e magazzini a destra.
+
+Li' stanno anche i tre **Database risorse**, perche' `resource-manager` lavora
+su `db-volontari`, `db-mezzi` e `db-materiali` — l'anagrafica permanente, che
+esiste prima dell'evento e sopravvive dopo. Le tabelle di evento `volontari`,
+`mezzi` e `materiali` le toccano check-in e check-out.
+
+Sono gli unici pulsanti di Anagrafiche che **non** seguono la regola del
+sostantivo semplice: "Database volontari", non "Volontari". In un box che
+contiene anche "Squadre dichiarate", il solo "Volontari" si leggerebbe come i
+volontari in campo — cioe' l'ambiguita' che lo spostamento serve a togliere.
 
 Due classi sui box governano l'aspetto dei secondari:
 
@@ -355,9 +410,9 @@ Do not introduce a bundler requirement unless explicitly requested.
 ## Moduli condivisi
 
 Il codice usato da piu' viste sta in `views/shared/`. Oggi ci sono
-`map-picker.js` (selettore di posizione su mappa, Leaflet + Nominatim) e
+`map-picker.js` (selettore di posizione su mappa, Leaflet + Nominatim),
 `org-picker.js` (selezione multipla di organizzazioni con ricerca e filtro per
-provincia).
+provincia) e `vocabularies.js` (elenchi di valori letti dalle colonne).
 
 **Contratto**: un modulo condiviso non renderizza da se'. Esporta una fabbrica
 che riceve `html` e un `rerender` dell'ospite, e restituisce un `template()`:
@@ -376,6 +431,10 @@ si contendano la stessa radice.
 Quando il componente deve agire **dopo** il render — montare una mappa, misurare
 un nodo — espone un `afterRender()` che l'ospite chiama dentro il proprio
 `rerender()`.
+
+**Un modulo di soli dati** — `vocabularies.js` — non ha markup da comporre,
+quindi non segue questa forma: esporta funzioni e tiene la propria cache. La
+divergenza e' voluta e documentata in `specs/api/describe/design.md`.
 
 **Cosa non mettere qui**: gli helper che ogni vista gia' duplica
 (`getRecords`, `norm`, `normalizeApiError`, `userFriendlyErrorText`,
@@ -1161,6 +1220,100 @@ garantisse.
 Se un vocabolario va copiato in piu' punti, copiarlo **identico** e annotare da
 dove viene: due elenchi divergenti danno due verita' sulla stessa colonna.
 
+### Leggerlo, non copiarlo
+
+Questi vocabolari **non** sono piu' copiati nelle viste: li legge
+`views/shared/vocabularies.js` da `describe()`.
+
+| Colonna | Chi la usa |
+|---|---|
+| `mezzi.categoria`, `mezzi.tipologia` | `resource-manager` step 1 e 2, `massive-check-in/step4.js` |
+| `materiali.categoria`, `materiali.tipologia` | `resource-manager` step 1 e 2, `massive-check-in/step6.js` |
+| `richieste.stato`, `.tipo-richiesta`, `.priorita` | `requests-board`, `intervention-manager` |
+| `servizi.stato` | `intervention-manager` |
+| `volontari.mansione` | `massive-check-in/step3.js`, `massive-check-out/step2.js` |
+| `squadre-dichiarate.mansione-principale` | `team-manager` |
+| `mov-consumabili.tipologia`, `.articolo`, `.unita-di-misura` | `stock-manager` |
+
+E' la strada da seguire per i vocabolari nuovi.
+
+Restano cablati, e non sono dimenticanze: `COLORI` e `LETTERE` (hanno accanto
+una mappa di conversione in colore o un alfabeto per i marker, quindi non
+basterebbe l'elenco), gli stati calcolati di `team-manager` — che il codice
+deduce dalle date e non legge da nessuna colonna.
+
+`volontari.mansione` e `squadre-dichiarate.mansione-principale` contengono gli
+stessi valori ma restano **due colonne**: ogni tendina legge la propria, perche'
+offrire un valore che la colonna di destinazione non ammette sarebbe sbagliato
+anche se l'altra tabella lo ammette. Possono quindi divergere, ed e' una scelta
+di configurazione.
+
+**Come fa `describe()` a saperlo.** Di suo il controller `columns` di
+php-crud-api riflette la tabella fisica — nome, tipo, lunghezza, nullabilita' —
+e non conosce la configurazione Camila, dove gli elenchi vivono in
+`CAMILA_TABLE_WORKC`. Il framework e' stato esteso perche' il describe **fonda
+la configurazione dentro la colonna**: aggiunge cio' che manca e sovrascrive
+cio' che c'e' gia'.
+
+```json
+{ "name": "tipologia", "type": "string-listofvalues", "dbType": "varchar",
+  "length": 250, "nullable": true,
+  "label": "TIPOLOGIA", "abbrev": "TIPOLOGIA", "sequence": 11,
+  "required": false, "readonly": false, "unique": false, "visible": true,
+  "maxlength": 255,
+  "options": ["Non assegnata", "--VEICOLI", "AUTOCARRO", "…"] }
+```
+
+L'unica collisione reale e' `type`: per la riflessione e' il tipo SQL, per
+Camila il tipo di campo. **Vince Camila**, ed e' il piu' informativo dei due; il
+tipo SQL finisce in `dbType`, perche' serve a chi valida. `maxlength` e `length`
+restano entrambi: il primo e' il massimo configurato, il secondo la dimensione
+fisica della colonna.
+
+La patch vive in `camila/api.include.php`, quindi nel framework e non qui.
+Dettagli in [`specs/api/describe/`](specs/api/describe/).
+
+Da sapere: nel describe esteso **`name` e' il nome pubblico** della colonna, e
+il nome fisico non viene piu' esposto. Prima `name` era quello fisico e
+`alias` quello pubblico — controintuitivo, ed e' la ragione per cui
+`views/worktable-explorer/index.js` ha un ramo di riserva che leggeva i nomi
+sbagliati.
+
+Resta **una** copia di riserva, dentro `vocabularies.js`. Scatta se il describe
+non risponde, o se risponde **senza** la configurazione — nessuna colonna con
+`label` — perche' quello vuol dire "framework non esteso", non "nessun
+vocabolario". Senza la riserva le tendine resterebbero vuote e l'operatore non
+potrebbe classificare nulla.
+
+Nel formato le categorie sono marcate `--Nome` dentro l'elenco delle tipologie,
+e l'etichetta deve coincidere **carattere per carattere** con quella della
+colonna `categoria`: l'associazione e' una `Map` esatta, quindi `--Veicoli`
+contro `VEICOLI` lascia il filtro vuoto senza errori. Una virgola dentro un
+valore lo spezza in due voci: e' il separatore e non c'e' escape.
+
+## L'ordine delle colonne lo decide la worktable
+
+Il describe esteso porta `sequence` su ogni colonna: e' l'ordine impostato sulla
+scheda in Camila, ed e' **quello** a governare come le colonne compaiono nelle
+tabelle delle SPA. Non un elenco cablato nel JS.
+
+Lo fa oggi `resource-manager` (vedi `specs/resource-manager/design.md` §7c). Gli
+elenchi cablati che restano — `PREFERRED_COLS` — valgono solo come riserva
+quando il describe non e' esteso e come spareggio fra colonne con lo stesso
+`sequence`.
+
+Conseguenza pratica: **per cambiare l'ordine si tocca la configurazione, non il
+codice**. E una colonna aggiunta alla worktable compare al posto giusto da sola,
+invece di finire in coda in ordine alfabetico.
+
+Corollario: se l'ordine configurato non e' quello che serve a chi guarda la
+tabella — su `db-mezzi` i primi campi sono organizzazione e provincia, non la
+targa — si sistema il `sequence` in Camila. Rimetterci un elenco nel JS
+riporterebbe il problema dove stava.
+
+L'utente puo' comunque riordinare e nascondere colonne per se': la preferenza
+sta in `localStorage`, non sostituisce il default ma lo copre.
+
 ## Campi vuoti: `null`, non stringa vuota
 
 Nei payload di `create` e `update`, un campo vuoto si invia come `null`:
@@ -1193,6 +1346,47 @@ Ne discende che il nome **non puo' essere vuoto**, che una rinomina **non si
 propaga** — chi referenziava resta puntato al nome vecchio, e la SPA deve
 avvisare — e che prima di eliminare va contato chi lo usa, bloccando se qualcuno
 lo usa.
+
+## Codici leggibili a voce
+
+Un identificatore che un operatore dovra' dettare in radio o al telefono si
+genera su un alfabeto **senza coppie confondibili**. Il codice intervento di
+`intervention-manager` usa `ACDEFGHJKLMNPQRTUWXY3479` (24 simboli, 5
+caratteri): fuori `B`/`8`, `I`/`1`, `O`/`0`, `S`/`5`, `Z`/`2`, `V`/`U`,
+`6`/`G`.
+
+Casuale, non sequenziale: un contatore rivela quante schede esistono e rende
+indovinabile la prossima. L'unicita' si garantisce in due passi — un `Set` dei
+valori gia' caricati, piu' una `list` filtrata sul codice candidato prima di
+scrivere, per il caso di due operatori che creano nello stesso istante.
+
+Se la verifica remota fallisce **si accetta comunque il codice**: l'elenco
+locale ha gia' escluso le collisioni note e un errore di rete non deve impedire
+la creazione del record.
+
+## I file in `tables/xls/it/` non sono la fonte dei nomi di campo
+
+Le worktable si modificano dall'interfaccia di Camila, quindi una colonna puo'
+comparire dopo che la SPA e' stata scritta. I file in `tables/xls/it/` sono la
+definizione **iniziale**, non lo stato corrente: `91_Servizi.xlsx` non ha ne' i
+campi del referente ne' il codice intervento, che la tabella ha.
+
+Prima di cablare il nome di un campo aggiunto di recente, **verificarlo contro
+la tabella viva** — un `describe()`, o il payload di un record. Poi cablarlo
+esplicitamente, come tutti gli altri (§Explicit over generic): una risoluzione a
+runtime costa una chiamata a ogni mount e nasconde l'errore invece di mostrarlo.
+
+Un campo che il sistema assegna e l'operatore non modifica va tenuto **fuori da
+`EDITABLE`**, come gia' `id`:
+
+```js
+const CODE_FIELD = "codice-intervento";
+const EDITABLE = FIELDS.filter(f =>
+  f !== "id" && f !== "intervento" && f !== CODE_FIELD);
+```
+
+Altrimenti il ciclo `payload[k] = norm(form[k]) || null` di `save()` lo
+azzererebbe a ogni salvataggio.
 
 ## Fotografia o riferimento
 

@@ -1,4 +1,8 @@
 // ./views/resource-manager/step1.js
+
+// Cache-busting dell'import dinamico: la query dell'entry point non si
+// propaga ai moduli importati dalla view (AGENTS.md §L'import deve essere dinamico).
+const VERSION = window.APP_CONFIG?.version || Date.now();
 export async function Step1(props) {
   const { state, client, goTo, html, render, root } = props;
 
@@ -39,6 +43,25 @@ export async function Step1(props) {
     materiali: { page: 1, size: 50, total: 0, totalPages: 1, hasNext: false },
   };
 
+  // Column metadata from the extended describe: `sequence` is the order set on
+  // the worktable in Camila, so the default order is configuration, not code.
+  state.step1.colMetaByTab ||= { volontari: null, mezzi: null, materiali: null };
+
+  // Per-user override, kept in localStorage: order and hidden columns, per tab.
+  // Not in a worktable - it is a per-browser preference, not shared data.
+  state.step1.colPrefByTab ||= { volontari: null, mezzi: null, materiali: null };
+  state.step1.colPanelOpen ||= false;
+
+  // Quick search state. Lives in `state` so it survives the trip to the record
+  // editor and back: returning from a record keeps the result list.
+  state.step1.quickSearch ||= {
+    q: "",
+    loading: false,
+    loaded: false,
+    error: null,
+    rows: { volontari: [], mezzi: [], materiali: [] },
+  };
+
   state.step1.columnFilterByTab ||= {
     volontari: { col: "cognome", op: "cs", val: "" },
     mezzi: { col: "targa", op: "cs", val: "" },
@@ -72,6 +95,68 @@ export async function Step1(props) {
     mezzi: "db-mezzi",
     materiali: "db-materiali",
   };
+
+  // ---- quick search across the three catalogues ----------------------------
+  // Fields each tab is searched on. Explicit, not "every column": the list has
+  // to stay in step with what the tables actually have. `db-volontari` has no
+  // categoria / tipologia / note at all, so those appear only under mezzi and
+  // materiali. `note-ulteriori` exists on both but is left out - add it here if
+  // it turns out to be wanted.
+  const SEARCH_FIELDS = {
+    volontari: ["cognome", "nome", "codice-fiscale", "organizzazione"],
+    mezzi: ["targa", "codice-inventario", "marca", "modello", "organizzazione",
+            "categoria", "tipologia", "note"],
+    materiali: ["id-materiale", "codice-inventario", "marca", "modello", "organizzazione",
+                "categoria", "tipologia", "note"],
+  };
+
+  const SEARCH_MIN = 2;      // below this the result list would be the whole table
+  const SEARCH_SHOWN = 12;   // rows rendered; the rest is reported as a count
+
+  // Case- and accent-insensitive: operators are not involved here, the match
+  // happens in memory, so "rossi" finds "ROSSI" and "Nicolò" finds "NICOLO".
+  function searchNorm(v) {
+    return String(v ?? "")
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .toLowerCase()
+      .trim();
+  }
+
+  // One line per hit: what identifies the record at a glance.
+  function searchTitle(tab, r) {
+    if (tab === "volontari") {
+      return [safe(r.cognome), safe(r.nome)].filter(Boolean).join(" ") || safe(r["codice-fiscale"]) || "(senza nome)";
+    }
+    if (tab === "mezzi") {
+      return safe(r.targa) || safe(r["codice-inventario"]) || "(senza targa)";
+    }
+    return safe(r["id-materiale"]) || safe(r["codice-inventario"]) || "(senza id)";
+  }
+
+  function searchSubtitle(tab, r) {
+    if (tab === "volontari") {
+      return [safe(r["codice-fiscale"]), safe(r.organizzazione)].filter(Boolean).join(" · ");
+    }
+    if (tab === "mezzi") {
+      return [[safe(r.marca), safe(r.modello)].filter(Boolean).join(" "), safe(r.organizzazione)]
+        .filter(Boolean).join(" · ");
+    }
+    // `tipologia` moved to a badge, so it is no longer repeated here
+    return [[safe(r.marca), safe(r.modello)].filter(Boolean).join(" "), safe(r.organizzazione)]
+      .filter(Boolean).join(" · ");
+  }
+
+  // Categoria and tipologia as badges: they are the two fields that tell apart
+  // records sharing a plate-less inventory code. `db-volontari` has neither, so
+  // volunteer rows get none.
+  function searchBadges(tab, r) {
+    if (tab === "volontari") return [];
+    return [
+      { label: "Categoria", value: safe(r.categoria) },
+      { label: "Tipologia", value: safe(r.tipologia) },
+    ].filter((b) => b.value);
+  }
 
   const PREFERRED_COLS = {
     volontari: [
@@ -148,35 +233,22 @@ export async function Step1(props) {
 
   // colonne derivate: non modificabili inline
   const INLINE_SKIP = new Set(["provincia", "codice-organizzazione"]);
+  // -------------------- VOCABOLARI --------------------
+  // categoria e tipologia arrivano dalle listbox_options delle colonne:
+  // vedi views/shared/vocabularies.js.
+  const { loadCatalog } = await import(`../shared/vocabularies.js?v=${VERSION}`);
 
-  const MEZZI_CAT_OPT = ["Non assegnata", "Imbarcazioni", "Mezzi aerei", "Mezzi speciali", "Rimorchi", "Veicoli"];
-  const MEZZI_TIP_OPT = {
-    Imbarcazioni: ["Barca", "Gommone", "Hovercraft", "Moto d'acqua"],
-    "Mezzi aerei": ["Aeroplano", "Drone", "Elicottero", "Idrovolante", "ULM (ultraleggero motorizzato)"],
-    "Mezzi speciali": ["Battipista", "Bobcat", "Escavatore", "Listo spazzola", "Motoslitta", "Muletto", "Sollevatore idraulico", "Spargi sabbia e sale", "Spazzaneve", "Terna"],
-    Rimorchi: ["Biga", "Carrello", "Carrello Appendice", "Rimorchio", "Roulotte", "Semirimorchio"],
-    Veicoli: ["Ambulanza", "Autobotte", "Autobus", "Autocarro", "Autogru", "Autoidroschiuma", "Automedica", "Autopompa serbatoio (APS)", "Autoscala", "Autovettura", "Camper", "Carro attrezzi", "Fuoristrada", "Furgone", "Motociclo", "Motrice", "Trattore agricolo", "Trattore stradale"],
-  };
+  const [mezziCat, materialiCat] = await Promise.all([
+    loadCatalog(client, "mezzi"),
+    loadCatalog(client, "materiali")
+  ]);
 
-  const MATERIALI_TIPOLOGIE_OPTS =
-    "Non assegnata,--Attrezzature speciali,Apparato climatizzazione,Arva,Aspiratore,Aspiratore ad aria,Cisterna per idrocarburi,Compressore,Drone per riprese aeree,Gruppo,Martello,Martinetto,Materiale nautici e subacquei,Nastro traportatore,Officina,Pallone di sollevamento,Ponte Bailey,Potabilizzatore,Rasasiepi,Robot subaqueo,Saldatrice,Serbatoio per acqua potabile,Sonda,Spaccarocce,Transpallet,Trivella,Vibroinfissore,--Attrezzi vari,Attrezzi da lavoro,Carriola Badile,DPI,Decespugliatore,Estintore,Grella di camminamento,Materiale da campeggio,Materiale per sollevamento,Motosega,Panca,Scala,Sedia,Tavolo,--Container,Attrezzati,Da trasporto,--Effetti letterecci,Branda,Coperta,Cuscino/guanciale,Lenzuola,Materasso,Sacco a pelo,Sacco lenzuolo,--Generatori,Generatore,--Materiale AIB,Chiave idratante,Colonnina a terra presa acqua,Lancia,Manichette,Modulo AIB,Raccordo / riduzione,Serbatoio, cisterna antincendio,Soffiatore,Vasca,--Materiale antinquinante,Assorbente solido,Disperdente prodotti petroliferi,Panna antiinquinamento,Solvente antinquinante,--Materiale elettrico,Adattatore,Altro materiale elettrico,Asciugatrice,Cavi elettrici,Condizionatore,Dispenser,Frigor portatile,Impianto di illuminazione,Lampada portatile,Lavatrice,Macchina distribuzione automatica,Quadro elettrico,Riscaldatore - generatore aria calda,Spina,Termosifone elettrico,Torre faro,--Materiale idraulico e idrogeologico,Elettropompa,Insacchettatrice,Modulo Idrogeologico,Motopompa,Tubazioni,--Materiale informatico,--Radio e dispositivi TLC,Apparati radio da rack,Radio,Telefono satellitare,XCO-2020,--Tende,A pali,Gazebo,Multifunzione,Pneumatica,Sociale,Tensostruttura,Tipo p88";
+  const MEZZI_CAT_OPT = mezziCat.categories;
+  const MEZZI_TIP_OPT = mezziCat.byCat;
 
-  const { MAT_CAT_OPT, MAT_TIP_OPT } = (() => {
-    const parts = MATERIALI_TIPOLOGIE_OPTS.split(",").map((x) => x.trim()).filter(Boolean);
-    const cats = [];
-    const byCat = {};
-    let cur = null;
-    for (const p of parts) {
-      if (p.startsWith("--")) {
-        cur = p.slice(2).trim();
-        if (!byCat[cur]) byCat[cur] = [];
-        if (!cats.includes(cur)) cats.push(cur);
-        continue;
-      }
-      if (cur) byCat[cur].push(p);
-    }
-    return { MAT_CAT_OPT: ["Non assegnata", ...cats], MAT_TIP_OPT: byCat };
-  })();
+  const MAT_CAT_OPT = materialiCat.categories;
+  const MAT_TIP_OPT = materialiCat.byCat;
+
 
   // -------------------- HELPERS --------------------
   const safe = (v) => (v ?? "").toString();
@@ -271,6 +343,172 @@ export async function Step1(props) {
     const spec = state.step1.sortByTab?.[tab];
     if (!spec?.key) return null;
     return [[spec.key, spec.dir || "asc"]];
+  }
+
+  // Loaded once, lazily, on the first query long enough to search. Doing it at
+  // mount would slow a page that is often opened just to browse one tab.
+  async function loadSearchData() {
+    const qs = state.step1.quickSearch;
+    if (qs.loaded || qs.loading) return;
+    qs.loading = true;
+    qs.error = null;
+    refresh();
+
+    const tabs = Object.keys(TAB_TABLE);
+    const results = await Promise.allSettled(
+      tabs.map((t) =>
+        client.table(TAB_TABLE[t]).list({
+          include: ["id", ...SEARCH_FIELDS[t]],
+          size: 9999,
+        })
+      )
+    );
+
+    tabs.forEach((t, i) => {
+      qs.rows[t] =
+        results[i].status === "fulfilled" ? normalizeListResponse(results[i].value) : [];
+    });
+
+    // Partial failure is reported but does not empty what did load: searching
+    // two catalogues out of three beats searching none.
+    const ko = results.filter((r) => r.status === "rejected");
+    if (ko.length) qs.error = ko.length === tabs.length ? "load" : "partial";
+
+    qs.loading = false;
+    qs.loaded = true;
+    refresh();
+  }
+
+  function searchHits() {
+    const qs = state.step1.quickSearch;
+    const q = searchNorm(qs.q);
+    if (q.length < SEARCH_MIN) return null;
+
+    const out = [];
+    for (const t of Object.keys(TAB_TABLE)) {
+      for (const r of qs.rows[t]) {
+        const hit = SEARCH_FIELDS[t].some((f) => searchNorm(r[f]).includes(q));
+        if (hit) out.push({ tab: t, row: r });
+      }
+    }
+    // Rows whose identifier starts with the query come first: typing a plate or
+    // a surname should put the exact one on top, not the twentieth match.
+    return out.sort((a, b) => {
+      const sa = searchNorm(searchTitle(a.tab, a.row)).startsWith(q) ? 0 : 1;
+      const sb = searchNorm(searchTitle(b.tab, b.row)).startsWith(q) ? 0 : 1;
+      if (sa !== sb) return sa - sb;
+      return searchTitle(a.tab, a.row).localeCompare(searchTitle(b.tab, b.row), "it");
+    });
+  }
+
+  function setQuickSearch(v) {
+    state.step1.quickSearch.q = v || "";
+    if (searchNorm(v).length >= SEARCH_MIN) loadSearchData();
+    refresh();
+  }
+
+  const COL_PREF_KEY = (tab) => `rm-cols-${tab}`;
+
+  function readColPref(tab) {
+    if (state.step1.colPrefByTab[tab]) return state.step1.colPrefByTab[tab];
+    let pref = { order: [], hidden: [] };
+    try {
+      const raw = localStorage.getItem(COL_PREF_KEY(tab));
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        pref = {
+          order: Array.isArray(parsed?.order) ? parsed.order.map(String) : [],
+          hidden: Array.isArray(parsed?.hidden) ? parsed.hidden.map(String) : [],
+        };
+      }
+    } catch (_) {
+      // private window, blocked storage, corrupted value: fall back to default
+    }
+    state.step1.colPrefByTab[tab] = pref;
+    return pref;
+  }
+
+  function writeColPref(tab, pref) {
+    state.step1.colPrefByTab[tab] = pref;
+    try {
+      localStorage.setItem(COL_PREF_KEY(tab), JSON.stringify(pref));
+    } catch (_) {
+      // the preference stays for this session only
+    }
+    refresh();
+  }
+
+  async function ensureColumnsMeta(tab) {
+    if (state.step1.colMetaByTab[tab]) return;
+    const { loadColumns } = await import(`../shared/vocabularies.js?v=${VERSION}`);
+    const { columns, extended } = await loadColumns(client, TAB_TABLE[tab]);
+    state.step1.colMetaByTab[tab] = { columns, extended };
+  }
+
+  // Default order: `sequence` from the worktable configuration. Columns without
+  // one - and every column, when the describe is not the extended one - fall
+  // back to PREFERRED_COLS, then to alphabetical.
+  function defaultColOrder(tab, present) {
+    const meta = state.step1.colMetaByTab[tab];
+    const preferred = PREFERRED_COLS[tab] || [];
+
+    if (meta?.extended) {
+      const seq = (k) => {
+        const n = meta.columns[k]?.sequence;
+        return Number.isFinite(n) ? n : Number.MAX_SAFE_INTEGER;
+      };
+      return [...present].sort((a, b) => {
+        const d = seq(a) - seq(b);
+        if (d !== 0) return d;
+        const pa = preferred.indexOf(a), pb = preferred.indexOf(b);
+        if (pa !== pb) return (pa < 0 ? 1e9 : pa) - (pb < 0 ? 1e9 : pb);
+        return a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
+      });
+    }
+
+    const extra = [...present].filter((k) => !preferred.includes(k));
+    extra.sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }));
+    return [...preferred.filter((k) => present.has(k)), ...extra];
+  }
+
+  // Effective order: the user's one first, then any column they have never seen
+  // appended in default order, so a new column shows up instead of vanishing.
+  function orderedCols(tab, present) {
+    const base = defaultColOrder(tab, present);
+    const pref = readColPref(tab);
+    const known = pref.order.filter((k) => present.has(k));
+    const nuove = base.filter((k) => !known.includes(k));
+    return [...known, ...nuove];
+  }
+
+  // The table header uses COL_LABELS, which are deliberate abbreviations
+  // ("Cod. inv."). The panel lists columns, so it can afford the full label the
+  // worktable declares, falling back to the abbreviation and then to the key.
+  function colLabel(tab, k) {
+    return state.step1.colMetaByTab[tab]?.columns?.[k]?.label || COL_LABELS[k] || k;
+  }
+
+  function moveCol(tab, k, delta, present) {
+    const order = orderedCols(tab, present);
+    const i = order.indexOf(k);
+    const j = i + delta;
+    if (i < 0 || j < 0 || j >= order.length) return;
+    [order[i], order[j]] = [order[j], order[i]];
+    writeColPref(tab, { ...readColPref(tab), order });
+  }
+
+  function toggleColHidden(tab, k, present) {
+    const pref = readColPref(tab);
+    const hidden = pref.hidden.includes(k)
+      ? pref.hidden.filter((x) => x !== k)
+      : [...pref.hidden, k];
+    writeColPref(tab, { order: orderedCols(tab, present), hidden });
+  }
+
+  function resetColPref(tab) {
+    try { localStorage.removeItem(COL_PREF_KEY(tab)); } catch (_) {}
+    state.step1.colPrefByTab[tab] = { order: [], hidden: [] };
+    refresh();
   }
 
   function buildFilters(tab) {
@@ -645,6 +883,7 @@ export async function Step1(props) {
     await ensureOrgCatalog();
     await ensurePermissions(tab);
     await ensureLoaded(tab);
+    await ensureColumnsMeta(tab);
 
     const rows = state.master?.[tab] || [];
     const pag = state.step1.paginationByTab[tab];
@@ -670,19 +909,21 @@ export async function Step1(props) {
     const from = total === 0 ? 0 : (page - 1) * size + 1;
     const to = total === 0 ? 0 : (from + Math.max(0, rows.length) - 1);
 
-    const cols = (() => {
+    // Columns present in the data, minus the technical ones.
+    const colsPresenti = (() => {
       const set = new Set();
       for (const r of rows) Object.keys(r || {}).forEach((k) => set.add(k));
       set.delete("id");
       set.delete("uuid");
       set.delete("id2");
-
-      const preferred = PREFERRED_COLS[tab] || [];
-      const extra = [...set].filter((k) => !preferred.includes(k));
-      extra.sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }));
-
-      return [...preferred.filter((k) => set.has(k)), ...extra];
+      return set;
     })();
+
+    // Full order, used by the panel; `cols` is what the table renders, so it
+    // drops the hidden ones. The column filter keeps offering all of them.
+    const colsOrdinate = orderedCols(tab, colsPresenti);
+    const colsNascoste = readColPref(tab).hidden.filter((k) => colsPresenti.has(k));
+    const cols = colsOrdinate.filter((k) => !colsNascoste.includes(k));
 
     // ---- inline cell renderer ----
     function renderInlineCell(r, col, ie) {
@@ -863,11 +1104,143 @@ export async function Step1(props) {
       `;
     }
 
+    function renderColPanel() {
+      const pref = readColPref(tab);
+      const meta = state.step1.colMetaByTab[tab];
+      const personalizzato = pref.order.length > 0 || pref.hidden.length > 0;
+
+      return html`
+        <div class="is-flex is-align-items-center mb-2" style="gap:.5rem;flex-wrap:wrap">
+          <button class="button is-small"
+            @click=${() => { state.step1.colPanelOpen = !state.step1.colPanelOpen; refresh(); }}>
+            <span class="icon is-small"><i class="ri-table-line"></i></span>
+            <span>Colonne</span>
+            ${colsNascoste.length
+              ? html`<span class="tag is-info is-light ml-2" style="font-size:.6rem">${colsNascoste.length} nascoste</span>`
+              : ""}
+          </button>
+          ${personalizzato
+            ? html`<button class="button is-small is-text" @click=${() => resetColPref(tab)}>
+                     Ripristina ordine predefinito
+                   </button>`
+            : ""}
+        </div>
+
+        ${state.step1.colPanelOpen
+          ? html`
+              <div class="box p-2 mb-3">
+                <p class="is-size-7 has-text-grey mb-2">
+                  ${meta?.extended
+                    ? "L'ordine predefinito è quello configurato sulla scheda in Camila."
+                    : "Ordine predefinito interno: la configurazione della scheda non è disponibile."}
+                  La preferenza resta su questo browser.
+                </p>
+                ${colsOrdinate.map((c, i) => {
+                  const nascosta = colsNascoste.includes(c);
+                  return html`
+                    <div class="is-flex is-align-items-center"
+                      style="gap:.4rem;padding:.15rem 0;border-bottom:1px solid #f4f4f4">
+                      <button class="button is-small is-white" title="Su"
+                        ?disabled=${i === 0}
+                        @click=${() => moveCol(tab, c, -1, colsPresenti)}>
+                        <span class="icon is-small"><i class="ri-arrow-up-line"></i></span>
+                      </button>
+                      <button class="button is-small is-white" title="Giù"
+                        ?disabled=${i === colsOrdinate.length - 1}
+                        @click=${() => moveCol(tab, c, 1, colsPresenti)}>
+                        <span class="icon is-small"><i class="ri-arrow-down-line"></i></span>
+                      </button>
+                      <label class="checkbox is-size-7" style="flex:1;min-width:0">
+                        <input type="checkbox" ?checked=${!nascosta}
+                          @change=${() => toggleColHidden(tab, c, colsPresenti)} />
+                        <span class=${nascosta ? "has-text-grey-light" : ""}>${colLabel(tab, c)}</span>
+                      </label>
+                    </div>
+                  `;
+                })}
+              </div>
+            `
+          : ""}
+      `;
+    }
+
+    function renderQuickSearch() {
+      const qs = state.step1.quickSearch;
+      const hits = searchHits();
+      const q = safe(qs.q);
+
+      return html`
+        <div class="mb-3">
+          <div class="control has-icons-left has-icons-right">
+            <input
+              class="input is-small"
+              type="search"
+              placeholder="Cerca fra volontari, mezzi e materiali…"
+              .value=${q}
+              @input=${(e) => setQuickSearch(e.target.value)}
+            />
+            <span class="icon is-small is-left"><i class="ri-search-line"></i></span>
+            ${qs.loading
+              ? html`<span class="icon is-small is-right"><i class="ri-loader-4-line rm-spin"></i></span>`
+              : q
+                ? html`<span class="icon is-small is-right" style="pointer-events:auto;cursor:pointer"
+                         @click=${() => setQuickSearch("")}><i class="ri-close-line"></i></span>`
+                : ""}
+          </div>
+
+          ${qs.error === "load"
+            ? html`<p class="help is-danger">Ricerca non disponibile: cataloghi non caricati.</p>`
+            : qs.error === "partial"
+              ? html`<p class="help is-warning">Alcuni cataloghi non si sono caricati: i risultati sono parziali.</p>`
+              : ""}
+
+          ${hits === null
+            ? q
+              ? html`<p class="help">Almeno ${SEARCH_MIN} caratteri.</p>`
+              : ""
+            : html`
+                <div class="box p-0 mt-2" style="max-height:320px;overflow-y:auto">
+                  ${hits.length === 0
+                    ? html`<p class="has-text-grey is-size-7 p-3 has-text-centered">Nessun risultato.</p>`
+                    : hits.slice(0, SEARCH_SHOWN).map(
+                        (h) => html`
+                          <a
+                            class="is-block"
+                            style="padding:.4rem .6rem;border-bottom:1px solid #f0f0f0;text-decoration:none;color:inherit"
+                            @click=${(e) => {
+                              e.preventDefault();
+                              startEdit(h.tab, h.row.id);
+                            }}
+                          >
+                            <div class="is-flex is-align-items-center" style="gap:.4rem;flex-wrap:wrap">
+                              <span class="tag is-light is-small" style="font-size:.6rem">${TAB_LABELS[h.tab]}</span>
+                              <strong class="is-size-7">${searchTitle(h.tab, h.row)}</strong>
+                              ${searchBadges(h.tab, h.row).map(
+                                (b) => html`<span class="tag is-info is-light" style="font-size:.6rem"
+                                              title=${b.label}>${b.value}</span>`
+                              )}
+                            </div>
+                            ${searchSubtitle(h.tab, h.row)
+                              ? html`<div class="is-size-7 has-text-grey">${searchSubtitle(h.tab, h.row)}</div>`
+                              : ""}
+                          </a>
+                        `
+                      )}
+                  ${hits.length > SEARCH_SHOWN
+                    ? html`<p class="has-text-grey is-size-7 p-2 has-text-centered">
+                             e altri ${hits.length - SEARCH_SHOWN} risultati — restringi la ricerca
+                           </p>`
+                    : ""}
+                </div>
+              `}
+        </div>
+      `;
+    }
+
     return html`
       <style>.rm-spin{animation:rm-spin 1s linear infinite}@keyframes rm-spin{to{transform:rotate(360deg)}}</style>
       ${renderCatTipOverlay()}
-      <div class="container">
-        <section class="section">
+      <div style="padding:1rem 1.25rem">
           <div class="level is-mobile">
             <div class="level-left">
               <div class="level-item">
@@ -893,7 +1266,9 @@ export async function Step1(props) {
             </div>
           </div>
 
-          <div class="tabs is-boxed is-small">
+          ${renderQuickSearch()}
+
+          <div class="tabs is-boxed is-small mb-0">
             <ul>
               ${Object.keys(TAB_LABELS).map(
                 (k) => html`
@@ -908,7 +1283,7 @@ export async function Step1(props) {
           <div class="box spa-title-box p-3">
             <div class="is-flex" style="gap:.75rem;align-items:flex-end;">
 
-              <div style="width:200px;flex-shrink:0;">
+              <div style="width:200px;flex-shrink:0;display:flex;flex-direction:column;">
                 <label class="label is-small mb-1">Organizzazione</label>
                 <div class="select is-small is-fullwidth">
                   <select
@@ -922,7 +1297,7 @@ export async function Step1(props) {
               </div>
 
               ${hasCatTip ? html`
-                <div style="width:160px;flex-shrink:0;">
+                <div style="width:160px;flex-shrink:0;display:flex;flex-direction:column;">
                   <label class="label is-small mb-1">Categoria</label>
                   <div class="select is-small is-fullwidth">
                     <select
@@ -935,7 +1310,7 @@ export async function Step1(props) {
                   </div>
                 </div>
 
-                <div style="width:200px;flex-shrink:0;">
+                <div style="width:200px;flex-shrink:0;display:flex;flex-direction:column;">
                   <label class="label is-small mb-1">Tipologia</label>
                   <div class="select is-small is-fullwidth">
                     <select
@@ -949,13 +1324,20 @@ export async function Step1(props) {
                 </div>
               ` : null}
 
-              <div style="flex:1;min-width:0;">
+              <div style="flex:1;min-width:0;display:flex;flex-direction:column;">
                 <label class="label is-small mb-1">Filtro per colonna</label>
                 <div class="field has-addons mb-0">
                   <p class="control">
                     <span class="select is-small">
-                      <select .value=${f.col} @change=${(e) => onFilterColChange(tab, e.target.value)}>
-                        ${cols.map((c) => html`<option value=${c}>${COL_LABELS[c] || c}</option>`)}
+                      <!-- colsOrdinate, non cols: una colonna nascosta nella
+                           tabella resta filtrabile, e soprattutto non sparisce
+                           da qui mentre e' quella selezionata.
+                           ?selected al posto di .value: con opzioni dinamiche
+                           il binding .value non e' affidabile (AGENTS.md). -->
+                      <select @change=${(e) => onFilterColChange(tab, e.target.value)}>
+                        ${colsOrdinate.map(
+                          (c) => html`<option value=${c} ?selected=${c === f.col}>${COL_LABELS[c] || c}</option>`
+                        )}
                       </select>
                     </span>
                   </p>
@@ -972,7 +1354,7 @@ export async function Step1(props) {
                 ${state.step1.readOnlyGlobal ? html`<p class="help is-size-7 mb-0"><i class="ri-lock-line"></i> sola lettura</p>` : null}
               </div>
 
-              <div style="width:90px;flex-shrink:0;">
+              <div style="width:90px;flex-shrink:0;display:flex;flex-direction:column;">
                 <label class="label is-small mb-1">Per pagina</label>
                 <div class="select is-small is-fullwidth">
                   <select .value=${String(pag.size)} @change=${(e) => onPageSizeChange(tab, e.target.value)}>
@@ -987,6 +1369,8 @@ export async function Step1(props) {
 
             </div>
           </div>
+
+          ${renderColPanel()}
 
           <div class="is-flex is-justify-content-space-between is-align-items-center mb-2" style="gap:.75rem;">
             <div class="is-size-7 has-text-grey">
@@ -1081,7 +1465,6 @@ export async function Step1(props) {
               </tbody>
             </table>
           </div>
-        </section>
       </div>
     `;
   }

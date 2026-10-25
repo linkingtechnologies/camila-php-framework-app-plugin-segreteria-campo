@@ -49,8 +49,10 @@ async function loadAll(client) {
     // Squadre dichiarate: quarta risorsa, con `servizio` come le altre.
     // allSettled a parte, cosi' se la tabella non esiste la bacheca funziona.
     client.table("squadre-dichiarate").list({
+      // niente date di attestato: la tabella non ha piu' quelle colonne, e le
+      // squadre dichiarate non passano comunque dal filtro sulle date
       include: ["id", "nome", "organizzazioni", "n-volontari", "n-mezzi",
-                "attrezzature", "servizio", "data-inizio-attestato", "data-fine-attestato"],
+                "attrezzature", "servizio"],
       size: 2000
     }).catch(() => null)
   ]);

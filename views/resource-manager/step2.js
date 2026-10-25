@@ -1,4 +1,8 @@
 // ./views/resource-manager/step2.js
+
+// Cache-busting dell'import dinamico: la query dell'entry point non si
+// propaga ai moduli importati dalla view (AGENTS.md §L'import deve essere dinamico).
+const VERSION = window.APP_CONFIG?.version || Date.now();
 export async function Step2(props) {
   const { state, client, goTo, html, render, root } = props;
 
@@ -40,70 +44,23 @@ export async function Step2(props) {
   state.step1.mezziMarcheLoaded ||= false;
   state.step1.mezziMarcheError ||= null;
 
-  // -------------------- MEZZI OPTIONS --------------------
-  const CATEGORIE_OPTS =
-    "Non assegnata,Imbarcazioni,Mezzi aerei,Mezzi speciali,Rimorchi,Veicoli";
+  // -------------------- MEZZI / MATERIALI OPTIONS --------------------
+  // I vocabolari di categoria e tipologia arrivano dalle listbox_options delle
+  // colonne, non da una copia qui: vedi views/shared/vocabularies.js. Il
+  // modulo tiene la cache e, se l'endpoint non risponde, il fallback.
+  const { loadCatalog } = await import(`../shared/vocabularies.js?v=${VERSION}`);
 
-  const TIPOLOGIE_OPTS =
-    "Non assegnata,--Imbarcazioni,Barca,Gommone,Hovercraft,Moto d'acqua,--Mezzi aerei,Aeroplano,Drone,Elicottero,Idrovolante,ULM (ultraleggero motorizzato),--Mezzi speciali,Battipista,Bobcat,Escavatore,Listo spazzola,Motoslitta,Muletto,Sollevatore idraulico,Spargi sabbia e sale,Spazzaneve,Terna,--Rimorchi,Biga,Carrello,Carrello Appendice,Rimorchio,Roulotte,Semirimorchio,--Veicoli,Ambulanza,Autobotte,Autobus,Autocarro,Autogru,Autoidroschiuma,Automedica,Autopompa serbatoio (APS),Autoscala,Autovettura,Camper,Carro attrezzi,Fuoristrada,Furgone,Motociclo,Motrice,Trattore agricolo,Trattore stradale";
+  const [mezziCat, materialiCat] = await Promise.all([
+    loadCatalog(client, "mezzi"),
+    loadCatalog(client, "materiali")
+  ]);
 
-  // -------------------- MATERIALI (ATTREZZATURE) OPTIONS --------------------
-  const MATERIALI_TIPOLOGIE_OPTS =
-    "Non assegnata,--Attrezzature speciali,Apparato climatizzazione,Arva,Aspiratore,Aspiratore ad aria,Cisterna per idrocarburi,Compressore,Drone per riprese aeree,Gruppo,Martello,Martinetto,Materiale nautici e subacquei,Nastro traportatore,Officina,Pallone di sollevamento,Ponte Bailey,Potabilizzatore,Rasasiepi,Robot subaqueo,Saldatrice,Serbatoio per acqua potabile,Sonda,Spaccarocce,Transpallet,Trivella,Vibroinfissore,--Attrezzi vari,Attrezzi da lavoro,Carriola Badile,DPI,Decespugliatore,Estintore,Grella di camminamento,Materiale da campeggio,Materiale per sollevamento,Motosega,Panca,Scala,Sedia,Tavolo,--Container,Attrezzati,Da trasporto,--Effetti letterecci,Branda,Coperta,Cuscino/guanciale,Lenzuola,Materasso,Sacco a pelo,Sacco lenzuolo,--Generatori,Generatore,--Materiale AIB,Chiave idratante,Colonnina a terra presa acqua,Lancia,Manichette,Modulo AIB,Raccordo / riduzione,Serbatoio, cisterna antincendio,Soffiatore,Vasca,--Materiale antinquinante,Assorbente solido,Disperdente prodotti petroliferi,Panna antiinquinamento,Solvente antinquinante,--Materiale elettrico,Adattatore,Altro materiale elettrico,Asciugatrice,Cavi elettrici,Condizionatore,Dispenser,Frigor portatile,Impianto di illuminazione,Lampada portatile,Lavatrice,Macchina distribuzione automatica,Quadro elettrico,Riscaldatore - generatore aria calda,Spina,Termosifone elettrico,Torre faro,--Materiale idraulico e idrogeologico,Elettropompa,Insacchettatrice,Modulo Idrogeologico,Motopompa,Tubazioni,--Radio e dispositivi TLC,Apparati radio da rack,Radio,Telefono satellitare,XCO-2020,--Tende,A pali,Gazebo,Multifunzione,Pneumatica,Sociale,Tensostruttura,Tipo p88";
+  const MEZZI_CATEGORIE = mezziCat.categories;
+  const MEZZI_TIPOLOGIE_BYCAT = mezziCat.byCat;
 
-  function parseCsvOptions(s) {
-    return String(s || "")
-      .split(",")
-      .map((x) => x.trim())
-      .filter(Boolean);
-  }
+  const MATERIALI_CATEGORIE = materialiCat.categories;
+  const MATERIALI_TIPOLOGIE_BYCAT = materialiCat.byCat;
 
-  function buildTipologieByCategoria() {
-    const parts = parseCsvOptions(TIPOLOGIE_OPTS);
-    const all = [];
-    const byCat = {};
-    let currentCat = null;
-
-    for (const p of parts) {
-      if (p.startsWith("--")) {
-        currentCat = p.slice(2).trim();
-        if (!byCat[currentCat]) byCat[currentCat] = [];
-        continue;
-      }
-      all.push(p);
-      if (currentCat) byCat[currentCat].push(p);
-    }
-
-    return { all, byCat };
-  }
-
-  function buildCatalogFromOpts(optsString) {
-    const parts = parseCsvOptions(optsString);
-    const byCat = {};
-    const categories = [];
-    let currentCat = null;
-
-    for (const p of parts) {
-      if (p.startsWith("--")) {
-        currentCat = p.slice(2).trim();
-        if (!byCat[currentCat]) byCat[currentCat] = [];
-        if (!categories.includes(currentCat)) categories.push(currentCat);
-        continue;
-      }
-      if (currentCat) byCat[currentCat].push(p);
-    }
-
-    return {
-      categories: ["Non assegnata", ...categories],
-      byCat,
-    };
-  }
-
-  const MEZZI_CATEGORIE = parseCsvOptions(CATEGORIE_OPTS);
-  const { byCat: MEZZI_TIPOLOGIE_BYCAT } = buildTipologieByCategoria();
-
-  const { categories: MATERIALI_CATEGORIE, byCat: MATERIALI_TIPOLOGIE_BYCAT } =
-    buildCatalogFromOpts(MATERIALI_TIPOLOGIE_OPTS);
 
   // -------------------- CONFIG --------------------
   const RM_CONFIG = {
@@ -731,8 +688,7 @@ export async function Step2(props) {
     const orgCodeIsKnown = currentOrgCode && orgMap.has(currentOrgCode);
 
     return html`
-      <div class="container">
-        <section class="section">
+      <div style="padding:1rem 1.25rem">
           <div class="level is-mobile">
             <div class="level-left">
               <div class="level-item">
@@ -1202,7 +1158,6 @@ export async function Step2(props) {
                 </div>
               `
             : null}
-        </section>
       </div>
     `;
   }

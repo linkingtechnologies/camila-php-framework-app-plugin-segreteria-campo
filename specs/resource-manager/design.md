@@ -179,9 +179,158 @@ Tutti applicati insieme in `buildFilters(tab)` e inviati al server via `table.li
 
 **Filtro Categoria:** opzioni da `MEZZI_CAT_OPT` / `MAT_CAT_OPT`. Cambiare categoria azzera il filtro tipologia e resetta la pagina.
 
-**Filtro Tipologia:** se una categoria è selezionata mostra solo le voci di quella categoria; altrimenti mostra tutte in ordine alfabetico.
+**Dove vive il vocabolario di categoria/tipologia.** Nelle `listbox_options`
+delle colonne omonime di `mezzi` e `materiali`, lette a runtime da
+`describe()` tramite `views/shared/vocabularies.js`. Non c'e' piu' una copia
+nelle viste: vedi [`specs/api/describe/`](../api/describe/).
 
-**Filtro per colonna (testo libero):** il dropdown colonna espone tutte le colonne visibili nella tabella corrente (stesso set di `cols`, ordinato come `PREFERRED_COLS` + extra alfabetiche). Nessuna lista hardcoded di colonne filtrabili.
+```js
+const { loadCatalog } = await import(`../shared/vocabularies.js?v=${VERSION}`);
+const [mezziCat, materialiCat] = await Promise.all([
+  loadCatalog(client, "mezzi"),
+  loadCatalog(client, "materiali")
+]);
+const MEZZI_CAT_OPT = mezziCat.categories;
+const MEZZI_TIP_OPT = mezziCat.byCat;
+```
+
+Se il describe non risponde, o risponde senza la configurazione Camila, il
+modulo ritorna la propria copia di riserva: le tendine non restano mai vuote. I mezzi gia' registrati con etichette non piu'
+in elenco restano fuori lista e vengono mostrati come tali, non scartati.
+
+## 7b. Ricerca rapida unificata
+
+Un campo sopra la tab bar che cerca **in tutte e tre le schede insieme**, elenca
+i risultati e, al clic, apre il record nel form completo.
+
+### Perché in memoria e non server-side
+
+Il filtro per colonna (§7) è server-side e cerca su **una** colonna alla volta:
+per trovare un volontario bisogna prima scegliere se cercare per cognome o per
+codice fiscale. La ricerca rapida cerca su più campi e su tutte e tre le
+tabelle, quindi server-side avrebbe richiesto `orFilters` — mai esercitato
+contro queste tabelle — e si sarebbe scontrata con due ostacoli: l'operatore
+`cs` è **case-sensitive**, e mischiare filtri AND (organizzazione) e OR
+(ricerca) nella stessa richiesta ha semantiche non verificate.
+
+In memoria il confronto è normalizzato (minuscole, accenti rimossi), quindi
+"rossi" trova "ROSSI" e "nicolo" trova "NICOLÒ".
+
+### Caricamento
+
+```js
+state.step1.quickSearch = { q, loading, loaded, error, rows: { volontari, mezzi, materiali } }
+```
+
+**Pigro**: le tre `list({ size: 9999 })` partono alla prima query lunga almeno
+`SEARCH_MIN` (2) caratteri, non al mount — la pagina si apre spesso solo per
+sfogliare una scheda.
+
+`Promise.allSettled`: se un catalogo non si carica si cerca negli altri due e si
+mostra un avviso di risultati parziali, invece di non cercare affatto.
+
+Lo stato vive in `state`, non nella closure: tornando dal form completo la
+ricerca e i risultati sono ancora lì.
+
+### Campi cercati
+
+```js
+SEARCH_FIELDS = {
+  volontari: ["cognome", "nome", "codice-fiscale", "organizzazione"],
+  mezzi:     ["targa", "codice-inventario", "marca", "modello", "organizzazione",
+              "categoria", "tipologia", "note"],
+  materiali: ["id-materiale", "codice-inventario", "marca", "modello", "organizzazione",
+              "categoria", "tipologia", "note"],
+}
+```
+
+Esplicito, non "tutte le colonne": l'elenco deve restare allineato a quello che
+le tabelle hanno davvero. **`db-volontari` non ha `categoria`, `tipologia` né
+`note`** — il suo form si ferma a codice fiscale, anagrafica, cellulare e
+organizzazione — quindi quei tre campi compaiono solo sotto mezzi e materiali.
+
+`note-ulteriori` esiste su entrambe ma è fuori dall'elenco: si aggiunge qui se
+serve.
+
+Cercare dentro `note` allarga parecchio i risultati, ed è voluto. L'ordinamento
+per identificativo (sotto) regge il colpo: chi digita una targa la trova in cima
+anche se il termine compare nelle note di altri venti record.
+
+### Risultati
+
+Ordinati mettendo davanti le righe il cui identificativo **inizia** con il
+termine: digitando una targa, quella esatta sta in cima e non ventesima. Ne
+vengono resi `SEARCH_SHOWN` (12); il resto è dichiarato come conteggio con
+l'invito a restringere.
+
+Ogni riga porta il tag della scheda di appartenenza (Volontari / Mezzi /
+Materiali), perché i risultati arrivano da tre tabelle diverse, e — per mezzi e
+materiali — due badge con **categoria** e **tipologia**: sono i due campi che
+distinguono record altrimenti identici, tipo un materiale senza targa
+identificato dal solo codice inventario. I badge compaiono solo se valorizzati;
+sui volontari mai, perché `db-volontari` non ha quelle colonne.
+
+`tipologia` è stata tolta dal sottotitolo dei materiali, dove ora compare solo
+come badge: altrimenti sarebbe scritta due volte sulla stessa riga.
+
+Il clic chiama `startEdit(tab, id)`, la stessa funzione del pulsante di modifica:
+imposta `editTab`, `editId`, `editMode = "edit"` e va allo step 2. Se i permessi
+di quella scheda non consentono l'update, `startEdit` non fa nulla.
+
+## 7c. Ordine e visibilità delle colonne
+
+Due livelli: l'ordine **predefinito** viene dalla configurazione della scheda,
+e sopra ci sta una **preferenza dell'utente** che riordina e nasconde.
+
+### Predefinito: `sequence` dal describe
+
+Il describe esteso porta `sequence` su ogni colonna — l'ordine impostato sulla
+scheda in Camila. `defaultColOrder()` ordina per quello, quindi aggiungendo una
+colonna alla worktable compare al posto giusto **senza toccare il JS**.
+
+Prima l'ordine era solo `PREFERRED_COLS`, un elenco cablato per scheda, con le
+colonne non elencate accodate in ordine alfabetico. Quell'elenco resta come
+riserva: lo si usa quando il describe non e' quello esteso, e come criterio di
+parita' fra colonne con lo stesso `sequence`.
+
+I metadati arrivano da `loadColumns()` di `views/shared/vocabularies.js`, la
+stessa funzione da cui escono i vocabolari: una sola `describe()` per tabella,
+non due.
+
+### Preferenza utente
+
+```js
+localStorage["rm-cols-<tab>"] = { order: [...], hidden: [...] }
+```
+
+Un pannello "Colonne" sopra la tabella elenca le colonne con frecce su/giu' e
+una spunta per la visibilita', piu' "Ripristina ordine predefinito".
+
+**Niente trascinamento delle intestazioni**: quelle sono gia' cliccabili per
+ordinare, e un trascinamento corto verrebbe letto come clic cambiando
+l'ordinamento invece di spostare la colonna. Le frecce funzionano anche col dito
+sui totem.
+
+`orderedCols()` prende l'ordine salvato, lo filtra sulle colonne realmente
+presenti nei dati, e **accoda in fondo** quelle che l'utente non ha mai visto:
+una colonna aggiunta dopo che la preferenza e' stata salvata compare, invece di
+sparire perche' assente dall'elenco.
+
+`localStorage` e' per browser e per dispositivo, non e' un dato condiviso: ogni
+accesso e ogni scrittura sta in `try/catch`, perche' in finestra privata o con
+lo storage bloccato puo' lanciare. Fallendo, la preferenza vale per la sola
+sessione.
+
+### Cosa resta fuori
+
+Le colonne nascoste restano **filtrabili**: il selettore del filtro per colonna
+usa `colsOrdinate`, non `cols`. Serve anche a evitare un difetto: nascondendo la
+colonna selezionata nel filtro, l'opzione sparirebbe dal `<select>` e il
+controllo ricadrebbe in silenzio sulla prima voce mentre lo stato continua a
+dire la vecchia. Nella stessa occasione quel `<select>` e' passato da `.value` a
+`?selected`, come vuole AGENTS.md per le opzioni dinamiche.
+
+Una colonna nascosta non e' modificabile inline, perche' la cella non c'e'.
 
 ## 8. Editing inline (step 1, doppio click su cella)
 

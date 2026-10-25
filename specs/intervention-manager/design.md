@@ -540,3 +540,104 @@ massivo, dove `mov-risorse` non e' in transazione con l'`update`.
 
 **Solo le aggiunte.** Rimuovere una squadra dall'elenco non scrive nulla: non e'
 un'uscita, e' una correzione di cio' che era stato annotato.
+
+---
+
+## 17. Codice intervento
+
+Ogni intervento nasce con una **sigla di 5 caratteri maiuscoli**, con cui viene
+nominato in radio e al telefono. Non e' modificabile dall'operatore.
+
+### Alfabeto
+
+```js
+const CODE_ALPHABET = "ACDEFGHJKLMNPQRTUWXY3479";   // 24 simboli
+const CODE_LENGTH = 5;
+```
+
+Esclusi i simboli che si confondono dettati a voce o scritti a mano:
+
+| Escluso | Si confonde con |
+|---|---|
+| `B` | `8` |
+| `I` | `1` |
+| `O` | `0` |
+| `S` | `5` |
+| `Z` | `2` |
+| `V` | `U` |
+| `6` | `G` |
+| `0 1 2 5 8` | le lettere di cui sopra |
+
+24^5 = 7.962.624 combinazioni. Non e' un contatore: un codice sequenziale
+direbbe quanti interventi ci sono stati e renderebbe indovinabile il prossimo.
+
+### Il campo
+
+```js
+const CODE_FIELD = "codice-intervento";
+const EDITABLE = FIELDS.filter(f =>
+  f !== "id" && f !== "intervento" && f !== CODE_FIELD);
+```
+
+`codice-intervento` e' in `FIELDS` ma **fuori da `EDITABLE`**: lo assegna il
+sistema e `save()` non deve toccarlo, come gia' `id` e `intervento`. Senza
+questa esclusione il ciclo `payload[k] = norm(form[k]) || null` lo azzererebbe a
+ogni salvataggio, visto che non e' legato a nessun input del form.
+
+La colonna e' stata aggiunta alla worktable dopo la prima stesura della SPA e
+**non compare** in `tables/xls/it/91_Servizi.xlsx`, che e' la definizione
+iniziale e non lo stato corrente della tabella. Lo stesso vale per i tre campi
+del referente, che la SPA usa gia'.
+
+### Unicita'
+
+```js
+async function codiceLibero() {
+  for (let tentativo = 0; tentativo < 12; tentativo++) {
+    const c = generaCodice();
+    if (codiciUsati.has(c)) continue;                   // collisioni note
+    const res = await API.list({                        // creazioni parallele
+      include: ["id"], size: 1,
+      filters: [client.filter(CODE_FIELD, "eq", c)]
+    });
+    if (getRecords(res).length) { codiciUsati.add(c); continue; }
+    codiciUsati.add(c);
+    return c;
+  }
+  return null;
+}
+```
+
+`codiciUsati` si popola dalla **seconda** `list` di `load()`, quella senza
+filtro `intervento`: l'unicita' vale su tutta la tabella `servizi`, non solo sui
+record che la SPA mostra, altrimenti due righe potrebbero condividere il codice
+per il solo fatto che una non e' un intervento.
+
+La `list` di verifica e' una rete per il caso di due operatori che creano nello
+stesso istante. Se **fallisce**, il codice viene accettato comunque: l'elenco
+locale ha gia' escluso le collisioni note e un errore di rete non deve impedire
+la creazione dell'intervento.
+
+### Dove si assegna
+
+| Momento | Come |
+|---|---|
+| creazione (popup) | `payload[CODE_FIELD] = await codiceLibero()` in `salvaNuovo()` |
+| record storico senza codice | pulsante **Genera** nel blocco "Intervento", `assegnaCodice()` |
+
+`assegnaCodice()` scrive con un `update` del solo campo codice e aggiorna in
+loco `selected` e la riga in `records`, senza un `load()` completo. Non passa
+dal dirty check perche' non tocca il form: l'operatore puo' generare il codice
+con modifiche in sospeso senza perderle.
+
+Se `codiceLibero()` torna `null` in creazione, l'intervento **viene creato
+comunque** senza codice, assegnabile poi dal pulsante. Perdere la scheda per una
+sigla sarebbe sproporzionato.
+
+### Dove si vede
+
+Badge monospaziato con `letter-spacing` aumentato — si legge carattere per
+carattere — nella scheda, nelle righe dell'elenco e sulle card della kanban. Il
+codice rientra anche nei campi su cui lavora la ricerca libera, cosi' una sigla
+sentita in radio trova subito la scheda.
+

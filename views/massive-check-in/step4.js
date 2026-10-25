@@ -1,5 +1,9 @@
 // views/massive-check-in/step4.js
 
+// Cache-busting dell'import dinamico: la query dell'entry point non si
+// propaga ai moduli importati dalla view (AGENTS.md §L'import deve essere dinamico).
+const VERSION = window.APP_CONFIG?.version || Date.now();
+
 function getRecords(res) {
   if (Array.isArray(res)) return res;
   if (res && Array.isArray(res.records)) return res.records;
@@ -246,11 +250,21 @@ export async function Step4({ state, client, goTo, html, render, root }) {
 
   /* ----------------- MODAL: dropdown values ----------------- */
 
-  let CATEGORIE_OPTS =
-    "Non assegnata,Imbarcazioni,Mezzi aerei,Mezzi speciali,Rimorchi,Veicoli";
+  // Vocabolari di categoria e tipologia: letti dalle listbox_options delle
+  // colonne di `mezzi` (views/shared/vocabularies.js), non copiati qui.
+  // Restano `let` e in forma CSV perche' `parseTipologieCsv` piu' sotto si
+  // aspetta i marcatori `--Categoria` dentro l'elenco delle tipologie.
+  const { loadVocabularies, FALLBACK } =
+    await import(`../shared/vocabularies.js?v=${VERSION}`);
+  const vocMezzi = await loadVocabularies(client, "mezzi");
 
-  let TIPOLOGIE_OPTS =
-    "Non assegnata,--Imbarcazioni,Barca,Gommone,Hovercraft,Moto d'acqua,--Mezzi aerei,Aeroplano,Drone,Elicottero,Idrovolante,ULM (ultraleggero motorizzato),--Mezzi speciali,Battipista,Bobcat,Escavatore,Listo spazzola,Motoslitta,Muletto,Sollevatore idraulico,Spargi sabbia e sale,Spazzaneve,Terna,--Rimorchi,Biga,Carrello,Carrello Appendice,Rimorchio,Roulotte,Semirimorchio,--Veicoli,Ambulanza,Autobotte,Autobus,Autocarro,Autogru,Autoidroschiuma,Automedica,Autopompa serbatoio (APS),Autoscala,Autovettura,Camper,Carro attrezzi,Fuoristrada,Furgone,Motociclo,Motrice,Trattore agricolo,Trattore stradale";
+  // `parseTipologieCsv` piu' sotto lavora su CSV: il describe da' un array,
+  // la copia di riserva una stringa. Si normalizza qui, una volta.
+  const toCsv = v => (Array.isArray(v) ? v.join(",") : String(v || ""));
+
+  let CATEGORIE_OPTS = toCsv(vocMezzi.categoria) || FALLBACK.mezzi.categoria;
+  let TIPOLOGIE_OPTS = toCsv(vocMezzi.tipologia) || FALLBACK.mezzi.tipologia;
+
 
   const TIP = parseTipologieCsv(TIPOLOGIE_OPTS);
 

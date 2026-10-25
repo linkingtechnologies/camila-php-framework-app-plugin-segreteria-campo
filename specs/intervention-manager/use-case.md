@@ -101,10 +101,25 @@ Uno stato scelto esplicitamente prevale e non viene sovrascritto compilando
    e ora della segnalazione (preimpostate al momento corrente), comune e
    provincia.
 3. L'operatore inserisce almeno il nome, che è obbligatorio, e conferma.
-4. Il sistema crea il record, ricarica l'elenco e apre la scheda completa
+4. Il sistema assegna all'intervento un codice di 5 caratteri alfanumerici
+   maiuscoli, univoco su tutta la tabella `servizi`.
+5. Il sistema crea il record, ricarica l'elenco e apre la scheda completa
    sull'intervento appena creato.
-5. L'operatore prosegue nella scheda con segnalante, sopralluogo, squadre, mappa
+6. L'operatore prosegue nella scheda con segnalante, sopralluogo, squadre, mappa
    e cronologia, e salva quando ha finito.
+
+### Codice intervento
+
+1. Il sistema mostra il codice dell'intervento nella scheda, nelle righe
+   dell'elenco e sulle card della kanban.
+2. Il codice è composto solo di caratteri non confondibili: non contiene
+   `I`, `O`, `B`, `S`, `Z`, `V` né le cifre `0`, `1`, `2`, `5`, `6`, `8`.
+3. L'operatore non può modificarlo: identifica l'intervento nelle comunicazioni
+   e un codice che cambia non identifica più nulla.
+4. L'operatore può cercare un intervento digitando il suo codice nella ricerca
+   libera.
+5. Se l'intervento è stato registrato prima dell'introduzione del codice, la
+   scheda mostra "Non assegnato" e un pulsante per generarlo.
 
 ### Modifica di una scheda esistente
 
@@ -182,6 +197,10 @@ Lo stesso vale svuotandolo nella scheda.
 **3b. Nome già esistente** — il sistema avvisa che esiste già un servizio con
 quel nome, perché due servizi omonimi rendono ambigua l'assegnazione delle
 risorse. L'operatore può comunque procedere.
+
+**3c. Codice non generabile** — se non si riesce a ottenere un codice libero,
+l'intervento viene creato comunque senza codice e il pulsante "Genera" resta
+disponibile nella scheda.
 
 **4a. Squadra fuori catalogo** — una squadra registrata in precedenza e non più
 presente tra i valori correnti resta visibile e selezionata, non viene scartata

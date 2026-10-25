@@ -1,5 +1,9 @@
 // views/massive-check-in/step6.js
 
+// Cache-busting dell'import dinamico: la query dell'entry point non si
+// propaga ai moduli importati dalla view (AGENTS.md §L'import deve essere dinamico).
+const VERSION = window.APP_CONFIG?.version || Date.now();
+
 function getRecords(res) {
   if (Array.isArray(res)) return res;
   if (res && Array.isArray(res.records)) return res.records;
@@ -270,11 +274,26 @@ export async function Step6({ state, client, goTo, html, render, root }) {
   const Pre = client.table("materiali-preaccreditati");
   const Att = client.table("db-materiali");
   
-let CATEGORIE_MATERIALI =
-  "Non assegnata,Attrezzature speciali,Attrezzi vari,Container,Effetti letterecci,Generatori,Materiale AIB,Materiale antinquinante,Materiale elettrico,Materiale idraulico e idrogeologico,Radio e dispositivi TLC,Tende";
+// Vocabolari di categoria e tipologia: letti dalle listbox_options delle
+// colonne di `materiali` (views/shared/vocabularies.js), non copiati qui.
+// Restano in forma CSV perche' `parseTipologieCsv` si aspetta i marcatori
+// `--Categoria` dentro l'elenco delle tipologie.
+const { loadVocabularies, FALLBACK } =
+  await import(`../shared/vocabularies.js?v=${VERSION}`);
+const vocMateriali = await loadVocabularies(client, "materiali");
+
+// `parseTipologieCsv` piu' sotto lavora su CSV: il describe da' un array,
+// la copia di riserva una stringa. Si normalizza qui, una volta.
+const toCsv = v => (Array.isArray(v) ? v.join(",") : String(v || ""));
 
 let TIPOLOGIE_MATERIALI =
-  "Non assegnata,--Attrezzature speciali,Apparato climatizzazione,Arva,Aspiratore,Aspiratore ad aria,Cisterna per idrocarburi,Compressore,Drone per riprese aeree,Gruppo,Martello,Martinetto,Materiale nautici e subacquei,Nastro traportatore,Officina,Pallone di sollevamento,Ponte Bailey,Potabilizzatore,Rasasiepi,Robot subaqueo,Saldatrice,Serbatoio per acqua potabile,Sonda,Spaccarocce,Transpallet,Trivella,Vibroinfissore,--Attrezzi vari,Attrezzi da lavoro,Carriola Badile,DPI,Decespugliatore,Estintore,Grella di camminamento,Materiale da campeggio,Materiale per sollevamento,Motosega,Panca,Scala,Sedia,Tavolo,--Container,Attrezzati,Da trasporto,--Effetti letterecci,Branda,Coperta,Cuscino/guanciale,Lenzuola,Materasso,Sacco a pelo,Sacco lenzuolo,--Generatori,Generatore,--Materiale AIB,Chiave idratante,Colonnina a terra presa acqua,Lancia,Manichette,Modulo AIB,Raccordo / riduzione,Serbatoio, cisterna antincendio,Soffiatore,Vasca,--Materiale antinquinante,Assorbente solido,Disperdente prodotti petroliferi,Panna antiinquinamento,Solvente antinquinante,--Materiale elettrico,Adattatore,Altro materiale elettrico,Asciugatrice,Cavi elettrici,Condizionatore,Dispenser,Frigor portatile,Impianto di illuminazione,Lampada portatile,Lavatrice,Macchina distribuzione automatica,Quadro elettrico,Riscaldatore - generatore aria calda,Spina,Termosifone elettrico,Torre faro,--Materiale idraulico e idrogeologico,Elettropompa,Insacchettatrice,Modulo Idrogeologico,Motopompa,Tubazioni,--Radio e dispositivi TLC,Apparati radio da rack,Radio,Telefono satellitare,XCO-2020,--Tende,A pali,Gazebo,Multifunzione,Pneumatica,Sociale,Tensostruttura,Tipo p88";
+  toCsv(vocMateriali.tipologia) || FALLBACK.materiali.tipologia;
+// `materiali.categoria` puo' non avere un vocabolario proprio: in quel caso le
+// categorie si ricavano dai marcatori dentro le tipologie.
+let CATEGORIE_MATERIALI = toCsv(vocMateriali.categoria) ||
+  ["Non assegnata", ...csvToOptions(TIPOLOGIE_MATERIALI)
+    .filter(t => t.startsWith("--"))
+    .map(t => t.slice(2).trim())].join(",");
 
 const TIP_MAT = parseTipologieCsv(TIPOLOGIE_MATERIALI);
 

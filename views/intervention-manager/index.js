@@ -14,15 +14,18 @@ const RICH_TABLE = "richieste";
 const SQUADRE_TABLE = "squadre-dichiarate";
 const MOV_TABLE = "mov-risorse";
 
-// Vocabolari presi dalle listbox_options delle colonne di `richieste`.
+// Vocabolari delle colonne di `richieste`, letti dalle loro listbox_options
+// (views/shared/vocabularies.js) e non piu' copiati qui: erano gli stessi di
+// `requests-board`, due elenchi da tenere allineati a mano.
 // Su quella tabella Data, Richiedente, Richiesta, Tipo, Priorita' e Stato sono
 // tutti obbligatori: il form li chiede tutti.
-const RICH_TIPI = ["Interna", "Esterna"];
-const RICH_PRIORITA = ["1 - Urgente", "2 - Alta", "3 - Normale", "4 - Bassa", "5 - Molto bassa"];
-const RICH_STATI = [
-  "A - Presa in carico", "B - In valutazione", "C1 - In lavorazione",
-  "C2 - In attesa di lavorazione", "D1 - Eseguita", "D2 - Respinta"
-];
+let RICH_TIPI = [];
+let RICH_PRIORITA = [];
+let RICH_STATI = [];
+
+// Valore iniziale per posizione, come prima: primo per tipo e stato, terzo per
+// la priorita'. Riordinando il vocabolario cambia il predefinito.
+const primoRich = (arr, i = 0) => arr[i] ?? arr[0] ?? "";
 const RICH_STATO_COLOR = {
   "A - Presa in carico": "#6366f1", "B - In valutazione": "#f59e0b",
   "C1 - In lavorazione": "#10b981", "C2 - In attesa di lavorazione": "#8b5cf6",
@@ -33,6 +36,7 @@ const RICH_STATO_COLOR = {
 // usa la barra, `data-ora-segnalazione` no. Non e' un refuso.
 const FIELDS = [
   "id", "nome", "descrizione", "intervento",
+  "codice-intervento",
   "stato", "data-ora-segnalazione", "riferimento-vvf",
   "nome-segnalante", "qualifica-segnalante",
   "indirizzo-segnalante", "telefono-segnalante",
@@ -62,12 +66,32 @@ const LETTERE = [
   ...["!", "#", "$", "%", "&", "+", "-", "=", "@"]
 ];
 
-// Campi scrivibili dalla scheda (esclude id e intervento, gestiti a parte).
-const EDITABLE = FIELDS.filter(f => f !== "id" && f !== "intervento");
+// Campi scrivibili dalla scheda. Fuori `id`, `intervento` e il codice:
+// il codice lo assegna il sistema e `save()` non deve toccarlo.
+const CODE_FIELD = "codice-intervento";
+const EDITABLE = FIELDS.filter(f =>
+  f !== "id" && f !== "intervento" && f !== CODE_FIELD);
 
-// Vocabolario definito nella colonna stessa (string-listofvalues):
-// listbox_options = ",Segnalato,In corso,Concluso"
-const STATI = ["Segnalato", "In corso", "Concluso"];
+// Vocabolario di `servizi.stato`, letto dalle sue listbox_options
+// (views/shared/vocabularies.js). La colonna dichiara un primo valore vuoto,
+// "nessuno stato scelto", che `parseCsvOptions` scarta: qui restano i soli
+// stati veri, come prima.
+let STATI = [];
+
+// Codice intervento: 5 caratteri maiuscoli, dettati a voce via radio o
+// telefono. L'alfabeto esclude le coppie che si confondono a voce o scritte
+// a mano: B/8, I/1, O/0, S/5, Z/2, V/U, G/6. Restano 24 simboli, cioe'
+// 24^5 = 7.962.624 combinazioni: abbastanza per non collidere mai davvero.
+const CODE_ALPHABET = "ACDEFGHJKLMNPQRTUWXY3479";
+const CODE_LENGTH = 5;
+
+function generaCodice() {
+  let out = "";
+  for (let i = 0; i < CODE_LENGTH; i++) {
+    out += CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)];
+  }
+  return out;
+}
 
 const STATO_COLOR = {
   "Segnalato": "#888780",
@@ -211,16 +235,31 @@ function serialize(f) {
 ========================== */
 
 export async function InterventionManager({ client, html, render, root }) {
-  const [{ createMapPicker, MAP_PICKER_CSS }, { createOrgPicker }] =
+  const [{ createMapPicker, MAP_PICKER_CSS }, { createOrgPicker }, vocab] =
     await Promise.all([
       import(`../shared/map-picker.js?v=${VERSION}`),
-      import(`../shared/org-picker.js?v=${VERSION}`)
+      import(`../shared/org-picker.js?v=${VERSION}`),
+      import(`../shared/vocabularies.js?v=${VERSION}`)
     ]);
+
+  {
+    const [vocRich, vocServ] = await Promise.all([
+      vocab.loadVocabularies(client, "richieste"),
+      vocab.loadVocabularies(client, TABLE)
+    ]);
+    RICH_TIPI = vocab.parseCsvOptions(vocRich["tipo-richiesta"]);
+    RICH_PRIORITA = vocab.parseCsvOptions(vocRich.priorita);
+    RICH_STATI = vocab.parseCsvOptions(vocRich.stato);
+    STATI = vocab.parseCsvOptions(vocServ.stato);
+  }
 
   const API = client.table(TABLE);
 
   let records = [];
   let allNames = [];          // nomi di TUTTI i servizi, per il controllo duplicati
+
+  const codiciUsati = new Set();   // codici gia' in tabella, maiuscoli
+  let codiceBusy = false;
   let loading = false;
   let error = null;
   let retrying = false;
@@ -413,9 +452,9 @@ export async function InterventionManager({ client, html, render, root }) {
       data: `${oggi.getFullYear()}-${pad(oggi.getMonth() + 1)}-${pad(oggi.getDate())}`,
       richiedente: "",
       richiesta: "",
-      "tipo-richiesta": RICH_TIPI[0],
-      priorita: RICH_PRIORITA[2],
-      stato: RICH_STATI[0],
+      "tipo-richiesta": primoRich(RICH_TIPI),
+      priorita: primoRich(RICH_PRIORITA, 2),
+      stato: primoRich(RICH_STATI),
       "assegnatario-richiesta": "",
       note: ""
     };
@@ -647,7 +686,9 @@ export async function InterventionManager({ client, html, render, root }) {
           filters: [client.filter("intervento", "eq", "SI")],
           size: 2000
         })),
-        withRetry(() => API.list({ include: ["id", "nome"], size: 2000 })),
+        withRetry(() => API.list({
+          include: ["id", "nome", CODE_FIELD], size: 2000
+        })),
         loadCataloghi()
       ]);
 
@@ -671,9 +712,16 @@ export async function InterventionManager({ client, html, render, root }) {
       }
 
       if (results[1].status === "fulfilled") {
-        allNames = getRecords(results[1].value)
+        const tutti = getRecords(results[1].value);
+        allNames = tutti
           .map(r => ({ id: r.id, nome: norm(r.nome) }))
           .filter(x => x.nome);
+        // l'unicita' vale su tutta la tabella, non solo sugli interventi
+        codiciUsati.clear();
+        for (const r of tutti) {
+          const c = norm(r[CODE_FIELD]).toUpperCase();
+          if (c) codiciUsati.add(c);
+        }
       }
     } catch (e) {
       error = normalizeApiError(e);
@@ -696,6 +744,54 @@ export async function InterventionManager({ client, html, render, root }) {
     deleteUsage = null;
     deleteBlocked = false;
   }
+
+  /* ---- codice intervento ---- */
+
+  // Genera un codice libero. L'elenco locale esclude le collisioni note; la
+  // list filtrata copre il caso di due operatori che creano in parallelo.
+  async function codiceLibero() {
+    for (let tentativo = 0; tentativo < 12; tentativo++) {
+      const c = generaCodice();
+      if (codiciUsati.has(c)) continue;
+      try {
+        const res = await API.list({
+          include: ["id"], size: 1,
+          filters: [client.filter(CODE_FIELD, "eq", c)]
+        });
+        if (getRecords(res).length) { codiciUsati.add(c); continue; }
+      } catch (_) {
+        // verifica non disponibile: si accetta il codice, le collisioni note
+        // sono gia' state escluse sopra
+      }
+      codiciUsati.add(c);
+      return c;
+    }
+    return null;   // praticamente impossibile con 24^5 combinazioni
+  }
+
+  // Record storici creati prima della colonna: il codice si assegna a richiesta.
+  async function assegnaCodice() {
+    if (!selected || readOnly()) return;
+    codiceBusy = true;
+    formError = null;
+    rerender();
+    try {
+      const c = await codiceLibero();
+      if (!c) throw new Error("Nessun codice disponibile");
+      await API.update(selected.id, { [CODE_FIELD]: c });
+      selected[CODE_FIELD] = c;
+      const inLista = records.find(r => r.id === selected.id);
+      if (inLista) inLista[CODE_FIELD] = c;
+      formSuccess = `Codice assegnato: ${c}`;
+    } catch (e) {
+      formError = userFriendlyErrorText(normalizeApiError(e));
+    } finally {
+      codiceBusy = false;
+      if (!cancelled) rerender();
+    }
+  }
+
+  const codiceDi = r => (r ? norm(r[CODE_FIELD]).toUpperCase() : "");
 
   function apriCreazione() {
     createDraft = {
@@ -739,6 +835,11 @@ export async function InterventionManager({ client, html, render, root }) {
       for (const k of EDITABLE) payload[k] = null;
       for (const [k, v] of Object.entries(createDraft)) payload[k] = norm(v) || null;
       payload.intervento = "SI";      // senza questo non rientra nel filtro della SPA
+
+      // un intervento nasce sempre col suo codice: e' la sigla con cui verra'
+      // nominato in radio
+      const codice = await codiceLibero();
+      if (codice) payload[CODE_FIELD] = codice;
 
       await API.create(payload);
       createDraft = null;
@@ -968,7 +1069,8 @@ export async function InterventionManager({ client, html, render, root }) {
       if (!q) return true;
       const hay = [
         r.nome, r.descrizione, r.comune, r.indirizzo,
-        r["nome-segnalante"], r["riferimento-vvf"], r["squadre-attivate"]
+        r["nome-segnalante"], r["riferimento-vvf"], r["squadre-attivate"],
+        codiceDi(r)
       ].map(norm).join(" ").toLocaleLowerCase("it-IT");
       return hay.includes(q);
     });
@@ -996,6 +1098,19 @@ export async function InterventionManager({ client, html, render, root }) {
         </div>
       </div>
     `;
+  }
+
+  // Sigla breve dell'intervento: monospaziata e spaziata, perche' si legge
+  // carattere per carattere.
+  const CODE_BADGE_STYLE =
+    "font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:700;" +
+    "letter-spacing:.08em;background:#eef2f7;color:#334155;border-radius:4px;" +
+    "padding:.05rem .35rem";
+
+  function codeBadge(r, { size = "is-size-7" } = {}) {
+    const c = codiceDi(r);
+    if (!c) return "";
+    return html`<span class=${size} style=${CODE_BADGE_STYLE} title="Codice intervento">${c}</span>`;
   }
 
   function block(title, icon, body) {
@@ -1475,6 +1590,7 @@ export async function InterventionManager({ client, html, render, root }) {
         <div class="is-size-7" style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
           ${norm(r.nome) || "(senza nome)"}
         </div>
+        ${codiceDi(r) ? html`<div class="mb-1">${codeBadge(r)}</div>` : ""}
         ${norm(r.comune) ? html`
           <div class="is-size-7 has-text-grey">
             <span class="icon is-small"><i class="ri-map-pin-line"></i></span>${norm(r.comune)}
@@ -1709,6 +1825,24 @@ export async function InterventionManager({ client, html, render, root }) {
           </div>` : ""}
 
         ${block("Intervento", "first-aid-kit-line", html`
+          <div class="field">
+            <label class="label is-small mb-1">Codice intervento</label>
+            <div class="is-flex is-align-items-center" style="gap:.5rem;flex-wrap:wrap">
+              ${codiceDi(selected)
+                ? codeBadge(selected, { size: "is-size-6" })
+                : html`
+                  <span class="is-size-7 has-text-grey">Non assegnato</span>
+                  <button class="button is-small ${codiceBusy ? "is-loading" : ""}"
+                    ?disabled=${codiceBusy || formBusy || readOnly()}
+                    @click=${assegnaCodice}>
+                    <span class="icon"><i class="ri-shuffle-line"></i></span>
+                    <span>Genera</span>
+                  </button>`}
+              <span class="is-size-7 has-text-grey">
+                Assegnato alla creazione, non modificabile.
+              </span>
+            </div>
+          </div>
           ${field("Nome intervento", "nome")}
           <div class="field" style="width:200px">
             <label class="label is-small mb-1">Stato</label>
@@ -1947,6 +2081,7 @@ export async function InterventionManager({ client, html, render, root }) {
                         <strong class="is-size-7" style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
                           ${norm(r.nome) || "(senza nome)"}
                         </strong>
+                        ${codeBadge(r)}
                       </div>
                       <div class="is-size-7 has-text-grey" style="margin-left:1.2rem">
                         ${norm(r.comune) ? html`${norm(r.comune)} · ` : ""}

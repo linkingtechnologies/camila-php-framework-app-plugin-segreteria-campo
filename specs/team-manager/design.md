@@ -60,7 +60,6 @@ let error     = null;
 let retrying  = false;
 
 let search       = "";
-let filtroStato  = "";     // "" | "In servizio" | "Non in servizio" | "Da registrare"
 let filtroServizio = "";
 
 let selected  = null;      // record selezionato, o null
@@ -105,8 +104,6 @@ Tabella: **`squadre-dichiarate`** — da creare come worktable, `tables/xls/it/6
 | `cellulare-referente` | Referente | testo | |
 | `servizio` | Impiego | testo | nome di un record di `servizi` |
 | `turno` | Impiego | testo | libero; su `volontari` non ha vocabolario né valori in uso |
-| `data-inizio-attestato` | Periodo | data | |
-| `data-fine-attestato` | Periodo | data | |
 | `data/ora-registrazione` | Periodo | data/ora | **attenzione alla barra** nel nome |
 | `data/ora-uscita-definitiva` | Periodo | data/ora | idem |
 | `note` | Note | testo lungo | |
@@ -216,18 +213,15 @@ referenziata: `volontari.squadra`, `mezzi.squadra`, `materiali.squadra` e
 * prima di eliminare si conta quante risorse la usano, e se ce n'e' anche una
   sola l'eliminazione e' bloccata.
 
-## 7. Logica di classificazione
+## 7. Logica di classificazione — rimossa
 
-```js
-function statoOf(r) {
-  if (!norm(r["data-inizio-attestato"])) return "Da registrare";
-  if (!norm(r["data-fine-attestato"]))   return "In servizio";
-  return "Non in servizio";
-}
-```
+C'era un `statoOf(r)` che derivava In servizio / Non in servizio / Da registrare
+dalle due date di attestato, con filtro per stato e pallino colorato
+nell'elenco. E' stato tolto: vedere `use-case.md` §Classificazione stati per il
+motivo.
 
-Stessa regola di `org-status`, con in piu' la terza categoria per le squadre
-ancora senza data di inizio.
+Le due colonne sono poi state **rimosse dalla tabella**, quindi non esistono
+piu' ne' come campi della scheda ne' negli `include` delle query.
 
 ## 8. Payload
 
@@ -297,7 +291,6 @@ differiscono da quelli ipotizzati in prima stesura:
 | `nome-referente` | `caposquadra` | varchar |
 | `cellulare-referente` | `cellulare` | varchar |
 | `servizio`, `turno` | idem | varchar |
-| `data-inizio-attestato`, `data-fine-attestato` | idem | varchar |
 | `data/ora-registrazione`, `data/ora-uscita-definitiva` | idem | varchar |
 | `note` | `note` | clob |
 

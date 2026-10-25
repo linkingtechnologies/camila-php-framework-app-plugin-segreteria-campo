@@ -62,13 +62,22 @@ Operatore di segreteria campo.
 
 ## Classificazione stati
 
-Derivata dalle date, come in `org-status`:
+**Rimossa.** C'era una classificazione derivata dalle date — In servizio / Non in
+servizio / Da registrare, come in `org-status` — con un filtro per stato
+nell'elenco e un pallino colorato su ogni riga. Non c'è più.
 
-| Condizione | Etichetta |
-|---|---|
-| `data-inizio-attestato` valorizzata, `data-fine-attestato` vuota | In servizio |
-| entrambe valorizzate | Non in servizio |
-| `data-inizio-attestato` vuota | Da registrare |
+Il motivo: su una squadra dichiarata quelle date sono vuote **per
+costruzione**, perché le squadre non passano dal check-in. "Da registrare"
+finiva così per essere lo stato della maggioranza delle squadre, comprese quelle
+pienamente operative, e suggeriva un compito in sospeso che non esisteva.
+In più `servizio` — che per convenzione dice dov'è la squadra adesso, incluso
+`USCITA DEFINITIVA` — non entrava affatto nel calcolo.
+
+Le due colonne sono poi state rimosse dalla tabella: non esistono più né come
+campi della scheda né nelle query. Di una squadra dichiarata restano
+`data/ora-registrazione` e `data/ora-uscita-definitiva`, che dicono quando è
+stata presa in carico e quando è uscita — senza bisogno di un attestato, che una
+squadra senza nominativi non può produrre.
 
 ## Main Success Scenario
 

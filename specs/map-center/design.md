@@ -80,6 +80,7 @@ const COLORI_SERVIZI  = ["rosso","blu","verde","arancione","viola","giallo","gri
 | `volontari` | `list` | Risorse |
 | `mezzi` | `list` | Risorse |
 | `materiali` | `list` | Risorse |
+| `squadre-dichiarate` | `list` | Risorse (riga separata nel popup) |
 | `db-organizzazioni` | `list` | Organizzazioni |
 
 ## 3. Campi inclusi per tabella
@@ -95,6 +96,7 @@ INCLUDE_M   = ["id","targa","codice-inventario","categoria","marca","modello",
                "organizzazione","provincia","squadra","servizio","data-inizio-attestato","data-fine-attestato"]
 INCLUDE_MAT = ["id","id-materiale","codice-inventario","categoria","tipologia",
                "organizzazione","provincia","squadra","servizio","data-inizio-attestato","data-fine-attestato"]
+INCLUDE_SQ  = ["id","nome","organizzazioni","n-volontari","n-mezzi","servizio"]
 INCLUDE_ORG = ["id","denominazione","codice","sezione","tipologia-sezione",
                "comune","provincia","indirizzo","latitudine","longitudine","colore","lettera"]
 ```
@@ -155,6 +157,9 @@ Promise.all([
   client.table("mezzi").list({ include: INCLUDE_M, size: 2000 }),
   client.table("materiali").list({ include: INCLUDE_MAT, size: 2000 }),
   client.table("db-organizzazioni").list({ include: INCLUDE_ORG, size: 2000 }),
+  // catch a parte: se la tabella non esiste la mappa funziona lo stesso
+  client.table("squadre-dichiarate").list({ include: INCLUDE_SQ, size: 2000 })
+    .catch(() => null),
 ])
 ```
 
@@ -187,6 +192,34 @@ function isActive(r) {
 - Marker su `latitudine`/`longitudine` del servizio
 - Popup: elemento `<details>` per ogni gruppo (org o squadra), contenente liste volontari/mezzi/materiali
 - Icone allineate a resource-board: `ri-user-line` (volontari), `ri-truck-line` (mezzi), `ri-tools-line` (materiali)
+
+### Squadre dichiarate nel popup del servizio
+
+`squadreByService(squadre)` totalizza le squadre per `servizio`:
+`{ squadre, volontari, mezzi }`. Il risultato finisce in una **riga a se'** del
+popup, su sfondo ambra, mai sommato ai totali sopra.
+
+```
+<i class="ri-group-line"></i> 2 squadre dichiarate · 14 vol. · 3 mezzi
+```
+
+**Perche' separata.** Una squadra che dichiara 8 volontari non e' 8 righe di
+`volontari`: sommare le due cose darebbe un numero che non e' vero ne' dell'una
+ne' dell'altra. Separate, il popup dice quante persone sono censite una per una
+e quante sono dichiarate in blocco.
+
+Conseguenze:
+
+* **Niente filtro sulle date di attestato** — quelle colonne non esistono su
+  `squadre-dichiarate`, perche' le squadre non passano dal check-in. Si esclude
+  solo `servizio = "USCITA DEFINITIVA"`.
+* **Fuori da `buildCards`** e quindi dai raggruppamenti per organizzazione o
+  squadra: `squadre-dichiarate.organizzazioni` e' un elenco separato da virgole,
+  e una squadra finirebbe in piu' gruppi o in nessuno. E' la stessa scelta fatta
+  in `resource-board`.
+* **"Nessuna risorsa assegnata"** non compare piu' se il servizio ha almeno una
+  squadra dichiarata: prima sarebbe stato falso.
+* **La sidebar non le mostra**: solo il popup del marker.
 
 ### Sidebar
 
