@@ -75,7 +75,7 @@ function normalizeApiError(err) {
 
 function userFriendlyErrorText(e) {
   switch (e.kind) {
-    case "auth":       return "Sessione scaduta o permessi insufficienti.";
+    case "auth":       return "Sessione non più valida: probabilmente lo stesso utente è entrato da un altro browser o dispositivo. Esci e rifai l'accesso per riprendere da qui.";
     case "rate_limit": return "Troppe richieste. Attendi e riprova.";
     case "timeout":
     case "network":    return "Problema di connessione. Controlla la rete.";

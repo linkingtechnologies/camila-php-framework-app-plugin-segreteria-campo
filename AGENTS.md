@@ -436,6 +436,10 @@ un nodo — espone un `afterRender()` che l'ospite chiama dentro il proprio
 quindi non segue questa forma: esporta funzioni e tiene la propria cache. La
 divergenza e' voluta e documentata in `specs/api/describe/design.md`.
 
+**Non e' qui che sta lo scheletro delle SPA**: `app-boot.js` vive nella root del
+plugin, accanto agli entry point che serve, perche' e' infrastruttura di avvio e
+non un modulo che le viste importano. Vedere §SPA Entry Points.
+
 **Cosa non mettere qui**: gli helper che ogni vista gia' duplica
 (`getRecords`, `norm`, `normalizeApiError`, `userFriendlyErrorText`,
 `withRetry`). La duplicazione e' la convenzione del plugin e un'estrazione
@@ -535,31 +539,69 @@ allineate.
 
 # SPA Entry Points
 
-Each SPA lives in a single `app-<name>.js` file at the plugin root.
+Each SPA lives in a single `app-<name>.js` file at the plugin root. **Il file e'
+un guscio**: tutto il comportamento comune sta in `app-boot.js`.
 
-An entry point must:
+```js
+// app-comms-feed.js — Comunicazioni live
+const VERSION = window.APP_CONFIG?.version || Date.now();
 
-1. Import `html` and `render` from lit-html, con il path relativo esatto usato da tutte le SPA:
-   ```js
-   import { html, render } from "../../../../camila/js/lit-html/lit-html.js";
-   ```
-2. Importare `./no-pull-refresh.js` (side effect: disabilita il pull-to-refresh sui totem Android).
-   Tutte le SPA lo fanno tranne `app-import-wizard.js`.
-   ```js
-   import "./no-pull-refresh.js";
-   ```
-3. Define `VERSION` via `APP_CONFIG` or `Date.now()`
-4. Obtain `root` via `document.getElementById("app")`
-5. Check that `WorkTableClient` is available before proceeding
-6. Initialize `client` via `WorkTableClient(window.APP_CONFIG || {})`
-7. Define only the state properties the SPA actually uses
-8. Call `mount()` to start rendering
+import(`./app-boot.js?v=${VERSION}`).then(({ mountSpa }) =>
+  mountSpa({ view: "comms-feed", exportName: "CommsFeed" })
+);
+```
+
+`mountSpa()` fa quello che prima ogni entry point copiava: trova `#app`,
+verifica `WorkTableClient`, costruisce il client, importa la view con la
+versione in coda, la renderizza, e mostra il box d'errore se qualcosa salta.
+Importa anche `./no-pull-refresh.js`, quindi le SPA non devono piu' farlo.
+
+| Opzione | Default | A cosa serve |
+|---|---|---|
+| `view` | — | cartella sotto `views/` |
+| `exportName` | — | export nominale della view (vista singola) |
+| `module` | `"index.js"` | file dentro quella cartella — serve a `smart-assistant`, che usa `home.js` |
+| `steps` | `0` | numero di passi del wizard; `0` = vista singola |
+| `state` | `{}` | stato iniziale, fuso su `{ step: 1 }` |
+| `guards` | `{}` | `{ passo: (state) => boolean }`; falso rimanda al passo 1 |
+| `loading` | `"blank"` | `"spinner"` per lo spinner al posto del div vuoto |
+
+Un wizard carica `views/<view>/step<n>.js` e ne usa l'export `Step<n>`:
+
+```js
+mountSpa({
+  view: "massive-check-out",
+  steps: 4,
+  state: { org: null },
+  guards: { 2: (s) => !!s.org?.name, 3: (s) => !!s.org?.name },
+});
+```
+
+**Le guardie si valutano a ogni render**, non solo nella transizione che porta
+al passo: uno stato stantio o un reload non devono atterrare su un passo le cui
+precondizioni non ci sono piu'.
+
+### Perche' l'import di `app-boot.js` e' dinamico
+
+`mountMiniApp()` emette `<script type="module" src="./plugins/<p>/app-<id>.js">`
+**senza query string**: l'entry point e' l'unico file del plugin che il browser
+cachea a tempo indeterminato. E' la ragione per cui questi file sono gusci e
+tutto il resto passa da `import(...?v=VERSION)`. Un `import "./app-boot.js"`
+statico erediterebbe quell'URL senza versione e congelerebbe anche il boot — la
+stessa trappola descritta in §Moduli condivisi, qui con un piano in piu'.
+
+Un `.then()` invece del `top-level await`: non c'e' un motivo di compatibilita'
+forte, ma un TLA non supportato e' un errore di *parsing* che lascia la pagina
+bianca senza passare dal guard-rail `<script nomodule>`, e i totem non sono
+tutti uguali.
+
+**Non convertito**: `app-import-wizard.js`, che renderizza inline e non ha una
+view da caricare. E' l'unico entry point che tiene ancora il proprio
+`showError`.
 
 Una SPA non è raggiungibile finché non viene registrata lato PHP: vedere §SPA Registration (wiring PHP).
 
 Single-view SPAs (no wizard) must not carry unused `step`, `org`, or wizard state.
-
-Wizard SPAs must guard each step transition: if required preceding state is missing, redirect back to step 1.
 
 ---
 
@@ -968,6 +1010,36 @@ At minimum:
 * show an error message
 * avoid corrupting state
 * keep the UI usable when possible
+
+## La sessione decaduta e' il caso piu' frequente
+
+Un 403 con `code: 1012` e messaggio `Authentication failed for '<sessid>(1)'`
+**non e' un guasto**: e' la sessione che non vale piu'.
+
+Come funziona davvero, perche' la configurazione inganna: `cf_api_controller`
+imposta `apiKeyDbAuth.apiKeyColumn = 'token'`, ma quando la richiesta porta
+l'header `Authorization` — e le SPA lo portano sempre — il middleware **ignora
+il valore dell'header**, fa `session_start()` e cerca l'utente la cui colonna
+**`session_id`** vale `session_id()` (`api.include.php:4805`). Quella colonna
+tiene **una sola sessione per utente** e viene scritta **al login**
+(`header.php:234`), non a ogni pagina. Quindi un secondo accesso dello stesso
+utente da un altro browser se la prende, e tutte le schede aperte prima
+smettono di essere riconosciute.
+
+Ne discende la cosa da dire all'operatore: **ricaricare non basta**, perche' il
+reload non riscrive `session_id`. Serve rifare l'accesso (`cf_logout.php`), e
+questo mette fuori l'altra postazione — e' un ping-pong, non una convivenza.
+
+`app-boot.js` lo riconosce da solo — status 401/403, oppure `code` 1011 o
+1012 — e al posto del box rosso mostra un box giallo che nomina la causa e offre
+**Esci e rientra** piu' un **Ricarica** secondario. Dentro le viste, il ramo
+`auth` di `userFriendlyErrorText` dice la stessa cosa a parole, con lo stesso
+testo in tutte e cinque le copie.
+
+**Il corpo dell'errore sta in `err.payload`**, che e' il JSON dell'API
+(`{ code, message }`), non una stringa: `String(err.payload)` stampa
+`[object Object]`, ed e' il bug che il box mostrava. Il testo si legge da
+`err.payload.message`, con `err.message` (`"HTTP 403"`) come ripiego.
 
 ## Error normalization
 

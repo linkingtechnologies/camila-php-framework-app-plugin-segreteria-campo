@@ -374,10 +374,10 @@ Una colonna nascosta non e' modificabile inline, perche' la cella non c'e'.
 
 | Campo | Comportamento |
 |---|---|
-| `organizzazione` | Select dal catalogo `db-volontari.distinct`. Al salvataggio scrive anche `codice-organizzazione` e `provincia` (ricavati dalla mappa `orgProvinceByCode`). |
 | `categoria` + `tipologia` (mezzi e materiali) | Overlay fisso con due tendine dipendenti (vedi §9). |
 | `data-di-nascita` | `<input type="date">`. |
-| `provincia`, `codice-organizzazione` | Sola lettura (nessun editing inline). |
+| `provincia`, `organizzazione`, `codice-organizzazione` | Sola lettura (nessun editing inline). |
+| `id-materiale` | Sola lettura: lo assegna la `sequence()` alla creazione. |
 | tutti gli altri | `<input type="text">`. Enter = salva · Escape = annulla · blur = salva. |
 
 ### Commit
@@ -385,11 +385,25 @@ Una colonna nascosta non e' modificabile inline, perche' la cella non c'e'.
 ```js
 client.table(tabella).update(rowId, payload)
 // payload = { [col]: val, ...extra }
-// extra usato per organizzazione (codice-organizzazione, provincia)
-//       e per cat-tip (categoria + tipologia insieme)
+// extra usato per cat-tip (categoria + tipologia insieme)
 ```
 
 Dopo il commit, la riga viene aggiornata nella cache locale (`state.master[tab]`) senza refetch, poi `refresh()` aggiorna il DOM.
+
+### L'organizzazione non si modifica, da nessuna delle due parti
+
+La terna `organizzazione` / `codice-organizzazione` / `provincia` e' di sola
+lettura in entrambi gli step: campo disabilitato col lucchetto nel form, e
+`INLINE_SKIP` nella lista. L'organizzazione si sceglie **una volta sola**, nel
+picker che precede la creazione.
+
+**E' una decisione della UI, non della worktable**: le colonne in Camila sono
+scrivibili, e il flag `readonly` non vi e' impostato (vedi §11, *Sola lettura per
+singolo campo*). Conseguenza da tenere presente: nella SPA **non esiste piu' modo
+di spostare una risorsa fra organizzazioni**. Il ramo `col === "organizzazione"`
+di `renderInlineCell` — una tendina che riscrive tutti e tre i campi — resta nel
+codice, irraggiungibile, perche' e' l'unico punto che sa farlo se un giorno
+diventera' un'azione da soli amministratori.
 
 ### Flag `skipFetch`
 
@@ -402,37 +416,31 @@ Si apre con doppio click su qualsiasi cella `categoria` o `tipologia` di un reco
 ```
 ┌──────────────────────────────┐
 │ Categoria  [select ▼]        │
-│ Tipologia  [optgroup select ▼]│
+│ Tipologia  [select ▼]        │
 │                 [Annulla] [Salva] │
 └──────────────────────────────┘
 ```
 
 - **Categoria select**: lista completa delle categorie (`MEZZI_CAT_OPT` o `MAT_CAT_OPT`).
-- **Tipologia select**: `<select>` con `<optgroup>` per ogni categoria, mostra tutte le tipologie. Se categoria = "Non assegnata" → campo disabilitato con valore fisso "Non assegnata". Se la categoria selezionata ha tipologie vuote (es. "Materiale informatico") → campo disabilitato con valore "—".
-- **Dipendenza bidirezionale**:
-  - Cambio categoria → tipologia si resetta a `""` (vuoto) o `"Non assegnata"` se categoria = "Non assegnata".
-  - Cambio tipologia → categoria si aggiorna automaticamente per reverse lookup nella mappa `byCat`.
+- **Tipologia select**: solo le tipologie della categoria selezionata, **come in step 2**. Se categoria = "Non assegnata" → campo disabilitato con valore fisso "Non assegnata". Se la categoria selezionata non ha tipologie → campo disabilitato con valore "—".
+- **Dipendenza a senso unico**: cambio categoria → tipologia si resetta a `""` (vuoto) o `"Non assegnata"` se categoria = "Non assegnata". Il cambio di tipologia **non** tocca la categoria: con l'elenco filtrato la tipologia scelta le appartiene già.
+- **Valore fuori elenco**: una `tipologia` già sul record che non appartiene alla categoria corrente resta nella tendina come opzione marcata `(fuori elenco)`, invece di sparire silenziosamente (AGENTS.md §Derived fields).
+
+> Fino a ottobre 2026 la tendina elencava le tipologie di **tutte** le categorie in `<optgroup>`, e il cambio di tipologia riallineava la categoria per reverse lookup. Era l'unico punto del plugin che lo faceva: step 2 filtrava già sulla categoria.
 - **Backdrop**: `div position:fixed;inset:0` con `@click` → annulla. Click sull'overlay stesso ha `stopPropagation`.
 - **Escape** ovunque nell'overlay → annulla.
 - **Salva** invia `{ categoria, tipologia }` in un unico `update`.
 
-### Opzioni mezzi
+### Da dove vengono le opzioni
 
-Categorie: `Non assegnata, Imbarcazioni, Mezzi aerei, Mezzi speciali, Rimorchi, Veicoli`
+Non sono più cablate qui. Categorie e tipologie di `db-mezzi` e `db-materiali`
+arrivano da `loadCatalog()` di `views/shared/vocabularies.js`, che le legge
+dalle `listbox_options` della colonna via describe esteso — vedi §"Dove vive il
+vocabolario di categoria/tipologia" e `specs/api/describe/design.md`.
 
-Tipologie per categoria (esempi principali):
-- Imbarcazioni: Barca, Gommone, Hovercraft, Moto d'acqua
-- Mezzi aerei: Aeroplano, Drone, Elicottero, Idrovolante, ULM
-- Mezzi speciali: Battipista, Bobcat, Escavatore, Motoslitta, Muletto, Spazzaneve…
-- Rimorchi: Biga, Carrello, Rimorchio, Roulotte, Semirimorchio…
-- Veicoli: Ambulanza, Autobus, Autocarro, Autovettura, Furgone, Motociclo…
-
-### Opzioni materiali
-
-Categorie derivate da `MATERIALI_TIPOLOGIE_OPTS` (stessa stringa usata in step2):
-`Non assegnata, Attrezzature speciali, Attrezzi vari, Container, Effetti letterecci, Generatori, Materiale AIB, Materiale antinquinante, Materiale elettrico, Materiale idraulico e idrogeologico, Materiale informatico, Radio e dispositivi TLC, Tende`
-
-Tipologie: select con optgroup (lista completa in `MATERIALI_TIPOLOGIE_OPTS`). Le categorie senza tipologie (attualmente: "Materiale informatico") mostrano il campo tipologia disabilitato con "—".
+Lo step 1 le tiene in `MEZZI_CAT_OPT` / `MEZZI_TIP_OPT` e `MAT_CAT_OPT` /
+`MAT_TIP_OPT`; sono le stesse strutture che usa lo step 2. Per cambiare un
+elenco si tocca la colonna in Camila, non questi file.
 
 ## 10. Permissions
 
@@ -656,9 +664,52 @@ Da sapere: nella configurazione attuale **nessuna colonna è `readonly`** — i
 describe di `db-mezzi` e `mezzi` riportano `"readonly": false` ovunque. La
 funzione è quindi latente finché qualcuno non marca una colonna in Camila.
 
-Resta fuori l'editing inline dello step 1, che ha un elenco suo (`INLINE_SKIP`,
-con `provincia` e `codice-organizzazione`): andrebbe allineato alla stessa
-fonte.
+**Anche l'editing inline dello step 1 rispetta il flag.** `inlineBlocked(tab, col)`
+unisce le due fonti — l'elenco fisso `INLINE_SKIP` e il `readonly` della
+colonna — e governa sia il doppio click sia il cursore sulla cella. Senza, la
+lista sarebbe la porta di servizio per modificare una colonna che il form
+protegge.
+
+### Campi che l'operatore non digita mai
+
+`UI_READONLY_FIELDS` raccoglie i campi di sola lettura **per decisione della
+UI**, non della worktable:
+
+| Campo | Da dove arriva |
+|---|---|
+| `organizzazione`, `codice-organizzazione`, `provincia` | dal picker che precede la form |
+| `id-materiale` | da `sequence()` all'apertura della form di creazione |
+
+Sono disabilitati nella form, col lucchetto sull'etichetta, e stanno in
+`INLINE_SKIP` per la tabella dello step 1.
+
+**Sono esenti dallo strip del payload**, ed e' la parte che conta: il record ha
+bisogno di quei valori anche se nessuno li ha digitati. Un `readonly` su quelle
+colonne significa "non modificabile nella scheda Camila", non "non salvare":
+senza l'esenzione una `create` scriverebbe la risorsa **senza organizzazione o
+senza id, e senza errori**. Il controllo su `required` non protegge da questo,
+perche' guarda il draft, dove il valore c'e', mentre lo strip avviene dopo.
+
+**Una via d'uscita per `id-materiale`**: se la `sequence()` fallisce non c'e'
+nessun id da mostrare, quindi il campo torna digitabile e l'avviso sotto la form
+lo dice. Senza, un disservizio della sequence bloccherebbe ogni inserimento.
+
+**Il flag non e' applicato dall'API.** La catena di middleware e'
+`dbAuth,apiKeyDbAuth,authorization,sanitation`, e `authorization.columnHandler`
+(`camila/api/cf_api_controller.inc.php`) esclude solo le colonne tecniche
+(`created`, `last_upd`, `grp`, `is_deleted`, …): non legge mai
+`CAMILA_TABLE_WORKC`. Il `readonly` e' quindi **solo un vincolo di interfaccia**,
+e il backend accetta la scrittura. Vale la regola di AGENTS.md §Security: i
+permessi lato frontend sono una guardia di UX.
+
+**Non esiste un `readonly` per ruolo.** Il flag e' uno solo per colonna
+(`c.readonly` in WORKC), senza dimensione di gruppo: marcarlo vale per tutti,
+amministratori compresi. Il controllo per gruppo in Camila sta a livello di
+**tabella**, nei `.access.inc.php` generati per worktable
+(`$_CAMILA['adm_user_group'] == CAMILA_ADM_USER_GROUP`), che oggi su tutte le
+worktable del progetto e' scritto `? true : true`, cioe' disinnescato. Togliere
+un singolo campo ai non amministratori non e' esprimibile: la grana minima e'
+l'update dell'intero record.
 
 ### Le altre proprietà della colonna
 
@@ -697,10 +748,10 @@ Campi gestiti con logica speciale in step 2:
 - `categoria` (mezzi) → select; cambio resetta `tipologia`
 - `tipologia` (mezzi) → select filtrata per `categoria`; disabilitata se categoria = "Non assegnata"
 - `categoria` (materiali) → select; stessa logica
-- `tipologia` (materiali) → select con optgroup (stessa `MATERIALI_TIPOLOGIE_OPTS`); se la categoria non ha tipologie (es. "Materiale informatico") → campo disabilitato con "—" e help "Nessuna tipologia disponibile per questa categoria."
+- `tipologia` (materiali) → select filtrata per `categoria`; una tipologia non ammessa dalla categoria scelta viene azzerata; se la categoria non ha tipologie → campo disabilitato con "—" e help "Nessuna tipologia disponibile per questa categoria."
 - `targa` (mezzi, create) → normalizzata in uppercase
 - `codice-fiscale` (volontari, create) → normalizzato in uppercase
-- `id-materiale` (materiali, create) → pre-fill con `client.table("db-materiali").sequence()`
+- `id-materiale` (materiali, create) → pre-fill con `client.table("db-materiali").sequence()`; campo in sola lettura, salvo fallimento della sequence (vedi §11)
 
 ## 13. File
 

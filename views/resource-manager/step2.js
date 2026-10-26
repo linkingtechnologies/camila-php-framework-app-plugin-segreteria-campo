@@ -150,6 +150,14 @@ export async function Step2(props) {
     },
   };
 
+  // Singular noun per tab, for the create form heading: the tab key is plural
+  // ("materiali"), so "Nuovo materiali" would read wrong.
+  const TAB_SINGOLARE = {
+    volontari: "volontario",
+    mezzi: "mezzo",
+    materiali: "materiale",
+  };
+
   const COL_LABELS = {
     "codice-fiscale": "Codice fiscale",
     cognome: "Cognome",
@@ -218,8 +226,27 @@ export async function Step2(props) {
   // A field is editable only if the table allows writing AND the column is not
   // declared read only on the worktable. The two are different things: the
   // first is about who you are, the second about what the field is.
+  // Fields the operator never types, although the record must carry them: the
+  // organisation triplet comes from the picker shown before the form, and
+  // `id-materiale` from the sequence. They are read only in the UI, and exempt
+  // from the read-only strip in doSave() - dropping them would save a record
+  // without its organisation or without its id.
+  const UI_READONLY_FIELDS = new Set([
+    "organizzazione",
+    "codice-organizzazione",
+    "provincia",
+    "id-materiale",
+  ]);
+
   function fieldReadOnly(tab, readOnly, col) {
     if (readOnly) return true;
+    if (UI_READONLY_FIELDS.has(col)) {
+      // Escape hatch: when the sequence call failed there is no id to show, so
+      // the field goes back to being typable rather than blocking every
+      // creation. The help text under the form says so.
+      if (col === "id-materiale" && state.step2.sequenceError) return false;
+      return true;
+    }
     const t = RM_CONFIG[tab]?.table;
     return colMeta[t]?.[col]?.readonly === true;
   }
@@ -644,7 +671,13 @@ export async function Step2(props) {
       // Columns the worktable declares read only are dropped from the payload:
       // the form could not change them anyway, and sending a value the backend
       // may refuse would fail the whole save for a field nobody touched.
+      //
+      // UI_READONLY_FIELDS are exempt: they are not typed in the form, but the
+      // record needs them. A `readonly` flag on those columns means "not
+      // editable on the Camila form", so dropping them here would store a
+      // resource with no organisation or no id, without any error to show.
       for (const k of Object.keys(payload)) {
+        if (UI_READONLY_FIELDS.has(k)) continue;
         if (fieldReadOnly(tab, false, k)) delete payload[k];
       }
 
@@ -691,8 +724,11 @@ export async function Step2(props) {
     const fields = getFields(tab, base, draft);
     const dirty = isDirty(base, draft);
 
-    const title = mode === "edit" ? `Modifica ${tab}` : `Nuovo ${tab}`;
-    const subtitle = mode === "edit" ? `ID: ${safeStr(id)}` : "Creazione record";
+    const singolare = TAB_SINGOLARE[tab] || tab;
+    const title = mode === "edit" ? `Modifica ${singolare}` : `Nuovo ${singolare}`;
+    // No subtitle while creating: there is no id yet, and a "Creazione record"
+    // line would only repeat the title.
+    const subtitle = mode === "edit" ? `ID: ${safeStr(id)}` : "";
 
     const orgCatalog = state.step1.orgCatalog || [];
     const orgMap = new Map(orgCatalog.map((o) => [o.code, o.name]));
@@ -778,7 +814,7 @@ export async function Step2(props) {
               <div class="level-item">
                 <div>
                   <h1 class="title is-6">${title}</h1>
-                  <p class="subtitle is-7">${subtitle}</p>
+                  ${subtitle ? html`<p class="subtitle is-7">${subtitle}</p>` : ""}
                 </div>
               </div>
             </div>
@@ -841,7 +877,8 @@ export async function Step2(props) {
                       </div>
 
                       <p class="help is-size-7">
-                        Codice: <code>${currentOrgCode || "—"}</code>
+                        Codice:
+                        <span class="has-text-weight-semibold">${currentOrgCode || "—"}</span>
                       </p>
 
                       ${currentOrgCode && !orgCodeIsKnown
@@ -1230,7 +1267,7 @@ export async function Step2(props) {
                               ? html`<span class="has-text-danger" title="Obbligatorio">*</span>`
                               : null}
                             ${isKey ? html`<span class="tag is-light ml-2">chiave</span>` : null}
-                            ${metaK?.readonly
+                            ${!readOnly && roK
                               ? html`<span class="icon is-small has-text-grey" title="Campo di sola lettura"
                                        ><i class="ri-lock-line"></i></span>`
                               : null}

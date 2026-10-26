@@ -289,7 +289,7 @@ export async function ServiceManager({ state, client, html, render, root }) {
       toolsResult = { inserted, skipped: [...names].filter(n => existing.has(n.toLowerCase())) };
       await load();
     } catch (e) {
-      toolsResult = { error: String(e?.payload || e?.message || e) };
+      toolsResult = { error: String(e?.payload?.message || e?.message || e) };
     }
     toolsBusy = false; rerender();
   }
@@ -319,7 +319,7 @@ export async function ServiceManager({ state, client, html, render, root }) {
       toolsResult = { inserted, skipped: [...names].filter(n => existing.has(n.toLowerCase())) };
       await load();
     } catch (e) {
-      toolsResult = { error: String(e?.payload || e?.message || e) };
+      toolsResult = { error: String(e?.payload?.message || e?.message || e) };
     }
     toolsBusy = false; rerender();
   }
@@ -337,7 +337,7 @@ export async function ServiceManager({ state, client, html, render, root }) {
       toolsResult = { inserted: [], skipped: [], deleted };
       await load();
     } catch (e) {
-      toolsResult = { error: String(e?.payload || e?.message || e) };
+      toolsResult = { error: String(e?.payload?.message || e?.message || e) };
     }
     toolsBusy = false; rerender();
   }
@@ -360,7 +360,7 @@ export async function ServiceManager({ state, client, html, render, root }) {
       toolsResult = { inserted, skipped: MANDATORY.filter(m => existing.has(m.nome.toLowerCase())).map(m => m.nome) };
       await load();
     } catch (e) {
-      toolsResult = { error: String(e?.payload || e?.message || e) };
+      toolsResult = { error: String(e?.payload?.message || e?.message || e) };
     }
     toolsBusy = false; rerender();
   }

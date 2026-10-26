@@ -253,8 +253,24 @@ export async function Step1(props) {
     "note-ulteriori": "Note ulteriori",
   };
 
-  // colonne derivate: non modificabili inline
-  const INLINE_SKIP = new Set(["provincia", "codice-organizzazione"]);
+  // Columns not editable inline. `provincia` is derived; the organisation pair
+  // is read only by decision of the UI, not of the worktable: the column is
+  // writable in Camila, so the same two fields are shown disabled in step 2 and
+  // the organisation is chosen once, in the picker, before a record is created.
+  const INLINE_SKIP = new Set([
+    "provincia",
+    "organizzazione",
+    "codice-organizzazione",
+    "id-materiale", // assigned by the sequence at creation, never retyped
+  ]);
+
+  // A column the worktable declares read only is not editable inline either.
+  // Step 2 already honours the flag, so without this the list would be the way
+  // around it.
+  function inlineBlocked(tab, col) {
+    if (INLINE_SKIP.has(col)) return true;
+    return state.step1.colMetaByTab?.[tab]?.columns?.[col]?.readonly === true;
+  }
   // -------------------- VOCABOLARI --------------------
   // categoria e tipologia arrivano dalle listbox_options delle colonne:
   // vedi views/shared/vocabularies.js.
@@ -932,7 +948,7 @@ export async function Step1(props) {
   function startInlineEdit(r, col, event) {
     const tab = state.step1.activeTab;
     const perms = getEffectivePermissions(tab);
-    if (INLINE_SKIP.has(col)) return;
+    if (inlineBlocked(tab, col)) return;
     if (!perms.canUpdate) return;
 
     // categoria o tipologia: overlay unico con le due tendine dipendenti
@@ -1101,7 +1117,10 @@ export async function Step1(props) {
         if (e.key === "Escape") { e.preventDefault(); cancelInlineEdit(); }
       };
 
-      // organizzazione → select from catalog; auto-fills codice-organizzazione + provincia
+      // organizzazione → select from catalog; auto-fills codice-organizzazione + provincia.
+      // Unreachable while `organizzazione` is in INLINE_SKIP: kept because it is
+      // the only code that knows how to move a record between organisations,
+      // should that become an admin-only action.
       if (col === "organizzazione") {
         const catalog = state.step1.orgCatalog || [];
         const provMap = state.step1.orgProvinceByCode || {};
@@ -1181,12 +1200,18 @@ export async function Step1(props) {
 
       const onTipChange = (newTip) => {
         ie.tipologia = newTip;
-        for (const [cat, tips] of Object.entries(tipByCat)) {
-          if (tips.includes(newTip)) { ie.categoria = cat; break; }
-        }
         state.step1.skipFetch = true;
         refresh();
       };
+
+      // Only the tipologie of the selected categoria, as step 2 does. A value
+      // already on the record that does not belong to it is kept as an
+      // out-of-list option instead of disappearing from the dropdown.
+      const allowedTips = (tipByCat[ie.categoria] || []).filter(
+        (t) => t !== "Non assegnata"
+      );
+      const outOfListTip =
+        ie.tipologia && !allowedTips.includes(ie.tipologia) ? ie.tipologia : "";
 
       const tipologiaField = ie.categoria === "Non assegnata"
         ? html`
@@ -1195,7 +1220,7 @@ export async function Step1(props) {
               <input class="input is-small" type="text" disabled .value=${"Non assegnata"} />
             </div>
           `
-        : (tipByCat[ie.categoria] || []).length === 0
+        : allowedTips.length === 0 && !outOfListTip
         ? html`
             <div class="field">
               <label class="label is-small mb-1">Tipologia</label>
@@ -1208,11 +1233,14 @@ export async function Step1(props) {
               <div class="select is-small is-fullwidth">
                 <select @change=${(e) => onTipChange(e.target.value)}>
                   <option value="" ?selected=${!ie.tipologia}>— seleziona —</option>
-                  ${Object.entries(tipByCat).map(([cat, tips]) => html`
-                    <optgroup label=${cat}>
-                      ${tips.map((t) => html`<option value=${t} ?selected=${t === ie.tipologia}>${t}</option>`)}
-                    </optgroup>
-                  `)}
+                  ${allowedTips.map(
+                    (t) => html`<option value=${t} ?selected=${t === ie.tipologia}>${t}</option>`
+                  )}
+                  ${outOfListTip
+                    ? html`<option value=${outOfListTip} selected>
+                        ${outOfListTip} (fuori elenco)
+                      </option>`
+                    : ""}
                 </select>
               </div>
             </div>
@@ -1719,7 +1747,7 @@ export async function Step1(props) {
                           ${cols.map((c) => {
                             const ie = state.step1.inlineEdit;
                             const isEditing = ie && ie.rowId === r.id && ie.col === c;
-                            const isSkip = INLINE_SKIP.has(c);
+                            const isSkip = inlineBlocked(tab, c);
                             if (isEditing) {
                               return html`<td style="vertical-align:middle;white-space:normal;min-width:12rem;">${renderInlineCell(r, c, ie)}</td>`;
                             }

@@ -89,7 +89,7 @@ export async function Home({ client, html, render, root }) {
       // chiude il modal dopo 1 secondo
       setTimeout(() => { showModal = false; rerender(); }, 1000);
     } catch (e) {
-      msgError = String(e?.payload || e?.message || e || "Errore durante il salvataggio.");
+      msgError = String(e?.payload?.message || e?.message || e || "Errore durante il salvataggio.");
       msgBusy = false;
       rerender();
     }
