@@ -43,6 +43,25 @@ export async function Step1(props) {
     materiali: { page: 1, size: 50, total: 0, totalPages: 1, hasNext: false },
   };
 
+  // Organisation picker shown before the create form: a new resource always
+  // belongs to one, and provincia plus codice-organizzazione are derived from
+  // it, so asking first avoids a form where three fields are already wrong.
+  // Same idea as massive check-in, which opens on the organisation too.
+  state.step1.createPicker ||= null;   // null = chiuso, altrimenti { tab, q }
+
+  // The picker lists the organisations that ALREADY have volunteers, from a
+  // distinct on `db-volontari` - deliberately not the same source as the form
+  // dropdown, which reads the registry `db-organizzazioni`. Creating a resource
+  // is about an organisation already on the field; the dropdown has to be able
+  // to offer every one on record.
+  state.step1.orgFromRecords ||= null;
+  state.step1.orgFromRecordsLoading ||= false;
+
+  // Table font size, a display preference like the column order: same storage,
+  // but one key for the whole SPA - it is about the operator's eyes, not about
+  // which tab is open.
+  state.step1.fontSize ||= null;
+
   // Column metadata from the extended describe: `sequence` is the order set on
   // the worktable in Camila, so the default order is configuration, not code.
   state.step1.colMetaByTab ||= { volontari: null, mezzi: null, materiali: null };
@@ -72,6 +91,8 @@ export async function Step1(props) {
   state.step1.tipFilterByTab ||= { volontari: "", mezzi: "", materiali: "" };
 
   state.master ||= { volontari: null, mezzi: null, materiali: null };
+
+  state.step1.permissionsErrorByTab ||= { volontari: null, mezzi: null, materiali: null };
 
   state.step1.permissionsByTab ||= {
     volontari: null,
@@ -106,8 +127,8 @@ export async function Step1(props) {
     volontari: ["cognome", "nome", "codice-fiscale", "organizzazione"],
     mezzi: ["targa", "codice-inventario", "marca", "modello", "organizzazione",
             "categoria", "tipologia", "note"],
-    materiali: ["id-materiale", "codice-inventario", "marca", "modello", "organizzazione",
-                "categoria", "tipologia", "note"],
+    materiali: ["id-materiale", "codice-inventario", "targa", "marca", "modello",
+                "organizzazione", "categoria", "tipologia", "note"],
   };
 
   const SEARCH_MIN = 2;      // below this the result list would be the whole table
@@ -191,6 +212,7 @@ export async function Step1(props) {
       "codice-inventario",
       "codice-inventario-regionale",
       "codice-inventario-provinciale",
+      "targa",
       "categoria",
       "tipologia",
       "note",
@@ -236,11 +258,16 @@ export async function Step1(props) {
   // -------------------- VOCABOLARI --------------------
   // categoria e tipologia arrivano dalle listbox_options delle colonne:
   // vedi views/shared/vocabularies.js.
+  //
+  // Dalle colonne di TAB_TABLE, cioe' db-mezzi e db-materiali: sono quelle che
+  // questa SPA scrive. Le tabelle di evento `mezzi` e `materiali` hanno oggi
+  // gli stessi elenchi, ma sono colonne diverse e possono divergere - offrire
+  // un valore che la colonna di destinazione non ammette sarebbe sbagliato.
   const { loadCatalog } = await import(`../shared/vocabularies.js?v=${VERSION}`);
 
   const [mezziCat, materialiCat] = await Promise.all([
-    loadCatalog(client, "mezzi"),
-    loadCatalog(client, "materiali")
+    loadCatalog(client, TAB_TABLE.mezzi),
+    loadCatalog(client, TAB_TABLE.materiali)
   ]);
 
   const MEZZI_CAT_OPT = mezziCat.categories;
@@ -279,19 +306,26 @@ export async function Step1(props) {
     if (state.step1.orgCatalogLoaded && state.step1.provinceCatalogLoaded) return;
 
     try {
-      const res = await client.table("db-volontari").distinct("codice-organizzazione", {
-        include: "codice-organizzazione,organizzazione,provincia",
+      // Organisations come from `db-organizzazioni`, the registry, not from the
+      // distinct values of `db-volontari.codice-organizzazione`. Reading them
+      // off the volunteers meant an organisation with no volunteers yet was
+      // not selectable at all, and a typo in a single record became a valid
+      // looking option that then spread to mezzi and materiali.
+      // Columns here: `codice`, `denominazione`, `provincia`.
+      const res = await client.table("db-organizzazioni").list({
+        include: ["codice", "denominazione", "provincia"],
+        size: 5000,
       });
 
-      const rows = normalizeDistinctResponse(res);
+      const rows = normalizeListResponse(res);
 
       const orgMap = new Map();
       const orgProvMap = {};
       const provSet = new Set();
 
       for (const r of rows) {
-        const code = (r?.["codice-organizzazione"] ?? "").toString().trim();
-        const name = (r?.["organizzazione"] ?? "").toString().trim();
+        const code = (r?.["codice"] ?? "").toString().trim();
+        const name = (r?.["denominazione"] ?? "").toString().trim();
         const prov = (r?.["provincia"] ?? "").toString().trim().toUpperCase();
 
         if (code && !orgMap.has(code)) {
@@ -408,6 +442,46 @@ export async function Step1(props) {
   }
 
   const COL_PREF_KEY = (tab) => `rm-cols-${tab}`;
+
+  const FONT_KEY = "rm-font-size";
+  const FONT_SIZES = [
+    { id: "s", label: "S", css: "0.70rem", title: "Carattere piccolo" },
+    { id: "m", label: "M", css: "0.80rem", title: "Carattere medio" },
+    { id: "l", label: "L", css: "0.95rem", title: "Carattere grande" },
+  ];
+  const FONT_DEFAULT = "s";
+
+  function readFontSize() {
+    if (state.step1.fontSize) return state.step1.fontSize;
+    let v = FONT_DEFAULT;
+    try {
+      const raw = localStorage.getItem(FONT_KEY);
+      if (FONT_SIZES.some((f) => f.id === raw)) v = raw;
+    } catch (_) {
+      // private window or blocked storage: the default is fine
+    }
+    state.step1.fontSize = v;
+    return v;
+  }
+
+  function setFontSize(id) {
+    if (!FONT_SIZES.some((f) => f.id === id)) return;
+    state.step1.fontSize = id;
+    try {
+      localStorage.setItem(FONT_KEY, id);
+    } catch (_) {
+      // keeps working for this session only
+    }
+    refresh();
+  }
+
+  function fontSizeCss() {
+    const id = readFontSize();
+    return (
+      FONT_SIZES.find((f) => f.id === id) ||
+      FONT_SIZES.find((f) => f.id === FONT_DEFAULT)
+    ).css;
+  }
 
   function readColPref(tab) {
     if (state.step1.colPrefByTab[tab]) return state.step1.colPrefByTab[tab];
@@ -599,6 +673,11 @@ export async function Step1(props) {
   async function ensurePermissions(tab) {
     if (state.step1.readOnlyGlobal) return;
     if (state.step1.permissionsByTab?.[tab]) return;
+    // One failed call used to latch readOnlyGlobal for the whole session and
+    // every tab, with no retry: a single network hiccup made the actions column
+    // disappear until the page was reloaded, and said nothing about why. The
+    // failure now stays on its own tab and can be retried.
+    if (state.step1.permissionsErrorByTab?.[tab]) return;
 
     const tableName = TAB_TABLE[tab];
 
@@ -617,10 +696,17 @@ export async function Step1(props) {
         return;
       }
 
+      // The client exposes no permissions call at all: that is a property of
+      // the build, not of one table, so it does apply to everything.
       state.step1.readOnlyGlobal = true;
     } catch (err) {
-      state.step1.readOnlyGlobal = true;
+      state.step1.permissionsErrorByTab[tab] = err?.message || String(err);
     }
+  }
+
+  function retryPermissions(tab) {
+    state.step1.permissionsErrorByTab[tab] = null;
+    refresh();
   }
 
   // -------------------- LOAD PAGE (server-side) --------------------
@@ -728,15 +814,85 @@ export async function Step1(props) {
   function startCreate(tab) {
     const perms = getEffectivePermissions(tab);
     if (!perms.canCreate) return;
+    state.step1.createPicker = { tab, q: "" };
+    ensureOrgFromRecords();
+    refresh();
+  }
+
+  function chiudiCreatePicker() {
+    state.step1.createPicker = null;
+    refresh();
+  }
+
+  function setCreatePickerQuery(v) {
+    if (!state.step1.createPicker) return;
+    state.step1.createPicker.q = v || "";
+    refresh();
+  }
+
+  // Organisation chosen: only now does the data form open.
+  function startCreateConOrg(tab, org) {
+    state.createOrg = {
+      code: org.code,
+      name: org.name,
+      province: org.province || (state.step1.orgProvinceByCode || {})[org.code] || "",
+    };
+    state.step1.createPicker = null;
+    state.step1.activeTab = tab;
+    state.activeTab = tab;
     state.editTab = tab;
     state.editId = null;
     state.editMode = "create";
     goTo(2);
   }
 
+  async function ensureOrgFromRecords() {
+    if (state.step1.orgFromRecords || state.step1.orgFromRecordsLoading) return;
+    state.step1.orgFromRecordsLoading = true;
+    try {
+      const res = await client.table("db-volontari").distinct("codice-organizzazione", {
+        include: "codice-organizzazione,organizzazione,provincia",
+      });
+      const map = new Map();
+      for (const r of normalizeDistinctResponse(res)) {
+        const code = (r?.["codice-organizzazione"] ?? "").toString().trim();
+        const name = (r?.["organizzazione"] ?? "").toString().trim();
+        const prov = (r?.["provincia"] ?? "").toString().trim().toUpperCase();
+        if (code && !map.has(code)) map.set(code, { code, name, province: prov });
+      }
+      state.step1.orgFromRecords = [...map.values()].sort((a, b) =>
+        a.name.localeCompare(b.name, "it", { sensitivity: "base" })
+      );
+    } catch (_) {
+      // falls back to the registry: better a longer list than none
+      state.step1.orgFromRecords = [];
+    }
+    state.step1.orgFromRecordsLoading = false;
+    refresh();
+  }
+
+  function createPickerRisultati() {
+    const pk = state.step1.createPicker;
+    if (!pk) return [];
+    const q = searchNorm(pk.q);
+    const dai = state.step1.orgFromRecords;
+    const list = dai && dai.length ? dai : state.step1.orgCatalog || [];
+    if (!q) return list;
+    return list.filter(
+      (o) => searchNorm(o.name).includes(q) || searchNorm(o.code).includes(q)
+    );
+  }
+
   function startEdit(tab, id) {
-    const perms = getEffectivePermissions(tab);
-    if (!perms.canUpdate) return;
+    // No permission gate here: step 2 opens read only when the tab does not
+    // allow writing, which beats a click that silently does nothing. The
+    // actual write is stopped there, by doSave and by every disabled control.
+    // Follow the record's own tab. A quick-search hit can belong to a tab other
+    // than the active one, and step 2 goes back with goTo(1) without touching
+    // it: without this, saving a mezzo found while on Volontari would drop you
+    // back on the volunteers list.
+    state.step1.activeTab = tab;
+    state.activeTab = tab;
     state.editTab = tab;
     state.editId = id;
     state.editMode = "edit";
@@ -1104,9 +1260,81 @@ export async function Step1(props) {
       `;
     }
 
+    function renderCreatePicker() {
+      const pk = state.step1.createPicker;
+      if (!pk) return "";
+      const risultati = createPickerRisultati();
+      const provByCode = state.step1.orgProvinceByCode || {};
+
+      return html`
+        <div class="modal is-active">
+          <div class="modal-background" @click=${chiudiCreatePicker}></div>
+          <div class="modal-card" style="max-width:40rem">
+            <header class="modal-card-head">
+              <p class="modal-card-title is-size-6">
+                Nuova risorsa in ${TAB_LABELS[pk.tab]} — scegli l'organizzazione
+              </p>
+              <button class="delete" aria-label="close" @click=${chiudiCreatePicker}></button>
+            </header>
+
+            <section class="modal-card-body">
+              <div class="control has-icons-left mb-3">
+                <input
+                  class="input rm-search"
+                  type="search"
+                  placeholder="Cerca per denominazione o codice…"
+                  .value=${safe(pk.q)}
+                  @input=${(e) => setCreatePickerQuery(e.target.value)}
+                />
+                <span class="icon is-left has-text-link"><i class="ri-search-line"></i></span>
+              </div>
+
+              ${state.step1.orgCatalogError
+                ? html`<p class="help is-danger">
+                         Anagrafica organizzazioni non disponibile: ${state.step1.orgCatalogError}
+                       </p>`
+                : ""}
+
+              <div style="max-height:22rem;overflow-y:auto">
+                ${state.step1.orgFromRecordsLoading
+                  ? html`<progress class="progress is-small m-3" style="width:auto"></progress>`
+                  : risultati.length === 0
+                  ? html`<p class="has-text-grey is-size-7 p-3 has-text-centered">
+                           ${(state.step1.orgCatalog || []).length === 0
+                             ? "Nessuna organizzazione trovata."
+                             : "Nessun risultato."}
+                         </p>`
+                  : risultati.map(
+                      (o) => html`
+                        <button
+                          type="button"
+                          class="button is-white is-fullwidth"
+                          style="justify-content:flex-start;text-align:left;white-space:normal"
+                          @click=${() => startCreateConOrg(pk.tab, o)}
+                        >
+                          <strong>${o.name || "(senza denominazione)"}</strong>
+                          ${o.code ? html`<span class="tag ml-2">${o.code}</span>` : ""}
+                          ${o.province || provByCode[o.code]
+                            ? html`<span class="tag is-light ml-2"
+                                >${o.province || provByCode[o.code]}</span
+                              >`
+                            : ""}
+                        </button>
+                      `
+                    )}
+              </div>
+            </section>
+
+            <footer class="modal-card-foot">
+              <button class="button" @click=${chiudiCreatePicker}>Annulla</button>
+            </footer>
+          </div>
+        </div>
+      `;
+    }
+
     function renderColPanel() {
       const pref = readColPref(tab);
-      const meta = state.step1.colMetaByTab[tab];
       const personalizzato = pref.order.length > 0 || pref.hidden.length > 0;
 
       return html`
@@ -1124,17 +1352,26 @@ export async function Step1(props) {
                      Ripristina ordine predefinito
                    </button>`
             : ""}
+
+          <div class="is-flex is-align-items-center ml-auto" style="gap:.35rem">
+            <span class="is-size-7 has-text-grey">Carattere</span>
+            <div class="buttons has-addons mb-0">
+              ${FONT_SIZES.map(
+                (f) => html`
+                  <button
+                    class="button is-small ${readFontSize() === f.id ? "is-link is-light" : ""}"
+                    title=${f.title}
+                    @click=${() => setFontSize(f.id)}
+                  >${f.label}</button>
+                `
+              )}
+            </div>
+          </div>
         </div>
 
         ${state.step1.colPanelOpen
           ? html`
               <div class="box p-2 mb-3">
-                <p class="is-size-7 has-text-grey mb-2">
-                  ${meta?.extended
-                    ? "L'ordine predefinito è quello configurato sulla scheda in Camila."
-                    : "Ordine predefinito interno: la configurazione della scheda non è disponibile."}
-                  La preferenza resta su questo browser.
-                </p>
                 ${colsOrdinate.map((c, i) => {
                   const nascosta = colsNascoste.includes(c);
                   return html`
@@ -1173,17 +1410,18 @@ export async function Step1(props) {
         <div class="mb-3">
           <div class="control has-icons-left has-icons-right">
             <input
-              class="input is-small"
+              class="input rm-search"
               type="search"
-              placeholder="Cerca fra volontari, mezzi e materiali…"
+              placeholder="Cerca un volontario, un mezzo o un materiale…"
               .value=${q}
               @input=${(e) => setQuickSearch(e.target.value)}
             />
-            <span class="icon is-small is-left"><i class="ri-search-line"></i></span>
+            <span class="icon is-left has-text-link"><i class="ri-search-line"></i></span>
             ${qs.loading
-              ? html`<span class="icon is-small is-right"><i class="ri-loader-4-line rm-spin"></i></span>`
+              ? html`<span class="icon is-right has-text-link"><i class="ri-loader-4-line rm-spin"></i></span>`
               : q
-                ? html`<span class="icon is-small is-right" style="pointer-events:auto;cursor:pointer"
+                ? html`<span class="icon is-right" style="pointer-events:auto;cursor:pointer"
+                         title="Pulisci la ricerca"
                          @click=${() => setQuickSearch("")}><i class="ri-close-line"></i></span>`
                 : ""}
           </div>
@@ -1238,8 +1476,25 @@ export async function Step1(props) {
     }
 
     return html`
-      <style>.rm-spin{animation:rm-spin 1s linear infinite}@keyframes rm-spin{to{transform:rotate(360deg)}}</style>
+      <style>
+        .rm-spin{animation:rm-spin 1s linear infinite}
+        @keyframes rm-spin{to{transform:rotate(360deg)}}
+        /* The quick search is the entry point of the page: it was the same
+           washed-out grey as the filters below it and went unnoticed. */
+        .rm-search{border-color:#3273dc;box-shadow:0 1px 2px rgba(50,115,220,.12)}
+        .rm-search::placeholder{color:#5b6b84;opacity:1}
+        .rm-search:focus{box-shadow:0 0 0 .125em rgba(50,115,220,.25)}
+        /* Filter row: the columns are not the same height - a .field.has-addons
+           is taller than a bare .select - so bottom-aligning them pushed the
+           labels of the shorter ones down. Stretch instead, so every column is
+           as tall as the tallest: labels line up at the top, and margin-top:auto
+           on the control pins them all to the bottom. */
+        .rm-filtri{align-items:stretch}
+        .rm-filtri > div{display:flex;flex-direction:column}
+        .rm-filtri > div > :last-child{margin-top:auto}
+      </style>
       ${renderCatTipOverlay()}
+      ${renderCreatePicker()}
       <div style="padding:1rem 1.25rem">
           <div class="level is-mobile">
             <div class="level-left">
@@ -1281,9 +1536,9 @@ export async function Step1(props) {
           </div>
 
           <div class="box spa-title-box p-3">
-            <div class="is-flex" style="gap:.75rem;align-items:flex-end;">
+            <div class="is-flex rm-filtri" style="gap:.75rem">
 
-              <div style="width:200px;flex-shrink:0;display:flex;flex-direction:column;">
+              <div style="width:200px;flex-shrink:0;">
                 <label class="label is-small mb-1">Organizzazione</label>
                 <div class="select is-small is-fullwidth">
                   <select
@@ -1297,7 +1552,7 @@ export async function Step1(props) {
               </div>
 
               ${hasCatTip ? html`
-                <div style="width:160px;flex-shrink:0;display:flex;flex-direction:column;">
+                <div style="width:160px;flex-shrink:0;">
                   <label class="label is-small mb-1">Categoria</label>
                   <div class="select is-small is-fullwidth">
                     <select
@@ -1310,7 +1565,7 @@ export async function Step1(props) {
                   </div>
                 </div>
 
-                <div style="width:200px;flex-shrink:0;display:flex;flex-direction:column;">
+                <div style="width:200px;flex-shrink:0;">
                   <label class="label is-small mb-1">Tipologia</label>
                   <div class="select is-small is-fullwidth">
                     <select
@@ -1324,7 +1579,7 @@ export async function Step1(props) {
                 </div>
               ` : null}
 
-              <div style="flex:1;min-width:0;display:flex;flex-direction:column;">
+              <div style="flex:1;min-width:0;">
                 <label class="label is-small mb-1">Filtro per colonna</label>
                 <div class="field has-addons mb-0">
                   <p class="control">
@@ -1354,7 +1609,7 @@ export async function Step1(props) {
                 ${state.step1.readOnlyGlobal ? html`<p class="help is-size-7 mb-0"><i class="ri-lock-line"></i> sola lettura</p>` : null}
               </div>
 
-              <div style="width:90px;flex-shrink:0;display:flex;flex-direction:column;">
+              <div style="width:90px;flex-shrink:0;">
                 <label class="label is-small mb-1">Per pagina</label>
                 <div class="select is-small is-fullwidth">
                   <select .value=${String(pag.size)} @change=${(e) => onPageSizeChange(tab, e.target.value)}>
@@ -1370,6 +1625,18 @@ export async function Step1(props) {
             </div>
           </div>
 
+          ${state.step1.permissionsErrorByTab?.[tab]
+            ? html`
+                <article class="message is-warning is-small mb-2">
+                  <div class="message-body is-size-7">
+                    Permessi non verificati su questa scheda: le azioni sono nascoste.
+                    <button class="button is-small is-warning is-light ml-2"
+                      @click=${() => retryPermissions(tab)}>Riprova</button>
+                  </div>
+                </article>
+              `
+            : ""}
+
           ${renderColPanel()}
 
           <div class="is-flex is-justify-content-space-between is-align-items-center mb-2" style="gap:.75rem;">
@@ -1384,7 +1651,10 @@ export async function Step1(props) {
           </div>
 
           <div class="table-container">
-            <table class="table is-small is-narrow is-fullwidth is-hoverable is-striped">
+            <table
+              class="table is-small is-narrow is-fullwidth is-hoverable is-striped"
+              style=${`font-size:${fontSizeCss()}`}
+            >
               <thead>
                 <tr>
                   ${showActionsCol ? html`<th style="width:70px;"></th>` : null}

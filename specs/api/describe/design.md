@@ -296,7 +296,7 @@ che diventa due voci — difetto del dato, non del codice.
 
 | Vista | Cosa prende |
 |---|---|
-| `views/resource-manager/step1.js` | catalogo mezzi e materiali (array e oggetti) |
+| `views/resource-manager/step1.js` | catalogo **db-mezzi** e **db-materiali** (array e oggetti) |
 | `views/resource-manager/step2.js` | idem |
 | `views/massive-check-in/step4.js` | CSV mezzi, dati a `parseTipologieCsv` |
 | `views/massive-check-in/step6.js` | CSV materiali, idem |
@@ -318,6 +318,10 @@ ciascuno ha una sola definizione, nella colonna.
 gli **stessi** 19 valori, ma restano due colonne su due tabelle. Ogni tendina
 legge la propria: offrire un valore che la colonna di destinazione non ammette
 sarebbe sbagliato anche se l'altra tabella lo ammette.
+
+Vale identicamente per `mezzi.categoria` contro `db-mezzi.categoria`: le prime
+le scrivono check-in e check-out, le seconde `resource-manager`. Leggere quella
+sbagliata e' un errore che non si vede finche' i due elenchi coincidono.
 
 Ne segue che i due elenchi **possono divergere** — aggiungendo una mansione ai
 volontari non comparirà fra le squadre — e che è una scelta di configurazione,

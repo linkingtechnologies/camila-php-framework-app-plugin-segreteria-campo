@@ -60,9 +60,11 @@ Se `editMode === "create"`, il form è vuoto (con prefill `id-materiale` via `.s
 
 Le colonne extra (presenti nei record ma non nell'elenco preferito) vengono accodate in ordine alfabetico.
 
-### Colonne nascoste (sempre escluse dalla vista)
+### Colonne nascoste (sempre escluse)
 
-`id`, `uuid`, `id2`
+`id`, `uuid`, `id2` — nella tabella dello step 1 **e nel form dello step 2**,
+che prima escludeva solo `id` e `uuid` e mostrava quindi `id2`, un contatore
+interno. Vengono tolte anche dal payload del salvataggio.
 
 ### Colonne in sola lettura inline
 
@@ -239,8 +241,8 @@ SEARCH_FIELDS = {
   volontari: ["cognome", "nome", "codice-fiscale", "organizzazione"],
   mezzi:     ["targa", "codice-inventario", "marca", "modello", "organizzazione",
               "categoria", "tipologia", "note"],
-  materiali: ["id-materiale", "codice-inventario", "marca", "modello", "organizzazione",
-              "categoria", "tipologia", "note"],
+  materiali: ["id-materiale", "codice-inventario", "targa", "marca", "modello",
+              "organizzazione", "categoria", "tipologia", "note"],
 }
 ```
 
@@ -274,8 +276,18 @@ sui volontari mai, perché `db-volontari` non ha quelle colonne.
 come badge: altrimenti sarebbe scritta due volte sulla stessa riga.
 
 Il clic chiama `startEdit(tab, id)`, la stessa funzione del pulsante di modifica:
-imposta `editTab`, `editId`, `editMode = "edit"` e va allo step 2. Se i permessi
-di quella scheda non consentono l'update, `startEdit` non fa nulla.
+imposta `editTab`, `editId`, `editMode = "edit"` e va allo step 2.
+
+**`startEdit` sposta anche la scheda attiva** su quella del record. Serve proprio
+alla ricerca unificata: un risultato può appartenere a una scheda diversa da
+quella aperta, e lo step 2 torna indietro con `goTo(1)` senza toccarla — senza
+questa riga, salvando un mezzo trovato mentre si è su Volontari si tornerebbe
+all'elenco dei volontari.
+
+**Senza permessi di scrittura il record si apre comunque, in sola lettura.**
+`startEdit` non ha più un controllo sui permessi: prima rifiutava in silenzio, e
+sul risultato di ricerca il clic sembrava inerte. Ora apre e il blocco sta allo
+step 2 — vedi §12.
 
 ## 7c. Ordine e visibilità delle colonne
 
@@ -306,6 +318,10 @@ localStorage["rm-cols-<tab>"] = { order: [...], hidden: [...] }
 Un pannello "Colonne" sopra la tabella elenca le colonne con frecce su/giu' e
 una spunta per la visibilita', piu' "Ripristina ordine predefinito".
 
+Il pannello **non spiega il meccanismo**: niente note su dove viva l'ordine
+predefinito o su dove sia salvata la preferenza. Sono dettagli di
+implementazione, e all'operatore non servono - gli serve il controllo.
+
 **Niente trascinamento delle intestazioni**: quelle sono gia' cliccabili per
 ordinare, e un trascinamento corto verrebbe letto come clic cambiando
 l'ordinamento invece di spostare la colonna. Le frecce funzionano anche col dito
@@ -320,6 +336,26 @@ sparire perche' assente dall'elenco.
 accesso e ogni scrittura sta in `try/catch`, perche' in finestra privata o con
 lo storage bloccato puo' lanciare. Fallendo, la preferenza vale per la sola
 sessione.
+
+### Dimensione del carattere
+
+Accanto a "Colonne", tre pulsanti S / M / L cambiano la dimensione del
+carattere della tabella: `0.70rem` (**predefinito**), `0.80rem` — quello che
+Bulma dà con `is-small` — e `0.95rem`. Si applica come `font-size` in linea sulla `<table>`,
+quindi eredita su intestazioni e celle senza toccare il resto della pagina.
+
+```js
+localStorage["rm-font-size"] = "s" | "m" | "l"
+```
+
+Il predefinito è **S**, quindi più compatto di quello che Bulma darebbe da solo:
+su tabelle da quattordici colonne la densità conta più della leggibilità del
+singolo carattere, e chi preferisce il contrario ha M e L.
+
+**Una chiave sola, non una per scheda**, a differenza dell'ordine colonne: la
+dimensione del carattere riguarda chi guarda, non quale tabella sta guardando.
+Come per le colonne, lettura e scrittura stanno in `try/catch` e un valore
+illeggibile o sconosciuto ricade sul predefinito.
 
 ### Cosa resta fuori
 
@@ -400,25 +436,259 @@ Tipologie: select con optgroup (lista completa in `MATERIALI_TIPOLOGIE_OPTS`). L
 
 ## 10. Permissions
 
+### Un errore non blocca tutto
+
+`ensurePermissions(tab)` memorizza il fallimento **per scheda**, in
+`permissionsErrorByTab`, e la vista mostra un avviso con un pulsante "Riprova".
+
+Prima qualunque errore — rete, sessione scaduta, risposta inattesa — metteva
+`readOnlyGlobal = true`, che vale per **tutte** le schede e non si azzera mai:
+`ensurePermissions` esce alla prima riga quando e' alzato, quindi non si
+riprovava nemmeno. Il sintomo era che la **colonna delle azioni spariva**
+(`showActionsCol = canUpdate || canDelete`), matita e cestino insieme, senza
+dire perche' e fino a un ricaricamento della pagina.
+
+`readOnlyGlobal` resta solo per il caso in cui il client non espone affatto una
+chiamata `permissions()`: quella e' una proprieta' della build, non di una
+tabella.
+
+Da sapere su questo deployment: tutte e 36 le worktable hanno
+`$camila_access_u[...] = (...) ? true : true`, cioe' concedono l'update
+incondizionatamente. Un'assenza di permessi vista qui viene quasi certamente da
+una chiamata fallita, non da una configurazione.
+
+
 Lette tramite `client.table(tabella).permissions()` (o `client.permissions(tabella)` come fallback). Normalizzate con `normalizePermissionsPayload()`. Cache per tab in `state.step1.permissionsByTab`. Se nessuna API di permissions è disponibile, `state.step1.readOnlyGlobal = true`.
 
 In sola lettura: pulsanti Aggiungi, Modifica e Elimina disabilitati, editing inline bloccato, cursore normale sulle celle.
 
 ## 11. Catalogo organizzazioni
 
-Caricato una volta sola con:
 ```js
-client.table("db-volontari").distinct("codice-organizzazione", {
-  include: "codice-organizzazione,organizzazione,provincia"
+client.table("db-organizzazioni").list({
+  include: ["codice", "denominazione", "provincia"],
+  size: 5000
 })
 ```
 
-Popola:
-- `state.step1.orgCatalog` — `Array<{ code, name }>` ordinato per code
-- `state.step1.provinceCatalog` — province distinte ordinate alfabeticamente
-- `state.step1.orgProvinceByCode` — `{ [code]: provincia }` per auto-fill inline
+Alimenta tre cose: la tendina Organizzazione del form, il filtro per
+organizzazione dell'elenco, e la mappa `orgProvinceByCode` da cui si deriva la
+`provincia` — che infatti è in sola lettura.
+
+**Non** viene dai valori distinti di `db-volontari.codice-organizzazione`, come
+era prima. Leggere le organizzazioni dai volontari aveva tre difetti:
+
+* un'organizzazione **senza volontari** non era selezionabile, quindi non si
+  poteva registrare un mezzo per un'organizzazione nuova;
+* un **refuso** su un singolo volontario diventava un'opzione dall'aria valida,
+  e da lì si propagava a mezzi e materiali;
+* la **provincia** ereditava lo stesso difetto, ed è un campo derivato che
+  l'operatore non può correggere a mano.
+
+`db-organizzazioni` è l'anagrafica, ed è la stessa che usano `map-center` e
+`views/shared/org-picker.js` — che la definisce "la più completa".
+
+Il caricamento è **duplicato** in step 1 e step 2, ciascuno con il proprio
+`ensureOrgCatalog()`: entrambi scrivono in `state.step1.*` e il secondo non
+rifà il lavoro se il primo l'ha già fatto. Cambiando sorgente vanno cambiati
+tutti e due.
+
+### Scelta dell'organizzazione prima della creazione
+
+"Aggiungi nuova risorsa" **non apre più il form**: apre una finestra con
+l'elenco delle organizzazioni, cercabile per denominazione o codice. Il form si
+apre solo dopo la scelta.
+
+```
+[Aggiungi nuova risorsa] → modale organizzazioni → step 2 con i tre campi già valorizzati
+```
+
+La ragione è che una risorsa appartiene sempre a un'organizzazione, e da quella
+si derivano `codice-organizzazione` e `provincia` — campi che l'operatore non
+può scrivere a mano, perché sono in sola lettura. Aprendo il form prima, tre
+campi su quindici nascono vuoti e sbagliati finché non si sceglie
+l'organizzazione dalla tendina. È lo stesso ordine di `massive-check-in`, che
+apre sull'organizzazione e solo dopo mostra le risorse.
+
+Il passaggio avviene tramite `state.createOrg = { code, name, province }`, letto
+da `ensureLoaded()` dello step 2 quando costruisce la bozza di un nuovo record.
+Viene azzerato sia dall'annullamento sia dopo il salvataggio: vale per quella
+creazione e non deve sopravviverle.
+
+### Due sorgenti, di proposito
+
+| Dove | Sorgente | Perché |
+|---|---|---|
+| finestra di creazione | `db-volontari.distinct("codice-organizzazione")` | si crea una risorsa per un'organizzazione **già in campo**: l'elenco corto è quello giusto |
+| tendina del form, filtro elenco | `db-organizzazioni` | deve poter offrire **ogni** organizzazione censita, anche una senza volontari |
+
+Non è una svista: sono due domande diverse. La finestra risponde a "per chi sto
+inserendo", e proporre lì tutta l'anagrafica allungherebbe l'elenco con
+organizzazioni che all'evento non ci sono. La tendina del form risponde a "a chi
+appartiene questo record", e deve ammettere anche i casi che la finestra non
+copre.
+
+Conseguenza da conoscere: **un'organizzazione senza volontari non compare nella
+finestra**, e non essendo modificabile dal form (sotto) non c'è modo di
+assegnarla da qui. Va prima registrato almeno un volontario di quella
+organizzazione.
+
+La distinct parte quando la finestra si apre, non al mount, e il risultato resta
+in `state.step1.orgFromRecords`. Se fallisce si ricade sull'anagrafica: meglio
+un elenco più lungo che nessun elenco.
+
+### L'organizzazione non si cambia dal form
+
+Nel form è un **campo fisso**, con il lucchetto sull'etichetta: niente tendina,
+niente modifica. Si stabilisce alla creazione, scegliendola nella finestra, e da
+lì non cambia più — né creando né modificando.
+
+Ne discende che `codice-organizzazione` e `provincia`, che da essa si derivano,
+sono stabili per tutta la vita del record. Spostare una risorsa a un'altra
+organizzazione non è un'operazione prevista da questa SPA.
+
+Il `<select>` che c'era prima, con l'opzione "fuori elenco" e il riallineamento
+di provincia al cambio, non esiste più; `orgCatalogByName` e `orgSelectKey`
+sono stati rimossi con lui. Restano `orgMap` e `orgProvMap`, che servono a
+`reconcileOrgFromCatalog()` e al payload.
+
+### `targa` anche sui materiali
+
+`db-materiali` ha una colonna `targa`, e serve: rimorchi, carrelli e roulotte
+sono passati dai mezzi ai materiali con la nuova classificazione, e la targa e'
+il loro identificativo.
+
+Era assente da `RM_CONFIG.materiali.fields`, quindi il campo **compariva solo in
+modifica** — `getFields()` aggiunge le chiavi presenti nel record, e in
+creazione la bozza non ne ha. Aggiunta anche a `PREFERRED_COLS.materiali` e ai
+campi di ricerca, cosi' un rimorchio si trova digitandone la targa.
+
+### Proprietario
+
+Tendina alimentata dalle **denominazioni** di `db-organizzazioni`, non dai
+codici: i valori storici sono denominazioni (`PROVINCIA DI CREMONA`,
+`O.V. LE AQUILE`) e il campo continua a salvare quelle.
+
+Non e' l'organizzazione del record: dice **di chi e'** la risorsa, che spesso
+non coincide con chi la porta in campo — nei dati attuali 19 mezzi sono della
+Provincia e 16 della Regione, assegnati a organizzazioni diverse.
+
+Un valore che in anagrafica non c'e' resta selezionato come `"… (fuori elenco)"`
+con un avviso sotto, invece di essere scartato: fra i dati attuali
+`REGIONE LOMBARDIA` e i vari `COMUNE …` potrebbero non essere organizzazioni
+censite.
+
+### Codici fuori elenco
+
+Un record può referenziare un codice che in `db-organizzazioni` non c'è —
+storico, o cancellato dopo. Il campo lo mostra comunque, con il nome che il
+record stesso porta, e sotto compare l'avviso *"Codice non presente in
+anagrafica organizzazioni"*: il valore non viene mai scartato in silenzio, come
+vuole AGENTS.md §Derived fields.
+
+È il segnale che quell'organizzazione va aggiunta all'anagrafica — e, non
+essendo il campo modificabile, è l'unico modo di risolverlo.
 
 ## 12. Step 2 — form completo
+
+### Sola lettura
+
+Lo step 2 non aveva alcuna nozione di permessi: ogni controllo era disabilitato
+solo durante il salvataggio. Chi ci arrivava senza permessi di scrittura vedeva
+un form modificabile, e scopriva il rifiuto solo al salvataggio.
+
+```js
+function isReadOnly(tab, mode) {
+  if (state.step1?.readOnlyGlobal) return true;
+  const p = state.step1?.permissionsByTab?.[tab];
+  if (!p) return true;                                  // ignoto = sola lettura
+  return mode === "create" ? !p.canCreate : !p.canUpdate;
+}
+```
+
+Usa i permessi che lo **step 1 ha già letto**: nessuna chiamata aggiuntiva.
+Permessi ignoti significano sola lettura, come prescrive AGENTS.md §Unknowns —
+meglio un form che non si salva di uno che sembra modificabile e viene rifiutato
+dal backend.
+
+In sola lettura:
+
+* ogni campo, tendina e pulsante del form è disabilitato (11 controlli più Salva);
+* **"Indietro" e "Annulla" restano attivi**: sono l'unica via d'uscita;
+* l'intestazione mostra il tag `Sola lettura` con il lucchetto;
+* `doSave()` esce subito anche se venisse invocata: i controlli disabilitati
+  sono interfaccia, la guardia nel gestore è ciò che ferma davvero la scrittura.
+
+Gli altri controlli sui permessi nello step 1 — cancellazione, editing inline,
+creazione — restano dove sono: lì l'azione è immediata e non c'è una schermata
+in cui atterrare.
+
+### Sola lettura per singolo campo
+
+Due cose diverse decidono se un campo si può modificare:
+
+| | Da dove | Riguarda |
+|---|---|---|
+| permessi sulla tabella | `permissions()`, letti dallo step 1 | **chi sei** |
+| `readonly` sulla colonna | `describe()`, configurazione della scheda | **cos'è il campo** |
+
+```js
+function fieldReadOnly(tab, readOnly, col) {
+  if (readOnly) return true;                      // la tabella non è scrivibile
+  const t = RM_CONFIG[tab]?.table;
+  return colMeta[t]?.[col]?.readonly === true;    // la colonna è di sola lettura
+}
+```
+
+`colMeta` viene da `loadColumns()` sulle tre tabelle `db-*`: è la **stessa
+chiamata** già fatta per i vocabolari, quindi non costa nulla in più.
+
+Ogni campo del form valuta la propria colonna; il pulsante Salva resta legato al
+solo permesso di tabella, perché il salvataggio riguarda il record e non il
+singolo campo.
+
+**Le colonne di sola lettura escono anche dal payload** di `doSave()`. Il form
+non potrebbe cambiarle, ma inviarle comunque significherebbe far fallire l'intero
+salvataggio se il backend rifiuta la scrittura su una colonna che nessuno ha
+toccato.
+
+Da sapere: nella configurazione attuale **nessuna colonna è `readonly`** — i
+describe di `db-mezzi` e `mezzi` riportano `"readonly": false` ovunque. La
+funzione è quindi latente finché qualcuno non marca una colonna in Camila.
+
+Resta fuori l'editing inline dello step 1, che ha un elenco suo (`INLINE_SKIP`,
+con `provincia` e `codice-organizzazione`): andrebbe allineato alla stessa
+fonte.
+
+### Le altre proprietà della colonna
+
+Oltre a `readonly`, il describe porta `required` e `maxlength`, e il form li usa:
+
+| Proprietà | Effetto |
+|---|---|
+| `required` | asterisco rosso sull'etichetta, e `doSave()` rifiuta elencando i campi vuoti |
+| `maxlength` | limite di battitura sul campo (attributo `maxlength`, vuoto quando non c'è) |
+| `readonly` | campo disabilitato, lucchetto sull'etichetta, colonna fuori dal payload |
+
+`maxlength` è il massimo **configurato**, che non è `length`, la dimensione
+fisica della colonna: su `mezzi.provincia` la colonna è `varchar(250)` ma la
+scheda dichiara 2 caratteri. Limitare su `length` non limiterebbe nulla.
+
+Il limite si passa come **attributo** e non come proprietà `.maxLength`:
+assegnare `-1` alla proprietà lancia `IndexSizeError`, mentre leggerla restituisce
+`-1` quando non è impostata — getter e setter non accettano lo stesso dominio.
+Un attributo vuoto è invece un valore non valido che il browser ignora, cioè
+esattamente "nessun limite".
+
+Il controllo sugli obbligatori sta in `doSave()` e non solo nel markup: il
+backend rifiuterebbe comunque la scrittura, e un rifiuto spiegato come "campi
+obbligatori non compilati" vale più di un errore API grezzo.
+
+Non usate: `unique` (servirebbe una verifica remota prima di salvare),
+`visible` (nasconderebbe colonne che oggi si vedono: è un cambio di
+comportamento da decidere), `sequence` — che governa invece l'ordine nella
+tabella dello step 1, vedi §7c.
+
 
 Usato per creazione e modifica. Mantiene un `draftRow` con le modifiche in corso. Al salvataggio chiama `.create(payload)` o `.update(id, payload)` in base a `editMode`. Dopo il salvataggio torna a step 1 e invalida la cache (`state.master[tab] = null`).
 

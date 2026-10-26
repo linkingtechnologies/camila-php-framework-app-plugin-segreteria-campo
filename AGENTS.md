@@ -1227,8 +1227,10 @@ Questi vocabolari **non** sono piu' copiati nelle viste: li legge
 
 | Colonna | Chi la usa |
 |---|---|
-| `mezzi.categoria`, `mezzi.tipologia` | `resource-manager` step 1 e 2, `massive-check-in/step4.js` |
-| `materiali.categoria`, `materiali.tipologia` | `resource-manager` step 1 e 2, `massive-check-in/step6.js` |
+| `mezzi.categoria`, `.tipologia` | `massive-check-in/step4.js` |
+| `materiali.categoria`, `.tipologia` | `massive-check-in/step6.js` |
+| `db-mezzi.categoria`, `.tipologia` | `resource-manager` step 1 e 2 |
+| `db-materiali.categoria`, `.tipologia` | `resource-manager` step 1 e 2 |
 | `richieste.stato`, `.tipo-richiesta`, `.priorita` | `requests-board`, `intervention-manager` |
 | `servizi.stato` | `intervention-manager` |
 | `volontari.mansione` | `massive-check-in/step3.js`, `massive-check-out/step2.js` |
@@ -1242,11 +1244,20 @@ una mappa di conversione in colore o un alfabeto per i marker, quindi non
 basterebbe l'elenco), gli stati calcolati di `team-manager` — che il codice
 deduce dalle date e non legge da nessuna colonna.
 
-`volontari.mansione` e `squadre-dichiarate.mansione-principale` contengono gli
-stessi valori ma restano **due colonne**: ogni tendina legge la propria, perche'
-offrire un valore che la colonna di destinazione non ammette sarebbe sbagliato
-anche se l'altra tabella lo ammette. Possono quindi divergere, ed e' una scelta
-di configurazione.
+**Ogni tendina legge la colonna che poi scrive.** Offrire un valore che la
+colonna di destinazione non ammette sarebbe sbagliato anche se un'altra tabella
+lo ammette, quindi colonne omonime su tabelle diverse restano distinte e possono
+legittimamente divergere:
+
+* `volontari.mansione` e `squadre-dichiarate.mansione-principale`
+* `mezzi.categoria` e `db-mezzi.categoria`, idem per i materiali — le tabelle di
+  evento le scrivono check-in e check-out, le anagrafiche permanenti le scrive
+  `resource-manager`
+
+Nella riserva di `vocabularies.js` le coppie evento/anagrafica condividono **una
+sola definizione** (`VOC_MEZZI`, `VOC_MATERIALI`) riferita da due chiavi: cosi'
+non ci sono due copie da tenere allineate, ma a runtime ciascuno legge la
+propria colonna.
 
 **Come fa `describe()` a saperlo.** Di suo il controller `columns` di
 php-crud-api riflette la tabella fisica — nome, tipo, lunghezza, nullabilita' —

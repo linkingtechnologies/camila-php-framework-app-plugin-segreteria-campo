@@ -48,11 +48,14 @@ export async function Step2(props) {
   // I vocabolari di categoria e tipologia arrivano dalle listbox_options delle
   // colonne, non da una copia qui: vedi views/shared/vocabularies.js. Il
   // modulo tiene la cache e, se l'endpoint non risponde, il fallback.
-  const { loadCatalog } = await import(`../shared/vocabularies.js?v=${VERSION}`);
+  const { loadCatalog, loadColumns } = await import(`../shared/vocabularies.js?v=${VERSION}`);
 
+  // db-mezzi e db-materiali, le tabelle che questa SPA scrive (vedi RM_CONFIG
+  // piu' sotto), non le tabelle di evento: colonne diverse, vocabolari che
+  // possono divergere.
   const [mezziCat, materialiCat] = await Promise.all([
-    loadCatalog(client, "mezzi"),
-    loadCatalog(client, "materiali")
+    loadCatalog(client, "db-mezzi"),
+    loadCatalog(client, "db-materiali")
   ]);
 
   const MEZZI_CATEGORIE = mezziCat.categories;
@@ -124,6 +127,10 @@ export async function Step2(props) {
         "codice-inventario",
         "codice-inventario-regionale",
         "codice-inventario-provinciale",
+        // `db-materiali` has a targa column too: trailers and towed equipment
+        // moved here from the vehicles table carry a plate. Without this the
+        // field only showed up when editing a record that already had one.
+        "targa",
         "proprietario",
         "categoria",
         "tipologia",
@@ -197,7 +204,51 @@ export async function Step2(props) {
     const tab = state.editTab || state.activeTab || "volontari";
     const mode = state.editMode || (state.editId ? "edit" : "create");
     const id = state.editId || null;
-    return { tab, mode, id };
+    return { tab, mode, id, readOnly: isReadOnly(tab, mode) };
+  }
+
+  // Per-column configuration from the extended describe. Same cached call as
+  // the vocabularies, so this costs nothing extra.
+  const colMeta = {
+    "db-volontari": (await loadColumns(client, "db-volontari")).columns,
+    "db-mezzi": (await loadColumns(client, "db-mezzi")).columns,
+    "db-materiali": (await loadColumns(client, "db-materiali")).columns,
+  };
+
+  // A field is editable only if the table allows writing AND the column is not
+  // declared read only on the worktable. The two are different things: the
+  // first is about who you are, the second about what the field is.
+  function fieldReadOnly(tab, readOnly, col) {
+    if (readOnly) return true;
+    const t = RM_CONFIG[tab]?.table;
+    return colMeta[t]?.[col]?.readonly === true;
+  }
+
+  // Other per-column properties the worktable declares. `required` drives both
+  // the asterisk and the save guard; `maxlength` is the configured maximum,
+  // which is not the physical `length` - on some columns the two differ by a
+  // lot (varchar(250) configured as 2 characters).
+  function fieldMeta(tab, col) {
+    const t = RM_CONFIG[tab]?.table;
+    return colMeta[t]?.[col] || null;
+  }
+
+  function missingRequired(tab, draft) {
+    const t = RM_CONFIG[tab]?.table;
+    const cols = colMeta[t] || {};
+    return Object.keys(cols).filter(
+      (k) => cols[k]?.required === true && safeStr((draft || {})[k]).trim() === ""
+    );
+  }
+
+  // Permissions are the ones step 1 already fetched: no second call. Unknown
+  // means read only, as AGENTS.md prescribes - better a form that cannot be
+  // saved than one that looks editable and is refused by the backend.
+  function isReadOnly(tab, mode) {
+    if (state.step1?.readOnlyGlobal) return true;
+    const p = state.step1?.permissionsByTab?.[tab];
+    if (!p) return true;
+    return mode === "create" ? !p.canCreate : !p.canUpdate;
   }
 
   function getFields(tab, base, draft) {
@@ -208,7 +259,9 @@ export async function Step2(props) {
 
     const src = draft || base || {};
     for (const k of Object.keys(src)) {
-      if (k === "id" || k === "uuid") continue;
+      // Technical columns, same set step 1 hides from the table: `id2` is an
+      // internal counter and has no business in a form.
+      if (k === "id" || k === "uuid" || k === "id2") continue;
       set.add(k);
     }
 
@@ -404,7 +457,17 @@ export async function Step2(props) {
         state.step2.draftRow = row ? { ...row } : {};
       } else {
         state.step2.baseRow = null;
-        state.step2.draftRow = {};
+        // A new record is born with the organisation already chosen in step 1:
+        // the three fields travel together because provincia and the code are
+        // derived from it and the operator cannot type them.
+        const org = state.createOrg || null;
+        state.step2.draftRow = org
+          ? {
+              "codice-organizzazione": org.code || "",
+              organizzazione: org.name || "",
+              provincia: org.province || "",
+            }
+          : {};
       }
 
       // in create materiali prefill id-materiale
@@ -416,7 +479,8 @@ export async function Step2(props) {
     }
   }
 
-  function normalizeDistinctResponse(res) {
+  // Handles both a plain array and the paginated {records: []} shape.
+  function normalizeListResponse(res) {
     if (Array.isArray(res)) return res;
     if (Array.isArray(res?.records)) return res.records;
     if (Array.isArray(res?.data?.records)) return res.data.records;
@@ -432,21 +496,26 @@ export async function Step2(props) {
       return;
 
     try {
-      const res = await client
-        .table("db-volontari")
-        .distinct("codice-organizzazione", {
-          include: "codice-organizzazione,organizzazione,provincia",
-        });
+      // Organisations come from `db-organizzazioni`, the registry, not from the
+      // distinct values of `db-volontari.codice-organizzazione`. Reading them
+      // off the volunteers meant an organisation with no volunteers yet was
+      // not selectable at all, and a typo in a single record became a valid
+      // looking option that then spread to mezzi and materiali.
+      // Columns here: `codice`, `denominazione`, `provincia`.
+      const res = await client.table("db-organizzazioni").list({
+        include: ["codice", "denominazione", "provincia"],
+        size: 5000,
+      });
 
-      const rows = normalizeDistinctResponse(res);
+      const rows = normalizeListResponse(res);
 
       const orgMap = new Map();
       const provSet = new Set();
       const orgProv = {};
 
       for (const r of rows) {
-        const code = (r?.["codice-organizzazione"] ?? "").toString().trim();
-        const name = (r?.["organizzazione"] ?? "").toString().trim();
+        const code = (r?.["codice"] ?? "").toString().trim();
+        const name = (r?.["denominazione"] ?? "").toString().trim();
         const prov = (r?.["provincia"] ?? "").toString().trim().toUpperCase();
 
         if (code && !orgMap.has(code)) orgMap.set(code, name);
@@ -493,10 +562,12 @@ export async function Step2(props) {
     if (state.step1.mezziMarcheLoaded) return;
 
     try {
-      const res = await fetch(
-        "./plugins/segreteria-campo/views/resource-manager/assets/mezzi-marche.txt",
-        { cache: "no-store" }
-      );
+      // Resolved against this module's own URL, not against the page: the
+      // asset lives next to the view, so the path holds whatever plugin the
+      // `views/` folder is dropped into. The `?v=` of the dynamic import is
+      // not inherited - it belongs to the last segment, which gets replaced.
+      const url = new URL("./assets/mezzi-marche.txt", import.meta.url);
+      const res = await fetch(url, { cache: "no-store" });
       if (!res.ok) throw new Error("HTTP " + res.status);
       const txt = await res.text();
 
@@ -521,9 +592,26 @@ export async function Step2(props) {
   }
 
   async function doSave() {
-    const { tab, mode, id } = getContext();
+    const { tab, mode, id, readOnly } = getContext();
     const cfg = RM_CONFIG[tab];
     if (!cfg) return;
+    // Second guard: the disabled button is UX, this is what actually stops a
+    // write the backend would refuse anyway.
+    if (readOnly) return;
+
+    // Required columns, as the worktable declares them. Checked here and not
+    // only in the markup: the backend refuses the write anyway, and a refusal
+    // explained as "campo obbligatorio" beats a raw API error.
+    const mancanti = missingRequired(tab, state.step2.draftRow);
+    if (mancanti.length) {
+      state.step2.saveError = {
+        message:
+          "Campi obbligatori non compilati: " +
+          mancanti.map((k) => COL_LABELS[k] || k).join(", "),
+      };
+      await refresh();
+      return;
+    }
 
     state.step2.saving = true;
     state.step2.saveError = null;
@@ -551,6 +639,14 @@ export async function Step2(props) {
 
       delete payload.id;
       delete payload.uuid;
+      delete payload.id2;
+
+      // Columns the worktable declares read only are dropped from the payload:
+      // the form could not change them anyway, and sending a value the backend
+      // may refuse would fail the whole save for a field nobody touched.
+      for (const k of Object.keys(payload)) {
+        if (fieldReadOnly(tab, false, k)) delete payload[k];
+      }
 
       if (mode === "edit" && id) {
         await client.table(cfg.table).update(id, payload);
@@ -563,6 +659,7 @@ export async function Step2(props) {
 
       state.editId = null;
       state.editMode = null;
+      state.createOrg = null;
 
       goTo(1);
     } catch (e) {
@@ -577,6 +674,7 @@ export async function Step2(props) {
   function doCancel() {
     state.editId = null;
     state.editMode = null;
+    state.createOrg = null;   // chosen per creation, never reused
     goTo(1);
   }
 
@@ -585,7 +683,7 @@ export async function Step2(props) {
     await ensureOrgCatalog();
     await ensureMezziMarche();
 
-    const { tab, mode, id } = getContext();
+    const { tab, mode, id, readOnly } = getContext();
     const cfg = RM_CONFIG[tab];
     const base = state.step2.baseRow;
     const draft = state.step2.draftRow;
@@ -598,19 +696,6 @@ export async function Step2(props) {
 
     const orgCatalog = state.step1.orgCatalog || [];
     const orgMap = new Map(orgCatalog.map((o) => [o.code, o.name]));
-    const orgCatalogByName = [...orgCatalog].sort((a, b) => {
-      const an = (a.name || "").toString();
-      const bn = (b.name || "").toString();
-      const byName = an.localeCompare(bn, undefined, {
-        numeric: true,
-        sensitivity: "base",
-      });
-      if (byName !== 0) return byName;
-      return a.code.localeCompare(b.code, undefined, {
-        numeric: true,
-        sensitivity: "base",
-      });
-    });
 
     const orgProvMap = state.step1.orgProvinceByCode || {};
 
@@ -681,7 +766,6 @@ export async function Step2(props) {
     const draftTipologiaMat = safeStr(draftAfter?.tipologia || "").trim();
 
     // keys stabili (riduce reuse del nodo select)
-    const orgSelectKey = `org||${state.step2.loadedKey || ""}`;
     const catSelectKey = `cat||${tab}||${state.step2.loadedKey || ""}`;
     const tipSelectKey = `tip||${tab}||${categoriaMezziEff}||${categoriaMatEff}||${state.step2.loadedKey || ""}`;
 
@@ -699,6 +783,16 @@ export async function Step2(props) {
               </div>
             </div>
             <div class="level-right">
+              ${readOnly
+                ? html`
+                    <div class="level-item">
+                      <span class="tag is-light" title="Permessi insufficienti su questa scheda">
+                        <span class="icon is-small"><i class="ri-lock-line"></i></span>
+                        <span>Sola lettura</span>
+                      </span>
+                    </div>
+                  `
+                : ""}
               <div class="level-item">
                 <button class="button" @click=${doCancel} ?disabled=${state.step2.saving}>
                   <span class="icon"><i class="ri-arrow-left-line"></i></span>
@@ -726,63 +820,33 @@ export async function Step2(props) {
           ${!state.step2.loading
             ? html`
                 <div class="box">
-                  <!-- ORG SELECT IN ALTO -->
+                  <!-- ORGANIZZAZIONE: mostrata, mai modificabile -->
                   <div class="is-flex is-flex-wrap-wrap" style="gap: .75rem;">
                     <div style="flex: 1 1 28rem; min-width: 0;">
-                      <label class="label is-small">Organizzazione</label>
+                      <label class="label is-small">
+                        Organizzazione
+                        <span class="icon is-small has-text-grey" title="Non modificabile"
+                          ><i class="ri-lock-line"></i
+                        ></span>
+                      </label>
                       <div class="control">
-                        <div class="select is-small is-fullwidth">
-                          <!-- FIX: ?selected + opzione "fuori elenco" se codice non presente nel catalogo -->
-                          <select
-                            data-key=${orgSelectKey}
-                            @change=${async (e) => {
-                              const code = safeStr(e.target.value).trim();
-                              const name = safeStr(orgMap.get(code) || "").trim();
-                              const prov = safeStr(orgProvMap[code] || "").trim().toUpperCase();
-
-                              // NOTE: qui facciamo refresh perché questo cambio influenza provincia e UI
-                              setDraftField("codice-organizzazione", code);
-                              setDraftField("organizzazione", name);
-
-                              if (prov) setDraftField("provincia", prov);
-                              else if (code) setDraftField("provincia", "");
-
-                              await refresh();
-                            }}
-                            ?disabled=${state.step2.saving}
-                          >
-                            ${SelectOption("— seleziona —", "", !currentOrgCode)}
-
-                            ${currentOrgCode && !orgCodeIsKnown
-                              ? SelectOption(
-                                  `${currentOrgName || "Fuori elenco"} — ${currentOrgCode}`,
-                                  currentOrgCode,
-                                  true
-                                )
-                              : null}
-
-                            ${orgCatalogByName.map((o) => {
-                              const optLabel = o.name ? `${o.name} — ${o.code}` : o.code;
-                              return SelectOption(optLabel, o.code, o.code === currentOrgCode);
-                            })}
-                          </select>
-                        </div>
+                        <input
+                          class="input is-small"
+                          type="text"
+                          .value=${currentOrgName
+                            ? `${currentOrgName}${currentOrgCode ? ` — ${currentOrgCode}` : ""}`
+                            : currentOrgCode || "—"}
+                          disabled
+                        />
                       </div>
 
                       <p class="help is-size-7">
                         Codice: <code>${currentOrgCode || "—"}</code>
-                        ${currentOrgName ? html`<span> · ${currentOrgName}</span>` : null}
                       </p>
 
                       ${currentOrgCode && !orgCodeIsKnown
                         ? html`<p class="help is-size-7 has-text-warning">
-                            ${currentOrgName || "Fuori elenco"} — ${currentOrgCode} (fuori elenco)
-                          </p>`
-                        : null}
-
-                      ${state.step1.orgCatalogError
-                        ? html`<p class="help is-size-7 has-text-danger">
-                            Errore caricamento organizzazioni
+                            Codice non presente in anagrafica organizzazioni.
                           </p>`
                         : null}
                     </div>
@@ -812,9 +876,62 @@ export async function Step2(props) {
                       if (k === "organizzazione" || k === "codice-organizzazione" || k === "provincia")
                         return null;
 
+                      const roK = fieldReadOnly(tab, readOnly, k);
+                      const metaK = fieldMeta(tab, k);
                       const label = COL_LABELS[k] || k;
+                      // Attribute, not the `.maxLength` property: assigning -1 to
+                      // the property throws IndexSizeError, while an empty
+                      // attribute is an invalid value the browser ignores -
+                      // which is exactly "no limit".
+                      const maxK = Number(metaK?.maxlength) || null;
                       const val = draftAfter ? draftAfter[k] : "";
                       const isKey = cfg?.keyLabel === k;
+
+                      // PROPRIETARIO: chi possiede la risorsa, che non e'
+                      // necessariamente chi la porta in campo. Elenca le
+                      // denominazioni di `db-organizzazioni`, perche' i valori
+                      // storici sono denominazioni e non codici.
+                      if (k === "proprietario") {
+                        const cur = safeStr(val).trim();
+                        const nomi = [...new Set(orgCatalog.map((o) => safeStr(o.name).trim()))]
+                          .filter(Boolean)
+                          .sort((a, b) => a.localeCompare(b, "it", { sensitivity: "base" }));
+                        const fuoriElenco = cur && !nomi.includes(cur);
+
+                        return html`
+                          <div style="flex: 1 1 18rem; min-width: 0;">
+                            <label class="label is-small">
+                              ${label}
+                              ${metaK?.required
+                                ? html`<span class="has-text-danger" title="Obbligatorio">*</span>`
+                                : null}
+                            </label>
+                            <div class="control">
+                              <div class="select is-small is-fullwidth">
+                                <select
+                                  @change=${(e) => setDraftFieldUI(k, e.target.value)}
+                                  ?disabled=${state.step2.saving || roK}
+                                >
+                                  <option value="" ?selected=${!cur}>— nessuno —</option>
+                                  ${fuoriElenco
+                                    ? html`<option value=${cur} ?selected=${true}>
+                                        ${cur} (fuori elenco)
+                                      </option>`
+                                    : null}
+                                  ${nomi.map(
+                                    (n) => html`<option value=${n} ?selected=${n === cur}>${n}</option>`
+                                  )}
+                                </select>
+                              </div>
+                            </div>
+                            ${fuoriElenco
+                              ? html`<p class="help is-size-7 has-text-warning">
+                                  Non presente in anagrafica organizzazioni.
+                                </p>`
+                              : null}
+                          </div>
+                        `;
+                      }
 
                       // Volontari: date picker (YYYY-MM-DD)
                       if (tab === "volontari" && k === "data-di-nascita") {
@@ -831,7 +948,7 @@ export async function Step2(props) {
                                 type="date"
                                 .value=${raw || ""}
                                 @input=${(e) => setDraftFieldUI(k, e.target.value)}
-                                ?disabled=${state.step2.saving}
+                                ?disabled=${state.step2.saving || roK}
                               />
                             </div>
                           </div>
@@ -872,7 +989,7 @@ export async function Step2(props) {
 
                                     await refresh();
                                   }}
-                                  ?disabled=${state.step2.saving}
+                                  ?disabled=${state.step2.saving || roK}
                                 >
                                   ${MEZZI_CATEGORIE.map((c) => SelectOption(c, c, c === cur))}
                                 </select>
@@ -909,7 +1026,7 @@ export async function Step2(props) {
                                 <select
                                   data-key=${tipSelectKey}
                                   @change=${(e) => setDraftFieldUI("tipologia", e.target.value)}
-                                  ?disabled=${state.step2.saving}
+                                  ?disabled=${state.step2.saving || roK}
                                 >
                                   ${SelectOption("— seleziona tipologia —", "", !draftTipologiaMezzi)}
                                   ${allowedTipologieMezzi.map((t) =>
@@ -959,7 +1076,7 @@ export async function Step2(props) {
 
                                     await refresh();
                                   }}
-                                  ?disabled=${state.step2.saving}
+                                  ?disabled=${state.step2.saving || roK}
                                 >
                                   ${MATERIALI_CATEGORIE.map((c) =>
                                     SelectOption(c, c, c === cur)
@@ -1010,7 +1127,7 @@ export async function Step2(props) {
                                 <select
                                   data-key=${tipSelectKey}
                                   @change=${(e) => setDraftFieldUI("tipologia", e.target.value)}
-                                  ?disabled=${state.step2.saving}
+                                  ?disabled=${state.step2.saving || roK}
                                 >
                                   ${SelectOption("— seleziona tipologia —", "", !draftTipologiaMat)}
                                   ${allowedTipologieMat.map((t) =>
@@ -1066,7 +1183,7 @@ export async function Step2(props) {
                                     setDraftField("marca", v);
                                     await refresh();
                                   }}
-                                  ?disabled=${state.step2.saving}
+                                  ?disabled=${state.step2.saving || roK}
                                 >
                                   <option value="">— seleziona —</option>
                                   ${MEZZI_MARCHE.map((m) => html`<option value=${m}>${m}</option>`)}
@@ -1092,7 +1209,7 @@ export async function Step2(props) {
                                         state.step2.ui.mezziMarcaOther = v;
                                         setDraftFieldUI("marca", v);
                                       }}
-                                      ?disabled=${state.step2.saving}
+                                      ?disabled=${state.step2.saving || roK}
                                     />
                                   </div>
                                   <p class="help is-size-7">
@@ -1109,15 +1226,23 @@ export async function Step2(props) {
                         <div style="flex: 1 1 18rem; min-width: 0;">
                           <label class="label is-small">
                             ${label}
+                            ${metaK?.required
+                              ? html`<span class="has-text-danger" title="Obbligatorio">*</span>`
+                              : null}
                             ${isKey ? html`<span class="tag is-light ml-2">chiave</span>` : null}
+                            ${metaK?.readonly
+                              ? html`<span class="icon is-small has-text-grey" title="Campo di sola lettura"
+                                       ><i class="ri-lock-line"></i></span>`
+                              : null}
                           </label>
                           <div class="control">
                             <input
                               class="input is-small"
                               type="text"
+                              maxlength=${maxK || ""}
                               .value=${safeStr(val)}
                               @input=${(e) => setDraftFieldUI(k, e.target.value)}
-                              ?disabled=${state.step2.saving}
+                              ?disabled=${state.step2.saving || roK}
                             />
                           </div>
                         </div>
@@ -1144,7 +1269,7 @@ export async function Step2(props) {
                     <button
                       class="button is-primary"
                       @click=${doSave}
-                      ?disabled=${state.step2.saving || !dirty}
+                      ?disabled=${state.step2.saving || readOnly || !dirty}
                       title=${dirty ? "Salva" : "Nessuna modifica"}
                     >
                       <span class="icon"><i class="ri-save-line"></i></span>

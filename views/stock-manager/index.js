@@ -614,7 +614,9 @@ export async function StockManager({ state, client, html, render, root }) {
   }
 
   function markerIconUrl(colore, lettera) {
-    const base = "plugins/segreteria-campo/templates/images";
+    // Two levels up from views/<vista>/: no plugin name in the path, so the
+  // folder can be reused elsewhere. See resource-manager/step2.js.
+  const base = new URL("../../templates/images", import.meta.url).href;
     if (lettera) return `${base}/en/marker_${traduciColore(colore)}${String(lettera).toUpperCase()}.png`;
     if (colore)  return `${base}/it/marker_${colore}.png`;
     return `${base}/it/marker_rosso.png`;
