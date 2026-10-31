@@ -1,5 +1,10 @@
 ﻿// views/resource-board/index.js — Gestione Operativa Risorse
 
+// The entry point's cache-busting query does not propagate to modules this view
+// imports, so the timeline is loaded dynamically with the version in the URL
+// (AGENTS.md, section "L'import deve essere dinamico").
+const VERSION = window.APP_CONFIG?.version || Date.now();
+
 const WAITING = "IN ATTESA DI SERVIZIO";
 const USCITA  = "USCITA DEFINITIVA";
 
@@ -22,8 +27,23 @@ function nowDateTime() {
   return new Date().toLocaleString("sv-SE", { hour12: false }).replace(",", "");
 }
 
-function normalizeError(e) {
+// Session lost, as opposed to a permission refusal. Both are HTTP 403, so the
+// status alone cannot tell them apart: php-crud-api code 1011 is "Authentication
+// required" and 1012 "Authentication failed", while 1014 is "Operation
+// forbidden". See AGENTS.md §La sessione decaduta.
+const SESSIONE_NON_VALIDA =
+  "Sessione non più valida: probabilmente lo stesso utente è entrato da un altro browser o dispositivo. Esci e rifai l'accesso per riprendere da qui.";
+function isSessionError(e) {
+  const c = e?.payload?.code;
+  return c === 1011 || c === 1012;
+}
+function errorText(e) {
+  if (isSessionError(e)) return SESSIONE_NON_VALIDA;
   return String(e?.payload?.message || e?.message || e || "Errore sconosciuto");
+}
+
+function normalizeError(e) {
+  return errorText(e);
 }
 
 // ---- data loading ----------------------------------------------------------
@@ -52,7 +72,8 @@ async function loadAll(client) {
       // niente date di attestato: la tabella non ha piu' quelle colonne, e le
       // squadre dichiarate non passano comunque dal filtro sulle date
       include: ["id", "nome", "organizzazioni", "n-volontari", "n-mezzi",
-                "attrezzature", "servizio"],
+                "attrezzature", "servizio",
+                "inizio-disponibilita", "fine-disponibilita"],
       size: 2000
     }).catch(() => null)
   ]);
@@ -65,11 +86,15 @@ async function loadAll(client) {
     materiali:    getRecords(resMat).filter(filterActive),
     // Le squadre dichiarate non passano dal check-in: nelle emergenze senza
     // campo le date di attestato possono restare vuote per sempre. Filtrarle
-    // come le risorse registrate le farebbe sparire tutte. Resta fuori solo
-    // chi e' stato portato a USCITA DEFINITIVA.
-    squadreDich: resSq
-      ? getRecords(resSq).filter(r => norm(r.servizio) !== USCITA)
-      : [],
+    // come le risorse registrate le farebbe sparire tutte.
+    //
+    // Nemmeno quelle a USCITA DEFINITIVA si filtrano, al contrario delle
+    // risorse: una squadra non ha un check-out da cui passare, quindi la
+    // colonna di uscita della kanban e' l'unico posto in cui si registra che
+    // se n'e' andata - e una card che sparisce appena trascinata li' sembra
+    // un dato perso. Restano quindi visibili nella loro colonna, e fuori dai
+    // contatori di testata.
+    squadreDich: resSq ? getRecords(resSq) : [],
     serviziTable: getRecords(resSrv)
       .map(r => norm(r.nome))
       .filter(s => s && s !== USCITA)
@@ -115,6 +140,16 @@ function buildCards(volontari, mezzi, materiali, groupBy, squadreDich = []) {
 
   return Array.from(map.values())
     .sort((a, b) => a.groupValue.localeCompare(b.groupValue, "it"));
+}
+
+function nInt(v) {
+  return parseInt(v, 10) || 0;
+}
+
+// Declared consistency of a squad: `attrezzature` is free text, not a count
+// (specs/team-manager/design.md), so only these two are summable.
+function dichiarati(sq) {
+  return nInt(sq?.["n-volontari"]) + nInt(sq?.["n-mezzi"]);
 }
 
 function buildServices(cards, serviziTable) {
@@ -269,6 +304,9 @@ async function applySingleMove(client, { category, resource, card, fromService }
 
 export async function GOR({ state, client, html, render, root }) {
 
+  const timelineMod = await import(`./timeline.js?v=${VERSION}`);
+  const timeline = timelineMod.createTimeline({ html, rerender });
+
   // --- local state ---
   let loading          = true;
   let error            = null;
@@ -276,13 +314,16 @@ export async function GOR({ state, client, html, render, root }) {
   // `vista` dice COSA si guarda, `groupBy` COME e' raggruppato. Sono due cose
   // diverse e stavano in un controllo solo: le squadre dichiarate non sono un
   // raggruppamento alternativo delle risorse, sono un altro insieme.
-  let vista            = "risorse";        // "risorse" | "squadre-dichiarate"
+  // "disponibilita" is a read-only timeline of the declared squads: same data
+  // as "squadre-dichiarate", drawn over time instead of by service.
+  let vista            = "risorse";        // "risorse" | "squadre-dichiarate" | "disponibilita"
   let groupBy          = "organizzazione"; // vale solo per la vista risorse
 
   let allVolontari     = [];
   let allMezzi         = [];
   let allMateriali     = [];
   let allSquadreDich   = [];
+  let squadreFiltered  = [];   // allSquadreDich after the org/province filter
   let serviziTable     = [];
 
   let cards             = [];
@@ -305,6 +346,13 @@ export async function GOR({ state, client, html, render, root }) {
   let dropTarget       = null; // service string being hovered
 
   // ---
+
+  function squadreForTimeline() {
+    const q = search.trim().toLowerCase();
+    return squadreFiltered.filter(sq =>
+      norm(sq.servizio) !== USCITA &&
+      (!q || `${norm(sq.nome)} ${norm(sq.organizzazioni)}`.toLowerCase().includes(q)));
+  }
 
   function rerender() {
     render(view(), root);
@@ -384,12 +432,31 @@ export async function GOR({ state, client, html, render, root }) {
     // provincia: il filtro per organizzazione le confronta per contenuto.
     const fSq = allSquadreDich.filter(sq =>
       (!filterOrg || norm(sq.organizzazioni).includes(filterOrg)) && !filterProvincia);
+    squadreFiltered = fSq;
 
     cards             = buildCards(fV, fM, fMat,
       vista === "squadre-dichiarate" ? "squadre-dichiarate" : groupBy, fSq);
     const svc         = buildServices(cards, serviziTable);
     activeServices    = svc.active;
     availableServices = svc.available;
+
+    // Nella vista squadre la colonna di uscita c'e' sempre: trascinarci una
+    // squadra e' l'unico modo di segnarla uscita, visto che il check-out
+    // massivo non le tocca. Nella vista risorse NON va aggiunta: li' l'uscita
+    // la fa il check-out, che scrive anche le date di attestato e il
+    // movimento - un drag scriverebbe il solo servizio.
+    if (vista === "squadre-dichiarate") {
+      availableServices = availableServices.filter(s => s !== USCITA);
+      if (!activeServices.includes(USCITA)) activeServices = [...activeServices, USCITA];
+    }
+
+    // Ovunque compaia, la colonna di uscita e' l'ULTIMA a destra. E' il posto
+    // da cui si esce dalla bacheca: in mezzo a due servizi attivi sarebbe un
+    // bersaglio di drag come gli altri, e si legge male. Vale anche per i chip
+    // della barra servizi, che scorrono la stessa lista.
+    if (activeServices.includes(USCITA)) {
+      activeServices = [...activeServices.filter(s => s !== USCITA), USCITA];
+    }
 
     // distinctSquadre dalle risorse filtrate
     const sqSet = new Set();
@@ -784,11 +851,20 @@ export async function GOR({ state, client, html, render, root }) {
             <span style="flex-basis:100%;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
               <i class="ri-building-line"></i> ${norm(card.squadra.organizzazioni) || "—"}
             </span>
+            ${timelineMod.fmtDisponibilita(card.squadra)
+              ? html`<span style="flex-basis:100%;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="Disponibilità">
+                  <i class="ri-calendar-line"></i> ${timelineMod.fmtDisponibilita(card.squadra)}
+                </span>`
+              : ""}
           ` : ""}
           ${card.volontari.length  > 0 ? html`<span><i class="ri-user-line"></i> ${card.volontari.length}</span>`  : ""}
           ${card.mezzi.length      > 0 ? html`<span><i class="ri-truck-line"></i> ${card.mezzi.length}</span>`      : ""}
           ${card.materiali.length  > 0 ? html`<span><i class="ri-tools-line"></i> ${card.materiali.length}</span>`  : ""}
-          ${totalCount === 0 ? html`<span class="has-text-danger">vuoto</span>` : ""}
+          ${card.squadra
+            ? (dichiarati(card.squadra) === 0
+                ? html`<span class="has-text-danger">nessuna consistenza</span>`
+                : "")
+            : (totalCount === 0 ? html`<span class="has-text-danger">vuoto</span>` : "")}
         </div>
 
         <!-- detail (expanded) -->
@@ -1117,11 +1193,16 @@ export async function GOR({ state, client, html, render, root }) {
       return html`
         <section class="section">
           <div class="container">
-            <article class="message is-danger">
+            <article class="message ${isSessionError(error) ? "is-warning" : "is-danger"}">
               <div class="message-header"><p>Errore caricamento</p></div>
               <div class="message-body">
                 <p>${normalizeError(error)}</p>
-                <button class="button is-light mt-3" @click=${load}>🔄 Riprova</button>
+                <div class="buttons mt-3">
+                  ${isSessionError(error)
+                    ? html`<a class="button is-primary" href="cf_logout.php">Esci e rientra</a>`
+                    : ""}
+                  <button class="button is-light" @click=${load}>🔄 Riprova</button>
+                </div>
               </div>
             </article>
           </div>
@@ -1135,6 +1216,23 @@ export async function GOR({ state, client, html, render, root }) {
 
     const totalResources = allVolontari.length + allMezzi.length + allMateriali.length;
     const nV = allVolontari.length, nM = allMezzi.length, nMat = allMateriali.length;
+
+    // In the declared-squads view the board shows squads, not resources, so the
+    // counter has to add up what the squads DECLARE - otherwise it reads 0 on an
+    // event with no registered resources, which is exactly when squads are used.
+    // `attrezzature` is free text and not a count (specs/team-manager/design.md),
+    // so there is no third number to sum: that slot shows how many squads there
+    // are. Like the resource counter, this totals everything loaded; the active
+    // filter is reported by its own bar below.
+    const squadreMode = vista !== "risorse";
+    const squadreInCampo = allSquadreDich.filter(sq => norm(sq.servizio) !== USCITA);
+    const totSquadre = squadreInCampo.reduce(
+      (a, sq) => ({
+        v: a.v + nInt(sq["n-volontari"]),
+        m: a.m + nInt(sq["n-mezzi"]),
+      }),
+      { v: 0, m: 0 }
+    );
 
     return html`
       <style>
@@ -1311,6 +1409,12 @@ export async function GOR({ state, client, html, render, root }) {
                 @click=${() => { vista = "squadre-dichiarate"; rebuildDerived(); rerender(); }}
               >Squadre dichiarate</button>
             </p>
+            <p class="control">
+              <button
+                class="button is-small ${vista === "disponibilita" ? "is-info" : ""}"
+                @click=${() => { vista = "disponibilita"; rebuildDerived(); rerender(); }}
+              >Disponibilità nel tempo</button>
+            </p>
           </div>
         </div>
 
@@ -1363,16 +1467,27 @@ export async function GOR({ state, client, html, render, root }) {
       <div style="display:flex;align-items:center;gap:8px;padding:6px 1.25rem 10px">
         <!-- Contatore risorse -->
         <span class="tag is-info is-light" style="white-space:nowrap;gap:6px;display:inline-flex;align-items:center">
-          <span title="Volontari"><i class="ri-user-line"></i> ${nV}</span>
-          <span style="opacity:.4">·</span>
-          <span title="Mezzi"><i class="ri-truck-line"></i> ${nM}</span>
-          <span style="opacity:.4">·</span>
-          <span title="Materiali"><i class="ri-tools-line"></i> ${nMat}</span>
+          ${squadreMode
+            ? html`
+                <span title="Squadre dichiarate, uscite escluse"><i class="ri-group-line"></i> ${squadreInCampo.length}</span>
+                <span style="opacity:.4">·</span>
+                <span title="Volontari dichiarati"><i class="ri-user-line"></i> ${totSquadre.v}</span>
+                <span style="opacity:.4">·</span>
+                <span title="Mezzi dichiarati"><i class="ri-truck-line"></i> ${totSquadre.m}</span>
+              `
+            : html`
+                <span title="Volontari"><i class="ri-user-line"></i> ${nV}</span>
+                <span style="opacity:.4">·</span>
+                <span title="Mezzi"><i class="ri-truck-line"></i> ${nM}</span>
+                <span style="opacity:.4">·</span>
+                <span title="Materiali"><i class="ri-tools-line"></i> ${nMat}</span>
+              `}
         </span>
 
         <div style="flex:1"></div>
 
         <!-- Navigazione colonne kanban -->
+        ${vista === "disponibilita" ? "" : html`
         <button class="button is-small is-light" id="gor-scroll-left"
           @click=${() => kanbanScrollBy(-300)}>
           <i class="ri-arrow-left-s-line"></i>
@@ -1383,7 +1498,7 @@ export async function GOR({ state, client, html, render, root }) {
         <button class="button is-small is-light" id="gor-scroll-right"
           @click=${() => kanbanScrollBy(300)}>
           <i class="ri-arrow-right-s-line"></i>
-        </button>
+        </button>`}
 
         <!-- Aggiorna -->
         <button class="button is-small is-light" @click=${load} style="white-space:nowrap">
@@ -1409,9 +1524,11 @@ export async function GOR({ state, client, html, render, root }) {
             ${filterProvincia ? html`<strong>${filterProvincia}</strong>` : ""}
             ${filterProvincia && filterOrg ? " · " : ""}
             ${filterOrg ? html`<strong>${filterOrg}</strong>` : ""}
-            — stai vedendo ${cards.reduce((n, c) => n + c.volontari.length + c.mezzi.length + c.materiali.length, 0)}
+            ${vista === "disponibilita"
+              ? html`— stai vedendo ${squadreForTimeline().length} di ${squadreInCampo.length} squadre`
+              : html`— stai vedendo ${cards.reduce((n, c) => n + c.volontari.length + c.mezzi.length + c.materiali.length, 0)}
             di ${totalResources}
-            (<i class="ri-user-line"></i> ${nV} · <i class="ri-truck-line"></i> ${nM} · <i class="ri-tools-line"></i> ${nMat}) risorse attive
+            (<i class="ri-user-line"></i> ${nV} · <i class="ri-truck-line"></i> ${nM} · <i class="ri-tools-line"></i> ${nMat}) risorse attive`}
           </span>
           <button class="delete is-small" title="Rimuovi filtri"
             @click=${() => { filterOrg = ""; filterProvincia = ""; rebuildDerived(); rerender(); }}
@@ -1419,6 +1536,9 @@ export async function GOR({ state, client, html, render, root }) {
         </div>
       ` : ""}
 
+      ${vista === "disponibilita"
+        ? timeline.template({ squadre: squadreForTimeline() })
+        : html`
       <!-- Barra servizi -->
       <div class="gor-available-bar">
         <span class="gor-available-bar-label">Servizi:</span>
@@ -1492,6 +1612,7 @@ export async function GOR({ state, client, html, render, root }) {
         <div class="gor-kanban-spacer"></div>
       </div>
       </div><!-- /.gor-kanban-wrap -->
+      `}
 
       </div><!-- /.box -->
 

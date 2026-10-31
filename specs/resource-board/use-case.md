@@ -97,6 +97,13 @@ Operatore di segreteria campo / coordinatore operativo.
 18. L'operatore seleziona o digita la nuova squadra e i tipi, poi clicca "Conferma".
 19. Il sistema aggiorna `squadra` su tutte le risorse selezionate, scrive i record `mov-risorse` con `da: "SQUADRA: <vecchia>"` / `a: "SQUADRA: <nuova>"`, chiude la modale e ricarica il kanban.
 
+### Disponibilita' delle squadre dichiarate
+
+7. Nella vista *Squadre dichiarate* ogni card mostra la finestra di disponibilita' della squadra (da `inizio-disponibilita` a `fine-disponibilita`), se l'ha indicata.
+8. L'operatore sceglie *Disponibilita' nel tempo* in **Mostra**; il sistema sostituisce barra servizi e kanban con una linea temporale: una riga per squadra, una barra per finestra, una linea rossa per l'ora corrente.
+9. L'operatore cambia lo zoom (*Tutto*, *Settimana*, *3 giorni*, *Giorno*) e scorre in orizzontale; i nomi delle squadre e l'asse dei giorni restano visibili.
+10. Le squadre senza date, o con la fine prima dell'inizio, compaiono in due elenchi sotto la griglia invece di essere disegnate.
+
 ## 11. Extensions
 
 **1a. Errore API al caricamento**
@@ -104,6 +111,18 @@ Operatore di segreteria campo / coordinatore operativo.
 
 **1b. Nessuna risorsa attiva**
 - Il kanban mostra solo la colonna `IN ATTESA DI SERVIZIO` vuota.
+
+**8a. Nessuna squadra ha indicato una finestra**
+- La linea temporale mostra il messaggio *Nessuna squadra ha indicato una finestra di disponibilita'* e, sotto, l'elenco delle squadre senza date.
+
+**8b. Nessuna squadra dichiarata (o tabella assente)**
+- La linea temporale mostra *Nessuna squadra dichiarata.*
+
+**8d. Impostare la finestra di una squadra senza date**
+- L'operatore sceglie la squadra negli elenchi sotto la griglia; il sistema apre *Squadre dichiarate* in una nuova scheda, gia' sulla scheda di quella squadra.
+
+**8c. Squadra gia' uscita**
+- Una squadra a `USCITA DEFINITIVA` non compare sulla linea temporale, anche se ha una finestra ancora aperta.
 
 **6a. Ricerca senza risultati**
 - Tutte le colonne mostrano il segnaposto "—"; la barra servizi rimane visibile.

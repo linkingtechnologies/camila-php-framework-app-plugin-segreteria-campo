@@ -1,3 +1,12 @@
+// Session lost, as opposed to a permission refusal. Both are HTTP 403, so the
+// status alone cannot tell them apart: php-crud-api code 1011 is "Authentication
+// required" and 1012 "Authentication failed", while 1014 is "Operation
+// forbidden". See AGENTS.md §La sessione decaduta.
+function isSessionError(e) {
+  const c = e?.payload?.code;
+  return c === 1011 || c === 1012;
+}
+
 function getRecords(res) {
   if (Array.isArray(res)) return res;
   if (res && Array.isArray(res.records)) return res.records;
@@ -128,12 +137,24 @@ export async function Home({ client, html, render, root }) {
 
         ${!collapsed ? html`
 
-          ${error ? html`
-            <div class="notification is-danger is-light is-small">
-              <i class="ri-error-warning-line mr-1"></i>
-              Errore nel controllo della tabella <code>servizi</code>
-            </div>
-          ` : ""}
+          ${error ? (isSessionError(error)
+            ? html`
+              <div class="notification is-warning is-light is-small">
+                <i class="ri-error-warning-line mr-1"></i>
+                Sessione non più valida: probabilmente lo stesso utente è entrato
+                da un altro browser o dispositivo. Esci e rifai l'accesso per
+                riprendere da qui.
+                <div class="buttons mt-2">
+                  <a class="button is-small is-primary" href="cf_logout.php">Esci e rientra</a>
+                  <button class="button is-small is-light" @click=${load}>🔄 Riprova</button>
+                </div>
+              </div>`
+            : html`
+              <div class="notification is-danger is-light is-small">
+                <i class="ri-error-warning-line mr-1"></i>
+                Impossibile completare il controllo iniziale.
+                <button class="button is-small is-light ml-2" @click=${load}>🔄 Riprova</button>
+              </div>`) : ""}
 
           ${!loading && brogliaccioAlert ? html`
             <div class="card mb-4">

@@ -1,5 +1,22 @@
 // views/worktable-explorer/index.js — Esploratore WorkTable
 
+// Session lost, as opposed to a permission refusal. Both are HTTP 403, so the
+// status alone cannot tell them apart: php-crud-api code 1011 is "Authentication
+// required" and 1012 "Authentication failed", while 1014 is "Operation
+// forbidden". See AGENTS.md §La sessione decaduta.
+const SESSIONE_NON_VALIDA =
+  "Sessione non più valida: probabilmente lo stesso utente è entrato da un altro browser o dispositivo. Esci e rifai l'accesso per riprendere da qui.";
+function isSessionError(e) {
+  const c = e?.payload?.code;
+  return c === 1011 || c === 1012;
+}
+// Errors in this view travel as plain strings, so the session case is
+// recognised again at render time by comparing with the sentence itself.
+function errorText(e) {
+  if (isSessionError(e)) return SESSIONE_NON_VALIDA;
+  return String(e?.payload?.message || e?.message || e || "Errore sconosciuto");
+}
+
 function safe(v) {
   return String(v ?? "").trim();
 }
@@ -94,7 +111,9 @@ export async function WorktableExplorer({ state, client, html, render, root }) {
       clearTimeout(errorTimer);
       error = msg; successMsg = null;
       rerender();
-      errorTimer = setTimeout(() => { error = null; rerender(); }, 5000);
+      if (msg !== SESSIONE_NON_VALIDA) {
+        errorTimer = setTimeout(() => { error = null; rerender(); }, 5000);
+      }
     } else {
       clearTimeout(successTimer);
       successMsg = msg; error = null;
@@ -116,7 +135,7 @@ export async function WorktableExplorer({ state, client, html, render, root }) {
           : [];
       tables = tables.map(t => safe(t.name ?? t)).filter(Boolean).sort();
     } catch (e) {
-      tablesError = safe(e?.message || e);
+      tablesError = safe(errorText(e));
     }
     tablesLoading = false;
     rerender();
@@ -168,7 +187,7 @@ export async function WorktableExplorer({ state, client, html, render, root }) {
         }
       }
     } catch (e) {
-      error = safe(e?.payload?.message || e?.message || e);
+      error = safe(errorText(e));
       records = [];
       total = null;
     }
@@ -201,7 +220,7 @@ export async function WorktableExplorer({ state, client, html, render, root }) {
       delete drafts[id];
       flash("Record aggiornato.");
     } catch (e) {
-      flash(safe(e?.payload?.message || e?.message || e), true);
+      flash(safe(errorText(e)), true);
     }
     busyIds.delete(id);
     rerender();
@@ -217,7 +236,7 @@ export async function WorktableExplorer({ state, client, html, render, root }) {
       if (total !== null) total--;
       flash("Record eliminato.");
     } catch (e) {
-      flash(safe(e?.payload?.message || e?.message || e), true);
+      flash(safe(errorText(e)), true);
     }
     busyDelete.delete(id);
     rerender();
@@ -233,7 +252,7 @@ export async function WorktableExplorer({ state, client, html, render, root }) {
       createDraft = {};
       await loadRecords();
     } catch (e) {
-      flash(safe(e?.payload?.message || e?.message || e), true);
+      flash(safe(errorText(e)), true);
     }
     busyCreate = false;
     rerender();
@@ -454,9 +473,14 @@ export async function WorktableExplorer({ state, client, html, render, root }) {
 
     if (error) {
       return html`
-        <article class="message is-danger mx-4 my-4">
+        <article class="message ${error === SESSIONE_NON_VALIDA ? "is-warning" : "is-danger"} mx-4 my-4">
           <div class="message-header"><p>Errore</p></div>
-          <div class="message-body">${error}</div>
+          <div class="message-body">
+            ${error}
+            ${error === SESSIONE_NON_VALIDA
+              ? html`<div class="mt-3"><a class="button is-primary" href="cf_logout.php">Esci e rientra</a></div>`
+              : ""}
+          </div>
         </article>
       `;
     }
@@ -619,7 +643,7 @@ export async function WorktableExplorer({ state, client, html, render, root }) {
       overlay.editing = false;
       overlay.drafts = {};
     } catch (e) {
-      flash(safe(e?.payload?.message || e?.message || e), true);
+      flash(safe(errorText(e)), true);
     }
     overlay.busy = false;
     rerender();
@@ -789,7 +813,7 @@ export async function WorktableExplorer({ state, client, html, render, root }) {
         if (overlay.attachmentBlobUrl) URL.revokeObjectURL(overlay.attachmentBlobUrl);
         overlay.attachmentBlobUrl = URL.createObjectURL(blob);
         flash("Fototessera caricata.");
-      } catch(e) { flash(safe(e?.payload?.message || e?.message || e), true); }
+      } catch(e) { flash(safe(errorText(e)), true); }
       overlay.attachmentBusy = false;
       rerender();
     }, "image/jpeg", 0.92);
@@ -809,7 +833,7 @@ export async function WorktableExplorer({ state, client, html, render, root }) {
       if (overlay.attachmentBlobUrl) URL.revokeObjectURL(overlay.attachmentBlobUrl);
       overlay.attachmentBlobUrl = URL.createObjectURL(blob);
       flash("Allegato caricato.");
-    } catch(e) { flash(safe(e?.payload?.message || e?.message || e), true); }
+    } catch(e) { flash(safe(errorText(e)), true); }
     overlay.attachmentBusy = false;
     rerender();
   }
@@ -956,7 +980,7 @@ export async function WorktableExplorer({ state, client, html, render, root }) {
                       if (overlay.attachmentBlobUrl) { URL.revokeObjectURL(overlay.attachmentBlobUrl); overlay.attachmentBlobUrl = null; }
                       flash("Allegato eliminato.");
                     } catch(e) {
-                      flash(safe(e?.payload?.message || e?.message || e), true);
+                      flash(safe(errorText(e)), true);
                     }
                     overlay.attachmentBusy = false;
                     rerender();
@@ -988,7 +1012,7 @@ export async function WorktableExplorer({ state, client, html, render, root }) {
                         a.click();
                         setTimeout(() => URL.revokeObjectURL(url), 1000);
                       } catch(e) {
-                        flash(safe(e?.message || e), true);
+                        flash(safe(errorText(e)), true);
                       }
                       overlay.attachmentBusy = false;
                       rerender();
@@ -1024,7 +1048,7 @@ export async function WorktableExplorer({ state, client, html, render, root }) {
                           overlay.attachmentBlobUrl = null;
                           flash("Allegato caricato.");
                         } catch(e) {
-                          flash(safe(e?.payload?.message || e?.message || e), true);
+                          flash(safe(errorText(e)), true);
                         }
                         overlay.attachmentBusy = false;
                         rerender();
@@ -1157,8 +1181,11 @@ export async function WorktableExplorer({ state, client, html, render, root }) {
           </div>
         ` : ""}
         ${error && !loading ? html`
-          <div class="notification is-danger is-light py-2 px-4 mb-0" style="border-radius:0;border-bottom:1px solid #f5c6cb">
+          <div class="notification ${error === SESSIONE_NON_VALIDA ? "is-warning" : "is-danger"} is-light py-2 px-4 mb-0" style="border-radius:0;border-bottom:1px solid #f5c6cb">
             <i class="ri-error-warning-line"></i> ${error}
+            ${error === SESSIONE_NON_VALIDA
+              ? html`<a class="button is-small is-primary ml-3" href="cf_logout.php">Esci e rientra</a>`
+              : ""}
           </div>
         ` : ""}
 

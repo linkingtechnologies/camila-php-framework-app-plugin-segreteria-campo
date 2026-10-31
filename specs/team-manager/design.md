@@ -33,7 +33,7 @@ a se': e' quella che serve il pulsante nel box amministrativo, tramite
 
 ```
 [ Gestione interventi ]        [ Elenco | Kanban | Squadre ]
-[Toolbar: 🔍 Cerca… | stato | servizio | + Nuova | ↺ ]
+[Toolbar: 🔍 Cerca… | + Nuova squadra | ↺ ]
 [Totali: N squadre · N volontari · N mezzi · N attrezzature]
 ┌────────────────────┬────────────────────────────────────────────┐
 │  Elenco squadre    │  Scheda                                    │
@@ -41,12 +41,11 @@ a se': e' quella che serve il pulsante nel box amministrativo, tramite
 │                    │                                            │
 │  ● NOME            │  [pulsantiera: Salva | Elimina | Nuova]    │
 │    organizzazioni  │                                            │
-│    5👤 2🚚  [stato] │  ▸ Squadra      nome, mansione prevalente  │
+│    5👤 2🚚 [nomin.] │  ▸ Squadra      nome, mansione prevalente  │
+│                    │  ▸ Disponibilità inizio, fine              │
 │                    │  ▸ Provenienza  organizzazioni             │
 │                    │  ▸ Consistenza  volontari, mezzi, attrezz. │
 │                    │  ▸ Referente    caposquadra, cellulare     │
-│                    │  ▸ Impiego      servizio, turno            │
-│                    │  ▸ Periodo      4 date                     │
 │                    │  ▸ Note                                    │
 └────────────────────┴────────────────────────────────────────────┘
 ```
@@ -102,11 +101,45 @@ Tabella: **`squadre-dichiarate`** — da creare come worktable, `tables/xls/it/6
 | `cognome-referente` | Referente | testo | |
 | `nome-referente` | Referente | testo | |
 | `cellulare-referente` | Referente | testo | |
-| `servizio` | Impiego | testo | nome di un record di `servizi` |
-| `turno` | Impiego | testo | libero; su `volontari` non ha vocabolario né valori in uso |
-| `data/ora-registrazione` | Periodo | data/ora | **attenzione alla barra** nel nome |
-| `data/ora-uscita-definitiva` | Periodo | data/ora | idem |
+| `servizio` | — | testo | **letto, non scritto**: vedi sotto |
+| `inizio-disponibilita` | Disponibilità | data/ora | `datetime-local`, salvato come `YYYY-MM-DD HH:mm:00` |
+| `fine-disponibilita` | Disponibilità | data/ora | idem |
 | `note` | Note | testo lungo | |
+
+**`servizio` si legge ma non si modifica.** E' in `FIELDS` — compare nella riga
+dell'elenco e fra i campi su cui lavora la ricerca libera — ma e' escluso da
+`EDITABLE`, quindi nessun salvataggio da questa scheda puo' riscriverlo. A
+spostare una squadra su un servizio e' **Movimentazione risorse**
+(`views/resource-board/index.js`), che fa l'`update` di quel campo. Il blocco
+**Impiego** della scheda e' stato tolto proprio per non avere due interfacce di
+modifica sullo stesso dato (AGENTS.md §Si crea da dove serve, si gestisce dove
+appartiene).
+
+**Non c'e' piu' nemmeno il filtro per servizio** nella barra dell'elenco. Non
+perche' filtrare un campo di sola lettura sia sbagliato, ma perche' era
+ridondante: la ricerca libera gia' confronta `servizio`, quindi scrivere il nome
+del servizio nella casella *Cerca…* da' lo stesso risultato. Era inoltre l'unico
+lettore rimasto del catalogo `servizi`, che costava una `list()` su `servizi` a
+ogni mount del pannello — anche dentro `intervention-manager`, che lo incorpora.
+Chi vuole vedere le squadre per servizio ha `resource-board`, che le raggruppa
+cosi' di mestiere.
+
+Il blocco **Disponibilità** ha preso il posto del vecchio *Periodo*, e dice una
+cosa diversa: non quando la squadra e' stata presa in carico, ma la **finestra
+in cui si e' dichiarata disponibile**. E' l'unica informazione temporale che
+resta sulla scheda.
+
+**Resta in tabella ma fuori dall'interfaccia**: `turno`. Esiste sulla worktable,
+semplicemente non e' in `FIELDS`, quindi la SPA non lo legge ne' lo scrive.
+C'era finche' c'era il blocco Impiego, che era il suo unico lettore.
+
+Il blocco **Periodo** della scheda non c'è più. Conteneva
+`data/ora-registrazione` e `data/ora-uscita-definitiva`, **rimosse dalla
+tabella**: php-crud-api scarta in silenzio le colonne che non conosce, sia
+nell'`include` sia nel payload, quindi erano due campi che l'operatore poteva
+compilare senza alcun effetto e senza alcun errore. Attenzione a non
+confonderle con le colonne omonime di `volontari`, `mezzi` e `materiali`, che
+esistono eccome e le scrivono check-in e check-out.
 
 ### Cosa è stato ripreso dalle altre risorse, e cosa no
 
@@ -115,8 +148,11 @@ l'involucro operativo comune: organizzazione, codice organizzazione, provincia,
 servizio, turno, squadra, le quattro date e le note. Ciò che li distingue e' la
 sola identità — cognome e codice fiscale, targa e modello, id materiale.
 
-La scheda squadra **riusa quell'involucro** e sostituisce l'identità con nome e
-conteggi. Non riusa mansione individuale per persona, autista, benefici di legge,
+La scheda squadra **riusava quell'involucro** e sostituiva l'identità con nome e
+conteggi. Oggi ne tiene meno: le quattro date non esistono più sulla tabella,
+`turno` è uscito con il blocco Impiego e `servizio` si legge soltanto. Di comune
+restano organizzazione (per nome), squadra e note — più due date tutte sue,
+`inizio-disponibilita` e `fine-disponibilita`, che le altre risorse non hanno. Non riusa mansione individuale per persona, autista, benefici di legge,
 badge, km, categoria, tipologia, proprietario: sono attributi che su un aggregato
 o non hanno senso o mentono.
 
@@ -290,9 +326,15 @@ differiscono da quelli ipotizzati in prima stesura:
 | `cognome-referente` | `nuovocampo` | varchar |
 | `nome-referente` | `caposquadra` | varchar |
 | `cellulare-referente` | `cellulare` | varchar |
-| `servizio`, `turno` | idem | varchar |
-| `data/ora-registrazione`, `data/ora-uscita-definitiva` | idem | varchar |
+| `servizio` | idem | varchar |
+| `turno` | idem | varchar | *(non usata dalla SPA)* |
+| `inizio-disponibilita`, `fine-disponibilita` | da verificare | varchar |
 | `note` | `note` | clob |
+
+**Questa tabella descrive la worktable, non la SPA.** Una colonna marcata *non
+usata* esiste eccome: e' solo fuori da `FIELDS`, quindi la SPA non la legge né
+la scrive e non compare da nessuna parte nell'interfaccia. Toglierla
+dall'anagrafica e' stata una scelta di UI, non una modifica alla tabella.
 
 Ci sono inoltre `id` (chiave primaria) e `uuid`, gestiti dal framework e non
 toccati dalla SPA.
@@ -300,6 +342,18 @@ toccati dalla SPA.
 Le date sono `varchar`, non tipi data: il formato resta quello testuale usato
 altrove, `YYYY-MM-DD` e `YYYY-MM-DD HH:mm:ss`.
 
+
+## 11b. Apertura da collegamento
+
+La SPA autonoma legge `?squadra=<id>` e lo passa a `createTeamPanel({ openId })`.
+Appena la lista e' caricata il pannello seleziona quella squadra, **una volta
+sola**: `pendingOpenId` si azzera subito, cosi' un ricaricamento della lista non
+riporta l'operatore sulla squadra. Se l'id non c'e' in elenco non succede nulla.
+Il parametro si legge nella SPA e non nel pannello, che resta disaccoppiato dal
+contesto: incorporato in `intervention-manager` non ne sa niente.
+
+Lo usa la vista *Disponibilita' nel tempo* di `resource-board` per le squadre
+senza finestra.
 
 ## 12. Dichiarati e registrati
 

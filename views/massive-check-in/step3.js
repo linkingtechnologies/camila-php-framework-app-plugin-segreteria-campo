@@ -5,6 +5,25 @@
 const VERSION = window.APP_CONFIG?.version || Date.now();
 
 
+// Session lost, as opposed to a permission refusal. Both are HTTP 403, so the
+// status alone cannot tell them apart: php-crud-api code 1011 is "Authentication
+// required" and 1012 "Authentication failed", while 1014 is "Operation
+// forbidden". See AGENTS.md §La sessione decaduta.
+const SESSIONE_NON_VALIDA =
+  "Sessione non più valida: probabilmente lo stesso utente è entrato da un altro browser o dispositivo. Esci e rifai l'accesso per riprendere da qui.";
+function isSessionError(e) {
+  const c = e?.payload?.code;
+  return c === 1011 || c === 1012;
+}
+function errorText(e) {
+  if (isSessionError(e)) return SESSIONE_NON_VALIDA;
+  return String(e?.payload?.message || e?.message || e || "Errore sconosciuto");
+}
+
+// Per-row text for a session failure; the full sentence is shown once above
+// the table, not repeated on every failed row.
+const SESSIONE_BREVE = "Sessione non più valida";
+
 function safe(v) {
   return String(v ?? "").trim();
 }
@@ -100,6 +119,7 @@ function buildVolontariInsertRow(selectionOrg, v) {
 }
 
 function formatErr(e) {
+  if (isSessionError(e)) return SESSIONE_BREVE;
   const payload = e && e.payload ? e.payload : null;
   if (payload && typeof payload === "object") return JSON.stringify(payload);
   return String((e && (e.message || e)) || "Unknown error");
@@ -508,16 +528,13 @@ export async function Step3({ state, client, goTo, html, render, root }) {
 
         ${checkingError
           ? html`
-              <article class="message is-danger">
-                <div class="message-body">
-                  ${String(
-                    checkingError &&
-                      (checkingError.payload ||
-                        checkingError.message ||
-                        checkingError)
-                  )}
-                </div>
-              </article>
+              <article class="message ${isSessionError(checkingError) ? "is-warning" : "is-danger"}">
+            <div class="message-body">${errorText(checkingError)}
+              ${isSessionError(checkingError)
+              ? html`<div class="mt-3"><a class="button is-primary" href="cf_logout.php">Esci e rientra</a></div>`
+              : ""}
+            </div>
+          </article>
             `
           : ""}
 
@@ -541,6 +558,18 @@ export async function Step3({ state, client, goTo, html, render, root }) {
                 </div>
               </article>
             `
+          : ""}
+
+        ${rows.some(r => r.message === SESSIONE_BREVE)
+          ? html`
+              <article class="message is-warning mt-3">
+                <div class="message-body">
+                  ${SESSIONE_NON_VALIDA}
+                  <div class="mt-3">
+                    <a class="button is-primary" href="cf_logout.php">Esci e rientra</a>
+                  </div>
+                </div>
+              </article>`
           : ""}
 
         <div class="tags mt-3">

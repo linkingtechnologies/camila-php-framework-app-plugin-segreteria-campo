@@ -46,9 +46,18 @@ arriveranno a consuntivo giorni dopo — o mai.
 registrazione che esistera'. E **non passano dal check-in**, quindi non hanno
 affatto le date di attestato: quelle due colonne sono state rimosse dalla
 tabella, e le SPA che mostrano le squadre non applicano loro il filtro sulle
-date usato per le risorse registrate. Restano `data/ora-registrazione` e
-`data/ora-uscita-definitiva`, che dicono quando la squadra e' stata presa in
-carico e quando e' uscita.
+date usato per le risorse registrate.
+
+**Una squadra dichiarata non ha date, punto**: sono state rimosse anche
+`data/ora-registrazione` e `data/ora-uscita-definitiva`. A dire dov'e' una
+squadra adesso e' `servizio`, con la convenzione `USCITA DEFINITIVA`. Quel che una squadra
+dichiara e' la **finestra di disponibilita'**, `inizio-disponibilita` e
+`fine-disponibilita`, che e' un'altra cosa: non quando e' arrivata, ma quando
+c'e'.
+
+Da non confondere: `volontari`, `mezzi` e `materiali` hanno eccome le colonne
+`data/ora-registrazione` e `data/ora-uscita-definitiva`, scritte da check-in e
+check-out. Stesso nome, altra tabella.
 
 Il campo `squadra` su volontari, mezzi e materiali e' **l'altra faccia**: dopo un
 check-in, le risorse portano il nome della squadra. Il nome e' la continuita' fra
@@ -470,7 +479,9 @@ Il sintomo e' insidioso: la view si aggiorna, il modulo condiviso no, e si vede
 codice vecchio in mezzo a codice nuovo.
 
 Moduli che usano questo schema: `views/shared/map-picker.js`,
-`views/shared/org-picker.js`, e `views/team-manager/index.js` quando e'
+`views/shared/org-picker.js`, `views/resource-board/timeline.js` (la linea
+temporale della disponibilita' delle squadre, usata da una sola vista ma tenuta
+fuori da un `index.js` gia' enorme), e `views/team-manager/index.js` quando e'
 incorporato in `intervention-manager`.
 
 ## Pannelli incorporabili
@@ -1030,11 +1041,49 @@ Ne discende la cosa da dire all'operatore: **ricaricare non basta**, perche' il
 reload non riscrive `session_id`. Serve rifare l'accesso (`cf_logout.php`), e
 questo mette fuori l'altra postazione — e' un ping-pong, non una convivenza.
 
-`app-boot.js` lo riconosce da solo — status 401/403, oppure `code` 1011 o
-1012 — e al posto del box rosso mostra un box giallo che nomina la causa e offre
-**Esci e rientra** piu' un **Ricarica** secondario. Dentro le viste, il ramo
-`auth` di `userFriendlyErrorText` dice la stessa cosa a parole, con lo stesso
-testo in tutte e cinque le copie.
+**Si riconosce dal codice API, non dallo status**: 1011 (*Authentication
+required*) e 1012 (*Authentication failed*). Lo status non basta, perche' 403 e'
+anche 1014 *Operation forbidden*, che e' un rifiuto di permessi e non una
+sessione morta: dirgli "esci e rientra" farebbe girare a vuoto l'operatore. Lo
+status resta solo come ripiego quando la risposta non ha un corpo JSON.
+
+`app-boot.js` lo riconosce da solo e, al posto del box rosso, mostra un box
+giallo che nomina la causa e offre **Esci e rientra** piu' un **Ricarica**
+secondario.
+
+Le viste che disegnano un **proprio** box d'errore lo dicono a parole, con la
+stessa frase:
+
+* nelle cinque copie di `userFriendlyErrorText`, il ramo `auth` sceglie fra la
+  frase di sessione (codici 1011/1012) e *Permessi insufficienti per questa
+  operazione.* (qualunque altro 401/403);
+* in `map-center`, `resource-board`, `stock-manager`, `service-manager`,
+  `warehouse-manager`, `resource-manager/step2` e `smart-assistant` un
+  `errorText()` / `isSessionError()` locale fa lo
+  stesso per il box *Errore caricamento*, e in caso di sessione morta aggiunge
+  il pulsante **Esci e rientra** (`cf_logout.php`, relativo: le pagine stanno
+  accanto a quel file) prima di *Riprova*, che da solo non riaggancia la
+  sessione. Prima stampavano il messaggio grezzo dell'API
+  (`Authentication failed for '…(1)'`), o addirittura `HTTP 403`.
+
+**Ogni vista che chiama l'API conosce il caso sessione** (verificato con un
+controllo sul codice 1011 in tutte le viste). Lo schema e' sempre lo stesso: un
+`isSessionError()` locale che guarda `err.payload.code`, la frase
+`SESSIONE_NON_VALIDA`, il box giallo (`is-warning`) al posto del rosso e il
+pulsante **Esci e rientra**. Due varianti da conoscere:
+
+* **errori per riga** — `massive-check-in` step 3, 5 e 7 scrivono un'operazione
+  per riga, e se la sessione muore falliscono tutte. Ogni riga dice solo
+  *Sessione non piu' valida* (`SESSIONE_BREVE`) e la frase completa con il
+  pulsante compare **una volta** sopra i contatori;
+* **errori che viaggiano come stringa** — `worktable-explorer` e l'editing
+  inline di `resource-manager/step1` passano il testo e non l'oggetto, quindi
+  riconoscono il caso confrontando con la frase. L'avviso di sessione in
+  `worktable-explorer` non sparisce dopo 5 secondi come gli errori transitori.
+
+Quando si aggiunge una vista che chiama l'API, aggiungere il caso sessione con
+lo stesso schema. Nessun entry point deve piu' stampare `String(err.payload)`:
+e' `[object Object]`.
 
 **Il corpo dell'errore sta in `err.payload`**, che e' il JSON dell'API
 (`{ code, message }`), non una stringa: `String(err.payload)` stampa
@@ -1313,8 +1362,12 @@ E' la strada da seguire per i vocabolari nuovi.
 
 Restano cablati, e non sono dimenticanze: `COLORI` e `LETTERE` (hanno accanto
 una mappa di conversione in colore o un alfabeto per i marker, quindi non
-basterebbe l'elenco), gli stati calcolati di `team-manager` — che il codice
-deduce dalle date e non legge da nessuna colonna.
+basterebbe l'elenco), lo stato derivato di
+`intervention-manager` — che il codice deduce da `inizio` e `fine` quando la
+colonna `stato` e' vuota, e i tre nomi che la mappa dei colori usa per chiave.
+Il vocabolario vero di `servizi.stato` lo legge comunque dal describe: cablati
+sono solo i nomi usati come chiave. (`team-manager` non ha piu' nessuno stato
+calcolato: quella classificazione e' stata rimossa.)
 
 **Ogni tendina legge la colonna che poi scrive.** Offrire un valore che la
 colonna di destinazione non ammette sarebbe sbagliato anche se un'altra tabella

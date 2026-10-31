@@ -1,5 +1,16 @@
 ﻿// views/requests-board/index.js
 
+// Session lost, as opposed to a permission refusal. Both are HTTP 403, so the
+// status alone cannot tell them apart: php-crud-api code 1011 is "Authentication
+// required" and 1012 "Authentication failed", while 1014 is "Operation
+// forbidden". See AGENTS.md §La sessione decaduta.
+const SESSIONE_NON_VALIDA =
+  "Sessione non più valida: probabilmente lo stesso utente è entrato da un altro browser o dispositivo. Esci e rifai l'accesso per riprendere da qui.";
+function isSessionError(e) {
+  const c = e?.payload?.code;
+  return c === 1011 || c === 1012;
+}
+
 function norm(s) {
   return String(s ?? "").trim().replace(/\s+/g, " ");
 }
@@ -367,8 +378,11 @@ export async function RequestsBoard({ client, html, render, root }) {
           <div style="padding:1rem;display:flex;flex-direction:column;gap:.7rem">
 
             ${modal.error ? html`
-              <div class="notification is-danger is-light p-3" style="font-size:.8rem">
-                Errore durante il salvataggio.
+              <div class="notification ${isSessionError(modal.error) ? "is-warning" : "is-danger"} is-light p-3" style="font-size:.8rem">
+                ${isSessionError(modal.error) ? SESSIONE_NON_VALIDA : "Errore durante il salvataggio."}
+                ${isSessionError(modal.error)
+                  ? html`<a class="button is-small is-primary ml-2" href="cf_logout.php">Esci e rientra</a>`
+                  : ""}
               </div>` : ""}
 
             <div class="field">
@@ -580,8 +594,11 @@ export async function RequestsBoard({ client, html, render, root }) {
         : ""}
 
       ${error ? html`
-        <div class="notification is-danger is-light m-3" style="font-size:.85rem">
-          Errore durante il caricamento.
+        <div class="notification ${isSessionError(error) ? "is-warning" : "is-danger"} is-light m-3" style="font-size:.85rem">
+          ${isSessionError(error) ? SESSIONE_NON_VALIDA : "Errore durante il caricamento."}
+          ${isSessionError(error)
+            ? html`<a class="button is-small is-primary ml-3" href="cf_logout.php">Esci e rientra</a>`
+            : ""}
           <button class="button is-small is-light ml-3" @click=${load}>Riprova</button>
         </div>` : ""}
 

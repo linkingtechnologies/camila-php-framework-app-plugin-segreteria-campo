@@ -44,8 +44,23 @@ function nowDateTime() {
   return new Date().toLocaleString("sv-SE", { hour12: false }).replace(",", "");
 }
 
-function normalizeError(e) {
+// Session lost, as opposed to a permission refusal. Both are HTTP 403, so the
+// status alone cannot tell them apart: php-crud-api code 1011 is "Authentication
+// required" and 1012 "Authentication failed", while 1014 is "Operation
+// forbidden". See AGENTS.md §La sessione decaduta.
+const SESSIONE_NON_VALIDA =
+  "Sessione non più valida: probabilmente lo stesso utente è entrato da un altro browser o dispositivo. Esci e rifai l'accesso per riprendere da qui.";
+function isSessionError(e) {
+  const c = e?.payload?.code;
+  return c === 1011 || c === 1012;
+}
+function errorText(e) {
+  if (isSessionError(e)) return SESSIONE_NON_VALIDA;
   return String(e?.payload?.message || e?.message || e || "Errore sconosciuto");
+}
+
+function normalizeError(e) {
+  return errorText(e);
 }
 
 function emptyModal(record) {
@@ -1117,11 +1132,16 @@ export async function StockManager({ state, client, html, render, root }) {
       return html`
         <section class="section">
           <div class="container">
-            <article class="message is-danger">
+            <article class="message ${isSessionError(error) ? "is-warning" : "is-danger"}">
               <div class="message-header"><p>Errore caricamento</p></div>
               <div class="message-body">
                 <p>${normalizeError(error)}</p>
-                <button class="button is-light mt-3" @click=${load}>🔄 Riprova</button>
+                <div class="buttons mt-3">
+                  ${isSessionError(error)
+                    ? html`<a class="button is-primary" href="cf_logout.php">Esci e rientra</a>`
+                    : ""}
+                  <button class="button is-light" @click=${load}>🔄 Riprova</button>
+                </div>
               </div>
             </article>
           </div>

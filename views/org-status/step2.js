@@ -1,5 +1,20 @@
 ﻿// ./views/org-status/step2.js
 
+// Session lost, as opposed to a permission refusal. Both are HTTP 403, so the
+// status alone cannot tell them apart: php-crud-api code 1011 is "Authentication
+// required" and 1012 "Authentication failed", while 1014 is "Operation
+// forbidden". See AGENTS.md §La sessione decaduta.
+const SESSIONE_NON_VALIDA =
+  "Sessione non più valida: probabilmente lo stesso utente è entrato da un altro browser o dispositivo. Esci e rifai l'accesso per riprendere da qui.";
+function isSessionError(e) {
+  const c = e?.payload?.code;
+  return c === 1011 || c === 1012;
+}
+function errorText(e) {
+  if (isSessionError(e)) return SESSIONE_NON_VALIDA;
+  return String(e?.payload?.message || e?.message || e || "Errore sconosciuto");
+}
+
 function safe(v) {
   return String(v ?? "").trim();
 }
@@ -513,6 +528,16 @@ export async function Step2({ state, client, goTo, html, render, root }) {
         </div>
 
         ${loading ? html`<progress class="progress is-small mt-3"></progress>` : ""}
+
+        ${error ? html`
+          <article class="message ${isSessionError(error) ? "is-warning" : "is-danger"} mt-3">
+            <div class="message-body">${errorText(error)}
+              ${isSessionError(error)
+              ? html`<div class="mt-3"><a class="button is-primary" href="cf_logout.php">Esci e rientra</a></div>`
+              : ""}
+            </div>
+          </article>
+        ` : ""}
 
         <div class="columns is-multiline mt-4">
           ${summaryCard("Volontari", "ri-user-line ri-lg", volIn.length, volNon.length)}

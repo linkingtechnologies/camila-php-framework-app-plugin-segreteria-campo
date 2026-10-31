@@ -74,12 +74,13 @@ function describeApiError(err) {
 // second login by the same user from another browser or device takes it over
 // and every earlier tab stops being recognised.
 function isSessionError({ status, code }) {
-  return (
-    status === 401 ||
-    status === 403 ||
-    code === ERR_AUTH_REQUIRED ||
-    code === ERR_AUTH_FAILED
-  );
+  // 403 is also "Operation forbidden" (1014), a permission refusal and not a
+  // dead session, so when the API gave a code the code decides. The status
+  // is only a fallback for answers that carry no JSON body.
+  if (typeof code === "number") {
+    return code === ERR_AUTH_REQUIRED || code === ERR_AUTH_FAILED;
+  }
+  return status === 401 || status === 403;
 }
 
 function technicalDetails(err) {
@@ -123,12 +124,12 @@ function showError(root, title, err) {
                   qui sarà l'altra postazione a restare fuori.
                 </p>
                 <div class="buttons mt-4">
-                  <a class="button is-warning" href="cf_logout.php">
+                  <a class="button is-primary" href="cf_logout.php">
                     <span class="icon"><i class="ri-login-box-line"></i></span>
                     <span>Esci e rientra</span>
                   </a>
                   <button
-                    class="button is-warning is-light"
+                    class="button is-light"
                     @click=${() => window.location.reload()}
                   >
                     <span class="icon"><i class="ri-refresh-line"></i></span>

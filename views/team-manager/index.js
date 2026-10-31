@@ -17,12 +17,17 @@ const FIELDS = [
   "id", "nome", "mansione-principale", "organizzazioni",
   "n-volontari", "n-mezzi", "attrezzature",
   "cognome-referente", "nome-referente", "cellulare-referente",
-  "servizio", "turno",
-  "data/ora-registrazione", "data/ora-uscita-definitiva",
+  "servizio",
+  "inizio-disponibilita", "fine-disponibilita",
   "note"
 ];
 
-const EDITABLE = FIELDS.filter(f => f !== "id");
+// `servizio` is read, shown in the list, filtered and searched, but never
+// written here: a team is moved onto a service from Movimentazione risorse
+// (views/resource-board/index.js), which owns that field. Keeping it out of
+// EDITABLE means no save from this form can rewrite it - see AGENTS.md
+// §Si crea da dove serve, si gestisce dove appartiene.
+const EDITABLE = FIELDS.filter(f => f !== "id" && f !== "servizio");
 
 // `attrezzature` e' testo libero, non un conteggio: resta fuori dai numerici
 // e dai totali in testa all'elenco.
@@ -73,9 +78,20 @@ function normalizeApiError(err) {
   return { status, code, message, kind, raw };
 }
 
+// Session lost, as opposed to a permission refusal. Both are HTTP 403, so the
+// status alone cannot tell them apart: php-crud-api code 1011 is "Authentication
+// required" and 1012 "Authentication failed", while 1014 is "Operation
+// forbidden". Here `e` is the NORMALIZED error (normalizeApiError), which
+// already carries `code`. See AGENTS.md §La sessione decaduta.
+function isSessionError(e) {
+  return e?.code === 1011 || e?.code === 1012;
+}
+
 function userFriendlyErrorText(e) {
   switch (e.kind) {
-    case "auth":       return "Sessione non più valida: probabilmente lo stesso utente è entrato da un altro browser o dispositivo. Esci e rifai l'accesso per riprendere da qui.";
+    case "auth":       return (e.code === 1011 || e.code === 1012
+        ? "Sessione non più valida: probabilmente lo stesso utente è entrato da un altro browser o dispositivo. Esci e rifai l'accesso per riprendere da qui."
+        : "Permessi insufficienti per questa operazione.");
     case "rate_limit": return "Troppe richieste. Attendi e riprova.";
     case "timeout":
     case "network":    return "Problema di connessione. Controlla la rete.";
@@ -166,8 +182,10 @@ function serialize(f) {
  * @param {Function} o.rerender  ridisegna la vista ospite
  * @param {Boolean}  [o.embedded] true = niente box esterno ne' intestazione:
  *                                li mette gia' l'ospite
+ * @param {String}   [o.openId]   id di una squadra da aprire appena la lista e'
+ *                                caricata (collegamenti da altre viste)
  */
-export async function createTeamPanel({ client, html, rerender, embedded = false }) {
+export async function createTeamPanel({ client, html, rerender, embedded = false, openId = null }) {
   const [{ createOrgPicker, splitOrg }, vocab] = await Promise.all([
     import(`../shared/org-picker.js?v=${VERSION}`),
     import(`../shared/vocabularies.js?v=${VERSION}`)
@@ -186,7 +204,8 @@ export async function createTeamPanel({ client, html, rerender, embedded = false
   let retrying = false;
 
   let search = "";
-  let filtroServizio = "";
+
+  let pendingOpenId = openId ? String(openId) : null;
 
   let selected = null;
   let form = emptyForm();
@@ -205,8 +224,6 @@ export async function createTeamPanel({ client, html, rerender, embedded = false
   let deleteBusy = false;
   let deleteUsage = null;
   let deleteBlocked = false;
-
-  let servizi = [];
 
   // Nominativi effettivamente registrati, per nome squadra.
   // I conteggi sulla squadra sono *dichiarati* dall'organizzazione; questi sono
@@ -257,16 +274,12 @@ export async function createTeamPanel({ client, html, rerender, embedded = false
     return registrati[norm(nome).toLowerCase()] || { v: 0, m: 0, mat: 0 };
   }
 
-  async function loadCataloghi() {
-    orgPicker.load();   // in parallelo, non blocca l'elenco squadre
+  // No catalog left to load here: the `servizi` one went away with the Impiego
+  // block and the service filter, its only two readers. What remains are two
+  // fire-and-forget loads that must not hold up the team list.
+  async function avviaCaricamentiCollaterali() {
+    orgPicker.load();
     loadRegistrati();
-    try {
-      const res = await client.table("servizi").list({ include: ["nome"], size: 2000 });
-      servizi = Array.from(new Set(getRecords(res).map(r => norm(r.nome)).filter(Boolean)))
-        .sort((a, b) => a.localeCompare(b, "it"));
-    } catch {
-      servizi = [];
-    }
   }
 
   async function load() {
@@ -278,7 +291,7 @@ export async function createTeamPanel({ client, html, rerender, embedded = false
     try {
       const results = await Promise.allSettled([
         withRetry(() => API.list({ include: FIELDS, size: 2000 })),
-        loadCataloghi()
+        avviaCaricamentiCollaterali()
       ]);
 
       if (results[0].status === "fulfilled") {
@@ -290,6 +303,18 @@ export async function createTeamPanel({ client, html, rerender, embedded = false
             return na.localeCompare(nb, "it") || a.i - b.i;
           })
           .map(x => x.r);
+
+        // One-shot: a reload must not bounce the operator back to the linked team
+        if (pendingOpenId !== null) {
+          const target = records.find(r => String(r.id) === pendingOpenId);
+          pendingOpenId = null;
+          if (target) {
+            selected = target;
+            form = formFrom(target);
+            baseForm = formFrom(target);
+            resetFormState();
+          }
+        }
       } else {
         error = normalizeApiError(results[0].reason);
       }
@@ -492,8 +517,6 @@ export async function createTeamPanel({ client, html, rerender, embedded = false
   function filtered() {
     const q = search ? search.toLocaleLowerCase("it-IT") : "";
     return records.filter(r => {
-      // `organizzazioni` contiene piu' valori: confronto per contenuto, non `eq`
-      if (filtroServizio && norm(r.servizio) !== filtroServizio) return false;
       if (!q) return true;
       const hay = [r.nome, r.organizzazioni, r["cognome-referente"],
                    r["nome-referente"], r.servizio, r["mansione-principale"]]
@@ -621,7 +644,7 @@ export async function createTeamPanel({ client, html, rerender, embedded = false
             </div>
 
             <p class="help">
-              Mansione, caposquadra, servizio e periodo si compilano subito dopo,
+              Mansione, referente, attrezzature e note si compilano subito dopo,
               nella scheda.
             </p>
           </section>
@@ -737,6 +760,13 @@ export async function createTeamPanel({ client, html, rerender, embedded = false
           </div>
         `)}
 
+        ${block("Disponibilità", "calendar-line", html`
+          <div class="is-flex" style="gap:.75rem;flex-wrap:wrap">
+            ${field("Inizio", "inizio-disponibilita", { type: "datetime-local", width: "220px" })}
+            ${field("Fine", "fine-disponibilita", { type: "datetime-local", width: "220px" })}
+          </div>
+        `)}
+
         ${block("Provenienza", "building-line", viewOrganizzazioni())}
 
         ${block("Consistenza", "team-line", html`
@@ -792,35 +822,6 @@ export async function createTeamPanel({ client, html, rerender, embedded = false
           </div>
         `)}
 
-        ${block("Impiego", "pushpin-line", html`
-          <div class="is-flex" style="gap:.75rem;flex-wrap:wrap">
-            <div class="field" style="width:260px">
-              <label class="label is-small mb-1">Servizio</label>
-              <div class="control"><div class="select is-small is-fullwidth">
-                <select ?disabled=${formBusy || readOnly()}
-                  @change=${e => setField("servizio", e.target.value)}>
-                  <option value="" ?selected=${!norm(form.servizio)}>—</option>
-                  ${servizi.map(v => html`
-                    <option value=${v} ?selected=${norm(form.servizio) === v}>${v}</option>`)}
-                  ${norm(form.servizio) && !servizi.includes(norm(form.servizio))
-                    ? html`<option value=${norm(form.servizio)} selected>
-                             ${norm(form.servizio)} (fuori lista)
-                           </option>`
-                    : ""}
-                </select>
-              </div></div>
-            </div>
-            ${field("Turno", "turno", { width: "160px" })}
-          </div>
-        `)}
-
-        ${block("Periodo", "calendar-line", html`
-          <div class="is-flex" style="gap:.75rem;flex-wrap:wrap">
-            ${field("Registrazione", "data/ora-registrazione", { type: "datetime-local", width: "220px" })}
-            ${field("Uscita definitiva", "data/ora-uscita-definitiva", { type: "datetime-local", width: "220px" })}
-          </div>
-        `)}
-
         ${block("Note", "sticky-note-line", html`
           <div class="field">
             <div class="control">
@@ -847,14 +848,6 @@ export async function createTeamPanel({ client, html, rerender, embedded = false
           <input class="input is-small mb-2" type="text" placeholder="Cerca…"
             .value=${search} @input=${e => { search = e.target.value; rerender(); }} />
 
-          ${servizi.length ? html`
-            <div class="select is-small is-fullwidth mb-2">
-              <select @change=${e => { filtroServizio = e.target.value; rerender(); }}>
-                <option value="" ?selected=${filtroServizio === ""}>Tutti i servizi</option>
-                ${servizi.map(v => html`
-                  <option value=${v} ?selected=${filtroServizio === v}>${v}</option>`)}
-              </select>
-            </div>` : ""}
 
           <div class="is-flex" style="gap:.4rem">
             <button class="button is-small is-primary is-fullwidth"
@@ -924,10 +917,13 @@ export async function createTeamPanel({ client, html, rerender, embedded = false
   function corpo() {
     return html`
       ${error ? html`
-          <article class="message is-danger m-3">
+          <article class="message ${isSessionError(error) ? "is-warning" : "is-danger"} m-3">
             <div class="message-body">
               <p>${userFriendlyErrorText(error)}</p>
               <div class="buttons mt-2">
+                ${isSessionError(error)
+                  ? html`<a class="button is-primary is-small" href="cf_logout.php">Esci e rientra</a>`
+                  : ""}
                 <button class="button is-light is-small" ?disabled=${loading || retrying}
                   @click=${async () => { retrying = true; rerender(); await load(); }}>Riprova</button>
               </div>
@@ -990,7 +986,9 @@ export async function createTeamPanel({ client, html, rerender, embedded = false
 export async function TeamManager({ client, html, render, root }) {
   let panel;
   const rerender = () => render(panel.template(), root);
-  panel = await createTeamPanel({ client, html, rerender });
+  // ?squadra=<id> opens that team straight away (link from the availability timeline)
+  const openId = new URLSearchParams(window.location.search).get("squadra");
+  panel = await createTeamPanel({ client, html, rerender, openId });
   await panel.start();
   return panel.template();
 }

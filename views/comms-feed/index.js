@@ -12,6 +12,17 @@ const INCLUDE_MAT = ["id", "id-materiale", "codice-inventario", "tipologia",
                      "organizzazione", "squadra", "servizio",
                      "data-inizio-attestato", "data-fine-attestato"];
 
+// Session lost, as opposed to a permission refusal. Both are HTTP 403, so the
+// status alone cannot tell them apart: php-crud-api code 1011 is "Authentication
+// required" and 1012 "Authentication failed", while 1014 is "Operation
+// forbidden". See AGENTS.md §La sessione decaduta.
+const SESSIONE_NON_VALIDA =
+  "Sessione non più valida: probabilmente lo stesso utente è entrato da un altro browser o dispositivo. Esci e rifai l'accesso per riprendere da qui.";
+function isSessionError(e) {
+  const c = e?.payload?.code;
+  return c === 1011 || c === 1012;
+}
+
 function norm(v)     { return String(v ?? "").trim(); }
 function getRecords(res) {
   if (Array.isArray(res)) return res;
@@ -708,7 +719,22 @@ export async function CommsFeed({ client, html, render, root }) {
           style="flex:1;overflow-y:auto;padding:10px;
             border-right:1px solid #e5e7eb;box-sizing:border-box">
 
-          ${commsError ? html`
+          ${commsError ? (isSessionError(commsError) ? html`
+            <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:6px;
+              padding:10px;margin-bottom:8px;font-size:13px;color:#92400e">
+              <div style="display:flex;align-items:flex-start;gap:8px">
+                <i class="ri-error-warning-line"></i>
+                <span>${SESSIONE_NON_VALIDA}</span>
+              </div>
+              <div style="margin-top:8px;display:flex;align-items:center;gap:6px">
+                <a href="cf_logout.php"
+                  style="font-size:12px;padding:3px 10px;border-radius:4px;
+                    background:#2563eb;color:#fff;text-decoration:none">Esci e rientra</a>
+                <button style="font-size:12px;cursor:pointer"
+                  @click=${loadComms}>Riprova</button>
+              </div>
+            </div>
+          ` : html`
             <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;
               padding:10px;margin-bottom:8px;font-size:13px;color:#b91c1c;
               display:flex;align-items:center;gap:8px">
@@ -717,7 +743,7 @@ export async function CommsFeed({ client, html, render, root }) {
               <button style="font-size:12px;cursor:pointer;margin-left:6px"
                 @click=${loadComms}>Riprova</button>
             </div>
-          ` : ""}
+          `) : ""}
 
           ${newCount > 0 ? html`
             <div

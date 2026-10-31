@@ -3,6 +3,21 @@
 // Cache-busting dell'import dinamico: la query dell'entry point non si
 // propaga ai moduli importati dalla view (AGENTS.md §L'import deve essere dinamico).
 const VERSION = window.APP_CONFIG?.version || Date.now();
+// Session lost, as opposed to a permission refusal. Both are HTTP 403, so the
+// status alone cannot tell them apart: php-crud-api code 1011 is "Authentication
+// required" and 1012 "Authentication failed", while 1014 is "Operation
+// forbidden". See AGENTS.md §La sessione decaduta.
+const SESSIONE_NON_VALIDA =
+  "Sessione non più valida: probabilmente lo stesso utente è entrato da un altro browser o dispositivo. Esci e rifai l'accesso per riprendere da qui.";
+function isSessionError(e) {
+  const c = e?.payload?.code;
+  return c === 1011 || c === 1012;
+}
+function errorText(e) {
+  if (isSessionError(e)) return SESSIONE_NON_VALIDA;
+  return String(e?.payload?.message || e?.message || e || "Errore sconosciuto");
+}
+
 export async function Step2(props) {
   const { state, client, goTo, html, render, root } = props;
 
@@ -840,10 +855,13 @@ export async function Step2(props) {
 
           ${state.step2.error
             ? html`
-                <article class="message is-danger">
+                <article class="message ${isSessionError(state.step2.error) ? "is-warning" : "is-danger"}">
                   <div class="message-header"><p>Errore caricamento</p></div>
                   <div class="message-body">
-                    <p>${safeStr(state.step2.error?.message || state.step2.error)}</p>
+                    <p>${errorText(state.step2.error)}</p>
+                    ${isSessionError(state.step2.error)
+                      ? html`<a class="button is-primary mt-3" href="cf_logout.php">Esci e rientra</a>`
+                      : ""}
                   </div>
                 </article>
               `

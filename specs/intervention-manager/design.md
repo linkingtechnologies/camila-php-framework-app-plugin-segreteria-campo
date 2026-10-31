@@ -134,6 +134,7 @@ per la scelta del referente (§11).
 | `inizio` | Tempi | `YYYY-MM-DD HH:MM:SS` |
 | `fine` | Tempi | `YYYY-MM-DD HH:MM:SS` |
 | `squadre-attivate` | Squadre | stringa, valori separati da virgola |
+| `organizzazioni-attivate` | — | **derivata** da `squadre-attivate` al salvataggio, vedi §8b |
 | `operatori-a-supporto` | Squadre | |
 | `note` | Cronologia | testo libero multilinea |
 
@@ -192,7 +193,9 @@ client.table("servizi").create({
   "indirizzo-segnalante": "…", "telefono-segnalante": "…",
   indirizzo: "…", comune: "…", provincia: "CR",
   "data/ora-sopralluogo": "…", inizio: "…", fine: "…",
-  "squadre-attivate": "GC RIVOLTA, GC DOVERA",
+  "squadre-attivate": "GC RIVOLTA, IDRO 1",
+  // derivata, non digitata (§8b): IDRO 1 e' una squadra dichiarata di GC DOVERA
+  "organizzazioni-attivate": "GC DOVERA, GC RIVOLTA",
   "operatori-a-supporto": "…",
   note: "…"
 })
@@ -275,13 +278,57 @@ con i valori di `organizzazione` e non con quelli di `squadra`. Il raggruppament
 interno resta comunque offerto come secondo gruppo, perche' un intervento puo'
 attivare anche una squadra di campo.
 
-Caricamento con `Promise.allSettled` su sei liste (tre tabelle x due colonne): se
-una fallisce le altre restano utilizzabili.
+Caricamento con `Promise.allSettled` su sei liste (tre tabelle x due colonne,
+piu' `squadre-dichiarate`): se una fallisce le altre restano utilizzabili. Le tre
+letture della colonna `squadra` prendono **anche** `organizzazione` sulla stessa
+riga — una colonna in piu', nessuna chiamata in piu' — e costruiscono
+`orgDiSquadraRisorse`, cioe' nome squadra -> organizzazioni che la usano. Serve
+alla derivazione del paragrafo 8b: una squadra dedotta dalle risorse, a
+differenza di una dichiarata, non ha un campo `organizzazioni` proprio.
 
 `squadre-attivate` e' **una stringa**, non un array: valori separati da virgola e
 spazio. In lettura si fa lo split, in scrittura il join. Un valore presente nel
 record ma non piu' in nessuno dei due cataloghi resta mostrato, selezionato e
 marcato "fuori lista", come prescrive AGENTS.md per i valori fuori catalogo.
+
+## 8b. `organizzazioni-attivate`: derivata, non digitata
+
+La colonna esisteva sulla tabella e **non veniva ne' letta ne' scritta da
+nessuna SPA** — unico indizio, il valore `null` mentre ogni altro campo vuoto e'
+`""`. Ora `save()` la calcola da `squadre-attivate` e la scrive nello stesso
+`update`, cosi' le due colonne non possono divergere.
+
+`squadre-attivate` mescola tre tipi di nome in un elenco solo, e ognuno dice
+"quale organizzazione" a modo suo:
+
+| Nel campo c'e' | Come si risale all'organizzazione |
+|---|---|
+| un'organizzazione | e' gia' lei |
+| una squadra dichiarata | il campo `organizzazioni` di `squadre-dichiarate` (stessa convenzione a virgole) |
+| una squadra dedotta dalle risorse | le `organizzazione` delle risorse che portano quel nome squadra (`orgDiSquadraRisorse`) |
+
+Il risultato e' deduplicato, ordinato e unito con `", "`.
+
+**Un nome che non si riconosce in nessuno dei tre modi viene saltato.** Non e'
+un'organizzazione, e inventarne una sarebbe peggio che non scrivere nulla: resta
+comunque visibile e selezionato in `squadre-attivate`, marcato "fuori lista".
+
+`ORG_FIELD` sta in `FIELDS` — serve che il valore faccia il giro completo — ma
+**fuori da `EDITABLE`**, come `codice-intervento`: altrimenti il ciclo
+`payload[k] = norm(form[k]) || null` lo azzererebbe a ogni salvataggio. Per lo
+stesso motivo non entra nel dirty check, che e' corretto: a cambiare e' la
+colonna da cui deriva.
+
+Alla creazione non si scrive: la popup non ha `squadre-attivate`.
+
+**Si vede nella scheda**, sotto l'elenco delle squadre attivate, come etichette
+di sola lettura con il lucchetto sull'intestazione (`viewOrganizzazioniAttivate`).
+Mostra cio' che `save()` scrivera', calcolato dalla selezione **corrente** e non
+dal valore salvato: segue le caselle in tempo reale, e su un intervento mai
+risalvato non resta vuoto. Senza organizzazioni compare un trattino.
+
+Una squadra dichiarata il cui campo `organizzazioni` e' vuoto non contribuisce
+con niente: non c'e' nulla da dedurre.
 
 ## 9. Altre note tecniche
 

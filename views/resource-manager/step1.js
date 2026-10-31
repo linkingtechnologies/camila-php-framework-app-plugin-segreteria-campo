@@ -3,6 +3,23 @@
 // Cache-busting dell'import dinamico: la query dell'entry point non si
 // propaga ai moduli importati dalla view (AGENTS.md §L'import deve essere dinamico).
 const VERSION = window.APP_CONFIG?.version || Date.now();
+// Session lost, as opposed to a permission refusal. Both are HTTP 403, so the
+// status alone cannot tell them apart: php-crud-api code 1011 is "Authentication
+// required" and 1012 "Authentication failed", while 1014 is "Operation
+// forbidden". See AGENTS.md §La sessione decaduta.
+const SESSIONE_NON_VALIDA =
+  "Sessione non più valida: probabilmente lo stesso utente è entrato da un altro browser o dispositivo. Esci e rifai l'accesso per riprendere da qui.";
+function isSessionError(e) {
+  const c = e?.payload?.code;
+  return c === 1011 || c === 1012;
+}
+// Errors in this view travel as plain strings, so the session case is
+// recognised again at render time by comparing with the sentence itself.
+function errorText(e) {
+  if (isSessionError(e)) return SESSIONE_NON_VALIDA;
+  return String(e?.payload?.message || e?.message || e || "Errore sconosciuto");
+}
+
 export async function Step1(props) {
   const { state, client, goTo, html, render, root } = props;
 
@@ -1002,7 +1019,7 @@ export async function Step1(props) {
       state.step1.inlineEdit = null;
     } catch (e) {
       ie.saving = false;
-      ie.error = e?.message || String(e);
+      ie.error = errorText(e);
       state.step1.skipFetch = true;
     }
     await refresh();
@@ -1025,7 +1042,7 @@ export async function Step1(props) {
       state.step1.inlineEdit = null;
     } catch (e) {
       ie.saving = false;
-      ie.error = e?.message || String(e);
+      ie.error = errorText(e);
       state.step1.skipFetch = true;
     }
     await refresh();
@@ -1177,7 +1194,10 @@ export async function Step1(props) {
             @keydown=${onKeydown}
             @blur=${onBlur}
           />
-          ${ie.error ? html`<p class="help is-danger">${ie.error}</p>` : null}
+          ${ie.error ? html`<p class="help ${ie.error === SESSIONE_NON_VALIDA ? "is-warning" : "is-danger"}">${ie.error}${
+            ie.error === SESSIONE_NON_VALIDA
+              ? html` <a href="cf_logout.php">Esci e rientra</a>`
+              : ""}</p>` : null}
         </span>
       `;
     }
@@ -1275,7 +1295,10 @@ export async function Step1(props) {
                 </div>
               </div>
               ${tipologiaField}
-              ${ie.error ? html`<p class="help is-danger mb-2">${ie.error}</p>` : null}
+              ${ie.error ? html`<p class="help ${ie.error === SESSIONE_NON_VALIDA ? "is-warning" : "is-danger"} mb-2">${ie.error}${
+                ie.error === SESSIONE_NON_VALIDA
+                  ? html` <a href="cf_logout.php">Esci e rientra</a>`
+                  : ""}</p>` : null}
               <div class="buttons is-right mt-3" style="gap:.5rem">
                 <button class="button is-small" @click=${cancelInlineEdit}>Annulla</button>
                 <button

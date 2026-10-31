@@ -1,5 +1,16 @@
 ﻿// views/pre-accreditations-summary/index.js
 
+// Session lost, as opposed to a permission refusal. Both are HTTP 403, so the
+// status alone cannot tell them apart: php-crud-api code 1011 is "Authentication
+// required" and 1012 "Authentication failed", while 1014 is "Operation
+// forbidden". See AGENTS.md §La sessione decaduta.
+const SESSIONE_NON_VALIDA =
+  "Sessione non più valida: probabilmente lo stesso utente è entrato da un altro browser o dispositivo. Esci e rifai l'accesso per riprendere da qui.";
+function isSessionError(e) {
+  const c = e?.payload?.code;
+  return c === 1011 || c === 1012;
+}
+
 function norm(s) {
   return String(s ?? "").trim().replace(/\s+/g, " ");
 }
@@ -566,8 +577,11 @@ export async function PreAccreditationsSummary({ client, html, render, root }) {
   function confrontoView() {
     if (loadingConfronto) return html`<progress class="progress is-small"></progress>`;
     if (errorConfronto) return html`
-      <div class="notification is-danger is-light">
-        Errore caricamento dati operativi.
+      <div class="notification ${isSessionError(errorConfronto) ? "is-warning" : "is-danger"} is-light">
+        ${isSessionError(errorConfronto) ? SESSIONE_NON_VALIDA : "Errore caricamento dati operativi."}
+        ${isSessionError(errorConfronto)
+          ? html`<a class="button is-small is-primary ml-3" href="cf_logout.php">Esci e rientra</a>`
+          : ""}
         <button class="button is-small is-light ml-3"
           @click=${() => { confrontoLoaded = false; errorConfronto = null; loadConfronto(); }}>Riprova</button>
       </div>
@@ -613,9 +627,12 @@ export async function PreAccreditationsSummary({ client, html, render, root }) {
         ${loading ? html`<progress class="progress is-small mb-3"></progress>` : ""}
 
         ${error ? html`
-          <div class="notification is-danger is-light mb-3">
+          <div class="notification ${isSessionError(error) ? "is-warning" : "is-danger"} is-light mb-3">
             <button class="delete" @click=${() => { error = null; rerender(); }}></button>
-            Errore durante il caricamento dei dati.
+            ${isSessionError(error) ? SESSIONE_NON_VALIDA : "Errore durante il caricamento dei dati."}
+            ${isSessionError(error)
+              ? html`<a class="button is-small is-primary ml-3" href="cf_logout.php">Esci e rientra</a>`
+              : ""}
             <button class="button is-small is-light ml-3" @click=${load}>Riprova</button>
           </div>
         ` : ""}

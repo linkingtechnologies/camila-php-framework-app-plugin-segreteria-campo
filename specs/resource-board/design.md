@@ -243,7 +243,16 @@ groupBy === "squadra"
 - **`distinctSquadre`**: calcolato in `rebuildDerived()` dai dati già in memoria (nessuna chiamata API aggiuntiva), come `distinct` del campo `squadra` su tutte le risorse attive.
 - **Barra servizi**: sempre visibile sopra il kanban. I chip blu (attivi) sono anch'essi drop target (oltre alle colonne kanban): `dragover`/`dragleave`/`drop` reindirizzano al servizio corrispondente. I chip gialli (non assegnati) sono drop target attivi; appaiono solo dopo click sul bottone `+N ▼` (`showAvailable`) **oppure automaticamente durante un drag** (`dragPayload !== null`), così da rendere sempre raggiungibili i servizi non assegnati senza dover espandere prima.
 - **Toolbar a due righe**: la toolbar è divisa in due righe distinte. Riga 1: cerca, raggruppa per, filtro provincia, filtro organizzazione. Riga 2: contatore risorse (sx) + controlli navigazione kanban + pulsante Aggiorna (dx).
-- **Contatore risorse in toolbar**: la riga 2 della toolbar mostra tre contatori — `ri-user-line N · ri-truck-line N · ri-tools-line N` — calcolati sulle risorse filtrate (`allVolontari`, `allMezzi`, `allMateriali` dopo `rebuildDerived`). Il banner filtro attivo riporta lo stesso dettaglio per tipo accanto al totale.
+- **Contatore in toolbar**: la riga 2 della toolbar mostra tre contatori, e **cambiano con la vista**:
+
+  | Vista | Contatori | Calcolati su |
+  |---|---|---|
+  | Risorse registrate | `ri-user-line N · ri-truck-line N · ri-tools-line N` | `allVolontari`, `allMezzi`, `allMateriali` |
+  | Squadre dichiarate | `ri-group-line N · ri-user-line N · ri-truck-line N` | `allSquadreDich`: quante squadre, e la **somma** di `n-volontari` e `n-mezzi` |
+
+  Nella vista squadre il terzo numero non è `attrezzature`: su una squadra è testo libero, non un conteggio (vedi `specs/team-manager/design.md`), quindi quel posto tiene il numero di squadre. Senza questa distinzione il contatore mostrava le sole risorse registrate anche guardando le squadre, cioè `0 · 0 · 0` proprio negli eventi senza campo di ammassamento — dove le squadre dichiarate sono l'unica registrazione che esiste.
+
+  In entrambe le viste i contatori sommano **tutto il caricato**, non il filtrato: a dire quanto si sta vedendo è il banner del filtro attivo, che riporta il dettaglio per tipo accanto al totale delle risorse.
 - **Navigazione kanban**: la riga 2 della toolbar mostra, a destra del contatore, i controlli di scorrimento orizzontale: freccia `‹` (visibile solo se si è già scrollato), badge `+N →` (numero di colonne non visibili a destra, cliccabile per scrollare avanti), freccia `›` (visibile solo se c'è contenuto a destra). La visibilità è aggiornata da `attachKanbanScroll()` tramite scroll listener e ResizeObserver. Quando si è in fondo le frecce/badge scompaiono. Sul bordo destro del kanban è presente anche un gradient bianco (`::before`) e uno spacer fisso di 108px come ultima colonna flex per effetto "peek".
 - **Filtro org/provincia**: `filterOrg` e `filterProvincia` sono filtri client-side applicati in `rebuildDerived()`. I valori distinti (`distinctOrgs`, `distinctProvince`) sono calcolati sull'intero dataset (pre-filtro) per popolare i dropdown. Quando almeno un filtro è attivo compare un banner giallo con il contatore "stai vedendo X di Y (👤 N · 🚚 N · 🛠 N) risorse" e un pulsante ✕ per rimuovere il filtro.
 - **Modale cambio-risorsa**: ogni riga del dettaglio espanso porta un pulsante icona `ri-swap-line` che apre la modale `cambio-risorsa` per spostare quella singola risorsa senza trascinare. Il pulsante ha `@dragstart stopPropagation` per non interferire con il drag di riga.
@@ -262,7 +271,7 @@ In toolbar ci sono **due selettori**, non uno:
 
 | Controllo | Valori | Cosa decide |
 |---|---|---|
-| **Mostra** | Risorse registrate / Squadre dichiarate | *cosa* si sta guardando |
+| **Mostra** | Risorse registrate / Squadre dichiarate / Disponibilità nel tempo | *cosa* si sta guardando |
 | **Raggruppa** | Organizzazione / Squadra | *come* e' raggruppato |
 
 Il secondo **compare solo nella vista risorse**: nella vista squadre dichiarate
@@ -307,6 +316,15 @@ Il campo `card.squadra` contiene il record quando la scheda e' di questo tipo,
 | Cambio squadra | disponibile | **nascosto** — la squadra non ha un campo `squadra`, lo *e'* |
 | Movimento scritto | `VOLONTARIO` / `MEZZO` / `MATERIALE` | `SQUADRA DICHIARATA`, con le organizzazioni come `gruppo` |
 | Conteggi mostrati | risorse presenti | conteggi **dichiarati** |
+| Marcata come vuota | nessuna risorsa dentro | nessuna consistenza dichiarata |
+
+**Il tag rosso non e' lo stesso tag.** Una scheda squadra non contiene mai
+risorse registrate — `buildCards` tiene apposta separati i due insiemi — quindi
+`totalCount` e' sempre 0 e il "vuoto" delle schede normali compariva su *tutte*
+le squadre, comprese quelle che dichiarano venti persone. Su una squadra la
+condizione giusta e' `n-volontari + n-mezzi === 0`, e l'etichetta e' **nessuna
+consistenza**. `attrezzature` non entra nella somma: e' testo libero, non un
+conteggio.
 
 ### Filtri
 
@@ -324,8 +342,139 @@ il check-in — nelle emergenze senza campo di ammassamento non c'e' un arrivo d
 registrare — quindi le date di attestato possono restare vuote per sempre.
 Applicare lo stesso criterio le farebbe sparire tutte.
 
-Resta la sola esclusione di `servizio = "USCITA DEFINITIVA"`: una squadra chiusa
-non ha motivo di occupare la bacheca.
+**Nemmeno `USCITA DEFINITIVA` le esclude**, al contrario delle risorse
+registrate. Il motivo sta nel paragrafo qui sotto: per una squadra quella
+colonna non e' un archivio, e' l'unico posto dove l'uscita viene registrata.
+
+### La colonna di uscita, solo nella vista squadre
+
+Nella vista squadre dichiarate `USCITA DEFINITIVA` e' **sempre** una colonna:
+`rebuildDerived()` la aggiunge ad `activeServices` e la toglie da
+`availableServices`.
+
+**Ovunque compaia e' l'ultima a destra.** Lo spostamento in coda e' un passo a
+se', fuori dal ramo della vista: non e' una proprieta' della vista squadre ma
+della colonna, che e' il punto da cui si esce dalla bacheca. In mezzo a due
+servizi attivi sarebbe un bersaglio di drag come gli altri. L'ordine vale anche
+per i chip della barra servizi, che scorrono la stessa lista.
+
+Serve perche' una squadra **non passa dal check-out massivo** — quel flusso
+lavora su `volontari`, `mezzi` e `materiali` — e da quando la scheda
+dell'anagrafica non espone piu' `servizio` (vedi `specs/team-manager/design.md`),
+trascinarla in quella colonna e' l'unico modo di segnare che se n'e' andata.
+
+**Nella vista risorse la colonna non va aggiunta.** Li' l'uscita la fa il
+check-out, che oltre al servizio scrive `data-fine-attestato`,
+`data/ora-uscita-definitiva` e il movimento: un drag scriverebbe solo il
+servizio, lasciando la risorsa a meta' strada.
+
+Conseguenza sui contatori di testata: le squadre a `USCITA DEFINITIVA` restano
+caricate e visibili nella loro colonna, ma **non entrano nei totali** — sarebbe
+gente che non c'e' piu'. Il contatore lavora su `squadreInCampo`.
+
+### La finestra di disponibilita' sulla card
+
+Una card squadra mostra, sotto le organizzazioni, la finestra dichiarata nei
+campi `inizio-disponibilita` e `fine-disponibilita`, con l'icona calendario:
+
+| Campi valorizzati | Testo |
+|---|---|
+| entrambi | `31/10 08:00 → 02/11 20:00` |
+| solo inizio | `dal 31/10 08:00` |
+| solo fine | `fino al 02/11 20:00` |
+| nessuno | la riga non compare |
+
+Il formato lo produce `fmtDisponibilita()` di `timeline.js`, che e' anche il
+punto in cui si leggono le date: la card e la linea temporale non possono quindi
+dire cose diverse. Una data **senza ora** vale la giornata intera: come inizio
+e' la mezzanotte, come fine e' l'ultimo secondo del giorno, altrimenti l'ultimo
+giorno verrebbe tagliato.
+
+I due campi sono nell'`include` del caricamento di `squadre-dichiarate`.
+
+### La vista "Disponibilita' nel tempo"
+
+Terza voce di **Mostra**: `vista === "disponibilita"`. E' una vista **di sola
+lettura** sugli stessi dati delle squadre dichiarate, disegnati su una linea
+temporale invece che per servizio. Non si trascina niente.
+
+**Il codice sta in `views/resource-board/timeline.js`**, non in `index.js`: il
+file della bacheca ha gia' piu' di millecinquecento righe. Segue il contratto dei
+moduli condivisi di AGENTS.md — esporta `createTimeline({ html, rerender })`,
+che non renderizza da se' e restituisce `{ template, setZoom }` — e si importa
+**dinamicamente con la versione in coda**, perche' la query dell'entry point non
+si propaga ai moduli importati.
+
+```js
+const timelineMod = await import(`./timeline.js?v=${VERSION}`);
+const timeline = timelineMod.createTimeline({ html, rerender });
+// ...
+timeline.template({ squadre: squadreForTimeline() })
+```
+
+**Cosa viene disegnato.** Una riga per squadra, ordinate per inizio (chi e'
+disponibile "da sempre" — ha solo la fine — per prime). La barra va da
+`inizio-disponibilita` a `fine-disponibilita`:
+
+| Caso | Resa |
+|---|---|
+| inizio e fine | barra piena |
+| solo inizio | barra fino al bordo destro, con `›` |
+| solo fine | barra dal bordo sinistro, con `‹` |
+| nessuna data | **non c'e' barra**: la squadra sta nell'elenco *Senza finestra di disponibilita'* sotto la griglia |
+| fine prima dell'inizio | **non si disegna**: sta nell'elenco *Date incoerenti*, perche' una barra invertita direbbe una cosa falsa |
+
+Colore per stato rispetto ad **adesso**: verde *in corso*, blu *da iniziare*,
+grigio *terminata*. Una linea rossa verticale segna l'ora corrente. Passando
+col mouse su una barra, il `title` riporta nome, organizzazioni, finestra e
+consistenza dichiarata.
+
+**Quali squadre.** Quelle gia' filtrate per organizzazione (`squadreFiltered`,
+calcolato da `rebuildDerived()`), piu' la casella di ricerca su nome e
+organizzazioni. **Sono escluse** quelle a `USCITA DEFINITIVA`: una squadra uscita
+non e' piu' disponibile, e resterebbe una barra verde su chi se n'e' andato. Il
+filtro per provincia svuota la vista, come nella vista squadre: le squadre non
+hanno provincia.
+
+**Asse.** Va dal primo giorno che compare in una data (o in "adesso") alla fine
+dell'ultimo, in giorni interi. Le posizioni sono **percentuali** della durata
+totale, quindi lo stesso markup vale a ogni zoom: cambia solo la larghezza della
+traccia.
+
+| Zoom | Larghezza della traccia | Tacche |
+|---|---|---|
+| Tutto | 100% del contenitore (minimo 600px) | un'etichetta ogni N giorni, in modo che non si sovrappongano |
+| Settimana | 140px per giorno | giorni |
+| 3 giorni | 320px per giorno | giorni |
+| Giorno | 900px per giorno | giorni, piu' tacche ogni 6 ore con l'etichetta oraria |
+
+La colonna delle squadre e l'intestazione dell'asse sono **appiccicose**
+(`position:sticky`): a zoom alto la griglia scorre in orizzontale e le etichette
+restano. Anche l'etichetta del giorno si attacca al bordo sinistro dentro la
+propria cella, cosi' a zoom "Giorno" si legge sempre di che giorno si tratta
+anche quando la tacca di mezzanotte e' fuori schermo. Per quell'offset `left`
+vale `240px + 4px`: gli offset sticky si misurano dal contenitore che scorre.
+
+**Dall'elenco alla squadra.** Nei due elenchi sotto la griglia ogni squadra con un
+`id` e' un collegamento a `?dashboard=team-manager&squadra=<id>`, in una **nuova
+scheda**: la linea temporale conserva zoom e posizione di scorrimento, e al
+ritorno basta ricaricare per vedere la finestra appena impostata. Una squadra
+senza `id` resta un'etichetta semplice. Si crea da dove serve e si gestisce dove
+appartiene: la modifica non e' duplicata qui.
+
+**Le guide verticali** stanno in **un solo strato** per tutta la griglia, non una
+per cella: sono i giorni (e le 6 ore), non righe x giorni.
+
+**Differenze rispetto alle altre due viste.**
+
+* niente barra servizi, niente kanban, niente drag & drop;
+* i pulsanti di scorrimento del kanban nella riga 2 sono nascosti;
+* i contatori di testata sono quelli delle squadre, come nella vista squadre;
+* il banner del filtro attivo conta **squadre**, non risorse.
+
+**Gli stili stanno nel template** del modulo, in un `<style>`, senza
+interpolazioni: i due valori numerici condivisi con il JS (`240px` e `34px`)
+sono ripetuti come letterali, e `LABEL_W`/`HEAD_H` lo ricordano in un commento.
 
 ### Tabella assente
 

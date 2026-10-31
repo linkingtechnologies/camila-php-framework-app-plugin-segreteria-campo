@@ -60,10 +60,21 @@ function normalizeApiError(err) {
   return { status, code, message, kind, raw };
 }
 
+// Session lost, as opposed to a permission refusal. Both are HTTP 403, so the
+// status alone cannot tell them apart: php-crud-api code 1011 is "Authentication
+// required" and 1012 "Authentication failed", while 1014 is "Operation
+// forbidden". Here `e` is the NORMALIZED error (normalizeApiError), which
+// already carries `code`. See AGENTS.md §La sessione decaduta.
+function isSessionError(e) {
+  return e?.code === 1011 || e?.code === 1012;
+}
+
 function userFriendlyErrorText(e) {
   switch (e.kind) {
     case "auth":
-      return "Sessione non più valida: probabilmente lo stesso utente è entrato da un altro browser o dispositivo. Esci e rifai l'accesso per riprendere da qui.";
+      return (e.code === 1011 || e.code === 1012
+        ? "Sessione non più valida: probabilmente lo stesso utente è entrato da un altro browser o dispositivo. Esci e rifai l'accesso per riprendere da qui."
+        : "Permessi insufficienti per questa operazione.");
     case "rate_limit":
       return "Troppe richieste in poco tempo. Attendi qualche secondo e riprova.";
     case "timeout":
@@ -445,11 +456,14 @@ export async function Step1({ state, client, goTo, html, render, root }) {
 
         ${error
           ? html`
-              <article class="message is-danger">
+              <article class="message ${isSessionError(error) ? "is-warning" : "is-danger"}">
                 <div class="message-body">
                   <p>${userFriendlyErrorText(error)}</p>
 
                   <div class="buttons mt-2">
+                ${isSessionError(error)
+                  ? html`<a class="button is-primary is-small" href="cf_logout.php">Esci e rientra</a>`
+                  : ""}
                     <button
                       class="button is-light"
                       ?disabled=${loading || retrying}

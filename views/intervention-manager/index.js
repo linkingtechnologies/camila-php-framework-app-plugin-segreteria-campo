@@ -43,7 +43,7 @@ const FIELDS = [
   "cognome-referente", "nome-referente", "telefono-referente",
   "indirizzo", "comune", "provincia",
   "data/ora-sopralluogo", "inizio", "fine",
-  "squadre-attivate", "operatori-a-supporto", "note",
+  "squadre-attivate", "organizzazioni-attivate", "operatori-a-supporto", "note",
   // campi di catalogo: alimentano la mappa e l'ordinamento, condivisi con
   // service-manager (vedi specs/service-manager/design.md §Divisione dei ruoli)
   "ordine", "lettera", "colore", "latitudine", "longitudine"
@@ -69,8 +69,14 @@ const LETTERE = [
 // Campi scrivibili dalla scheda. Fuori `id`, `intervento` e il codice:
 // il codice lo assegna il sistema e `save()` non deve toccarlo.
 const CODE_FIELD = "codice-intervento";
+
+// Derivato da `squadre-attivate` al salvataggio, mai digitato: fuori da
+// EDITABLE, altrimenti il ciclo `payload[k] = norm(form[k]) || null` lo
+// azzererebbe a ogni salvataggio (AGENTS.md §I file in tables/xls).
+const ORG_FIELD = "organizzazioni-attivate";
+
 const EDITABLE = FIELDS.filter(f =>
-  f !== "id" && f !== "intervento" && f !== CODE_FIELD);
+  f !== "id" && f !== "intervento" && f !== CODE_FIELD && f !== ORG_FIELD);
 
 // Vocabolario di `servizi.stato`, letto dalle sue listbox_options
 // (views/shared/vocabularies.js). La colonna dichiara un primo valore vuoto,
@@ -133,9 +139,20 @@ function normalizeApiError(err) {
   return { status, code, message, kind, raw };
 }
 
+// Session lost, as opposed to a permission refusal. Both are HTTP 403, so the
+// status alone cannot tell them apart: php-crud-api code 1011 is "Authentication
+// required" and 1012 "Authentication failed", while 1014 is "Operation
+// forbidden". Here `e` is the NORMALIZED error (normalizeApiError), which
+// already carries `code`. See AGENTS.md §La sessione decaduta.
+function isSessionError(e) {
+  return e?.code === 1011 || e?.code === 1012;
+}
+
 function userFriendlyErrorText(e) {
   switch (e.kind) {
-    case "auth":       return "Sessione non più valida: probabilmente lo stesso utente è entrato da un altro browser o dispositivo. Esci e rifai l'accesso per riprendere da qui.";
+    case "auth":       return (e.code === 1011 || e.code === 1012
+        ? "Sessione non più valida: probabilmente lo stesso utente è entrato da un altro browser o dispositivo. Esci e rifai l'accesso per riprendere da qui."
+        : "Permessi insufficienti per questa operazione.");
     case "rate_limit": return "Troppe richieste. Attendi e riprova.";
     case "timeout":
     case "network":    return "Problema di connessione. Controlla la rete.";
@@ -304,6 +321,8 @@ export async function InterventionManager({ client, html, render, root }) {
   let squadreDichiarate = [];
   // nome squadra -> organizzazioni, serve come `gruppo` sul movimento
   const orgDiSquadra = {};
+  // nome squadra dedotta dalle risorse -> Set delle organizzazioni che la usano
+  const orgDiSquadraRisorse = {};
 
   // note brogliaccio agganciate all'intervento tramite il campo `servizio`
   let brogRecords = [];
@@ -640,13 +659,30 @@ export async function InterventionManager({ client, html, render, root }) {
       const res = await client.table(table).list({ include: [col], size: 5000 });
       return getRecords(res).map(r => norm(r[col])).filter(Boolean);
     };
+
+    // Come `pick(table, "squadra")`, ma legge anche l'organizzazione della
+    // riga: e' da li' che si sa a quali organizzazioni appartiene una squadra
+    // dedotta dalle risorse, che a differenza di una squadra dichiarata non ha
+    // un campo `organizzazioni` suo. Stessa chiamata di prima, una colonna in
+    // piu'.
+    const pickSquadre = async (table) => {
+      const res = await client.table(table).list({
+        include: ["squadra", "organizzazione"], size: 5000
+      });
+      const righe = getRecords(res);
+      for (const r of righe) {
+        const sq = norm(r.squadra), org = norm(r.organizzazione);
+        if (sq && org) (orgDiSquadraRisorse[sq] ||= new Set()).add(org);
+      }
+      return righe.map(r => norm(r.squadra)).filter(Boolean);
+    };
     const results = await Promise.allSettled([
       pick("volontari", "organizzazione"),
       pick("mezzi", "organizzazione"),
       pick("materiali", "organizzazione"),
-      pick("volontari", "squadra"),
-      pick("mezzi", "squadra"),
-      pick("materiali", "squadra"),
+      pickSquadre("volontari"),
+      pickSquadre("mezzi"),
+      pickSquadre("materiali"),
       // squadre dichiarate: se la tabella non esiste ancora,
       // allSettled lascia passare il resto
       (async () => {
@@ -876,6 +912,39 @@ export async function InterventionManager({ client, html, render, root }) {
     rerender();
   }
 
+  // Organizzazioni attivate su un intervento, dedotte da `squadre-attivate`.
+  //
+  // Quella colonna tiene un elenco solo, separato da virgole, che mescola tre
+  // tipi di nome: un'organizzazione scelta direttamente, una squadra
+  // dichiarata, oppure un'etichetta di raggruppamento letta dalle risorse
+  // registrate. Ognuno dei tre dice "quale organizzazione" a modo suo, e qui
+  // si riconducono tutti allo stesso elenco.
+  //
+  // Un nome che non si riconosce in nessuno dei tre modi viene saltato: non e'
+  // un'organizzazione, e inventarne una sarebbe peggio che non scriverla.
+  function organizzazioniAttivate(squadreCsv) {
+    const noteOrg = new Set(organizzazioni);
+    const out = new Set();
+
+    for (const nome of splitSquadre(squadreCsv)) {
+      if (noteOrg.has(nome)) {            // e' gia' un'organizzazione
+        out.add(nome);
+        continue;
+      }
+      const dichiarata = orgDiSquadra[nome];   // squadra dichiarata: ha il campo suo
+      if (dichiarata) {
+        // `squadre-dichiarate.organizzazioni` usa la stessa convenzione a
+        // virgole di `squadre-attivate`, quindi si spezza allo stesso modo.
+        for (const o of splitSquadre(dichiarata)) out.add(o);
+        continue;
+      }
+      const daRisorse = orgDiSquadraRisorse[nome];  // dedotta dalle risorse
+      if (daRisorse) for (const o of daRisorse) out.add(o);
+    }
+
+    return Array.from(out).sort((a, b) => a.localeCompare(b, "it")).join(", ");
+  }
+
   function toggleSquadra(nome) {
     const cur = splitSquadre(form["squadre-attivate"]);
     const i = cur.indexOf(nome);
@@ -927,6 +996,10 @@ export async function InterventionManager({ client, html, render, root }) {
       const payload = {};
       for (const k of EDITABLE) payload[k] = norm(form[k]) || null;
       if (payload.ordine !== null) payload.ordine = parseInt(payload.ordine, 10) || null;
+
+      // Derivata, non digitata: si riscrive insieme alle squadre da cui nasce,
+      // cosi' le due colonne non possono divergere.
+      payload[ORG_FIELD] = organizzazioniAttivate(form["squadre-attivate"]) || null;
 
       // la creazione avviene solo dalla popup: qui si aggiorna e basta
       const squadrePrima = baseForm["squadre-attivate"];
@@ -1122,6 +1195,25 @@ export async function InterventionManager({ client, html, render, root }) {
           ${title}
         </p>
         ${body}
+      </div>
+    `;
+  }
+
+  // Read-only: shows what save() will write to `organizzazioni-attivate`,
+  // computed from the current selection so it follows the checkboxes live.
+  function viewOrganizzazioniAttivate() {
+    const orgs = splitSquadre(organizzazioniAttivate(form["squadre-attivate"]));
+    return html`
+      <div class="mt-3">
+        <label class="label is-small mb-1">
+          Organizzazioni attivate
+          <span class="icon is-small has-text-grey"><i class="ri-lock-line"></i></span>
+        </label>
+        ${orgs.length
+          ? html`<div class="tags">
+              ${orgs.map(o => html`<span class="tag is-light">${o}</span>`)}
+            </div>`
+          : html`<span class="is-size-7 has-text-grey">—</span>`}
       </div>
     `;
   }
@@ -1850,9 +1942,8 @@ export async function InterventionManager({ client, html, render, root }) {
               <div class="select is-small is-fullwidth">
                 <select ?disabled=${formBusy || readOnly()}
                   @change=${e => setField("stato", e.target.value)}>
-                  <option value="" ?selected=${!norm(form.stato)}>
-                    Dedotto da inizio e fine
-                  </option>
+                  <!-- Empty value: no explicit state, so statoOf() derives one -->
+                  <option value="" ?selected=${!norm(form.stato)}>Non impostato</option>
                   ${STATI.map(v => html`
                     <option value=${v} ?selected=${norm(form.stato) === v}>${v}</option>
                   `)}
@@ -1909,6 +2000,7 @@ export async function InterventionManager({ client, html, render, root }) {
             <div style="min-width:0;flex:1">
               <label class="label is-small mb-1">Squadre attivate</label>
               ${viewSquadre()}
+              ${viewOrganizzazioniAttivate()}
             </div>
             <div style="width:260px">
               ${field("Operatori a supporto", "operatori-a-supporto")}
@@ -2132,10 +2224,13 @@ export async function InterventionManager({ client, html, render, root }) {
         </div>
 
         ${error ? html`
-          <article class="message is-danger m-3">
+          <article class="message ${isSessionError(error) ? "is-warning" : "is-danger"} m-3">
             <div class="message-body">
               <p>${userFriendlyErrorText(error)}</p>
               <div class="buttons mt-2">
+                ${isSessionError(error)
+                  ? html`<a class="button is-primary is-small" href="cf_logout.php">Esci e rientra</a>`
+                  : ""}
                 <button class="button is-light is-small" ?disabled=${loading || retrying}
                   @click=${async () => { retrying = true; rerender(); await load(); }}>
                   Riprova

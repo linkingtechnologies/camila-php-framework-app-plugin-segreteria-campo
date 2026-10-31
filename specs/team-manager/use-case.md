@@ -74,10 +74,19 @@ In più `servizio` — che per convenzione dice dov'è la squadra adesso, inclus
 `USCITA DEFINITIVA` — non entrava affatto nel calcolo.
 
 Le due colonne sono poi state rimosse dalla tabella: non esistono più né come
-campi della scheda né nelle query. Di una squadra dichiarata restano
-`data/ora-registrazione` e `data/ora-uscita-definitiva`, che dicono quando è
-stata presa in carico e quando è uscita — senza bisogno di un attestato, che una
-squadra senza nominativi non può produrre.
+campi della scheda né nelle query.
+
+Il servizio su cui la squadra si trova resta visibile nell'elenco, nel filtro e
+nella ricerca, ma **non si modifica da qui**: lo assegna Movimentazione risorse,
+che è la SPA a cui quel dato appartiene.
+
+Stessa sorte, più tardi, per `data/ora-registrazione` e
+`data/ora-uscita-definitiva`: anche quelle non ci sono più, e il blocco Periodo
+della scheda è stato tolto. Di quando una squadra è stata presa in carico non
+resta quindi traccia: a dire dov'è adesso è `servizio`, inclusa la convenzione
+`USCITA DEFINITIVA`. Al loro posto la scheda ha il blocco **Disponibilità**, con
+`inizio-disponibilita` e `fine-disponibilita`: non quando la squadra è stata
+presa in carico, ma la finestra in cui si è dichiarata disponibile.
 
 ## Main Success Scenario
 
@@ -85,9 +94,10 @@ squadra senza nominativi non può produrre.
 
 1. L'operatore apre Gestione interventi e passa alla vista Squadre.
 2. Il sistema carica le squadre e le mostra in elenco con nome, organizzazioni,
-   consistenza e stato.
-3. L'operatore può restringere l'elenco con la ricerca testuale o con i filtri
-   di stato e servizio.
+   consistenza, servizio e confronto con i nominativi registrati.
+3. L'operatore può restringere l'elenco con la ricerca testuale, che confronta
+   nome, organizzazioni, referente, servizio e mansione prevalente. Non ci sono
+   filtri a tendina.
 4. In testa all'elenco il sistema mostra i totali delle squadre filtrate:
    quante squadre, quante persone, quanti mezzi, quante attrezzature.
 
@@ -98,8 +108,8 @@ squadra senza nominativi non può produrre.
    numero di volontari e mezzi.
 3. L'operatore inserisce almeno il nome, che è obbligatorio, e conferma.
 4. Il sistema crea il record e apre la scheda completa sulla squadra creata.
-5. L'operatore completa la scheda con mansione prevalente, caposquadra, servizio
-   e periodo.
+5. L'operatore completa la scheda con mansione prevalente, referente,
+   disponibilità, attrezzature e note.
 
 ### Modifica
 
@@ -144,9 +154,10 @@ indica quante risorse la stanno usando, per categoria.
 
 ## Fuori ambito, per ora
 
-- **Check-in e check-out massivi.** Le squadre non compaiono nei flussi massivi:
-  le date si compilano a mano sulla scheda. I campi
-  `data/ora-registrazione` e `data/ora-uscita-definitiva` esistono comunque, così
-  l'integrazione futura non richiederà di modificare la tabella.
+- **Check-in e check-out massivi.** Le squadre non compaiono nei flussi massivi.
+  Nemmeno a mano: le colonne con le date di presa in carico e di uscita non
+  esistono più sulla tabella, e `inizio-disponibilita` / `fine-disponibilita`
+  dicono un'altra cosa — quando la squadra è disponibile, non quando è arrivata.
+  Un'integrazione futura dovrebbe prima rimettere le colonne.
 - **`org-status` e report.** Le squadre non sono conteggiate nella dashboard per
   organizzazione né nei report: vedere `design.md` §Agganci mancanti.
