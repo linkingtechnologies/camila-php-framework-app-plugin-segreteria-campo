@@ -89,10 +89,11 @@ Operatore di segreteria campo
 2. I volontari già presenti mostrano stato `Già presente` e sono in sola lettura.
 3. Per i volontari da inserire, l'operatore può modificare per ciascuno: mansione, servizio, responsabile (SI/NO), autista (SI/NO), cellulare, benefici di legge (SI/NO), numero giorni benefici.
 4. Il campo servizio è popolato dalla tabella `servizi`; se il caricamento fallisce, viene usato solo il default `IN ATTESA DI SERVIZIO`.
-5. L'operatore clicca **Inserisci volontari**: il sistema inserisce uno per uno i record pendenti nella tabella `volontari`, aggiornando lo stato di ogni riga in tempo reale.
-6. I record falliti possono essere ritentati con **Riprova solo quelli in errore**.
-7. Quando tutti i record sono in stato `inserted` o `exists`, il pulsante **Check-in mezzi** diventa abilitato.
-8. L'operatore avanza allo Step 4.
+5. In alternativa alla modifica riga per riga, sopra la tabella l'operatore sceglie una mansione e/o un servizio e clicca **Applica a N**: il valore **sovrascrive** quello di tutte le N righe ancora inseribili (stato `pending` o `failed`; le righe `exists` e `inserted` restano escluse). Dopo l'applicazione ogni riga resta modificabile singolarmente.
+6. L'operatore clicca **Inserisci volontari**: il sistema inserisce uno per uno i record pendenti nella tabella `volontari`, aggiornando lo stato di ogni riga in tempo reale.
+7. I record falliti possono essere ritentati con **Riprova solo quelli in errore**.
+8. Quando tutti i record sono in stato `inserted` o `exists`, il pulsante **Check-in mezzi** diventa abilitato.
+9. L'operatore avanza allo Step 4.
 
 ### Step 4 — Selezione mezzi
 

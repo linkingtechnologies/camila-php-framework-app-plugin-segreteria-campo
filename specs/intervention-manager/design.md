@@ -551,6 +551,13 @@ appartiene.
 
 ## 16. Movimentazione delle squadre attivate
 
+**Non e' l'unico punto che aggiunge squadre.** Anche `resource-board`, quando una
+squadra dichiarata viene spostata su questo intervento, la aggiunge a
+`squadre-attivate` e unisce le sue organizzazioni a `organizzazioni-attivate`
+(vedi `specs/resource-board/design.md` §Squadra dichiarata su un intervento). In
+quel caso il movimento lo ha gia' scritto il kanban: qui la squadra non risulta
+aggiunta rispetto al valore salvato, quindi non nasce una seconda riga.
+
 Al salvataggio dell'intervento, ogni squadra **aggiunta** a `squadre-attivate`
 rispetto al valore precedente produce una riga in `mov-risorse`:
 

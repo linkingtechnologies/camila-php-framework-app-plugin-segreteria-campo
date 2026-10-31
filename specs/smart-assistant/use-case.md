@@ -74,7 +74,7 @@ La soglia è configurabile tramite la costante `BROGLIACCIO_ALERT_HOURS` (defaul
 3. **Caso B — `value === "Ornate"` (valore predefinito):** il sistema mostra una card con:
    - Titolo: "Evento non configurato."
    - Descrizione: il nome del comune è ancora al valore predefinito
-   - CTA → `?dashboard=m2` (Configura evento, icona `ri-calendar-line`)
+   - CTA → `?dashboard=05` (Configura evento, icona `ri-calendar-line`): porta dritto alla pagina "Informazioni intervento", non alla tab CONFIGURAZIONE
 4. **Caso C — Errore endpoint:** la chiamata è silenziosa (`.catch(() => null)`); `comuneUnconfigured` resta `false`.
 
 Il valore sentinella è configurabile tramite la costante `COMUNE_DEFAULT_VALUE` (default: `"Ornate"`).

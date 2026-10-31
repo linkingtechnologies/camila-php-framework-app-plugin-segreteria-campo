@@ -15,7 +15,7 @@ caricamento; ognuno che risulti positivo produce una card di suggerimento.
 Home (views/smart-assistant/home.js)
   ├── header collassabile  ("Assistente intelligente" + badge N)
   ├── card: brogliaccio fermo da oltre 2 ore   → apre modale inserimento
-  ├── card: evento non configurato             → link a ?dashboard=m2
+  ├── card: evento non configurato             → link a ?dashboard=05
   ├── card: nessun servizio in tabella         → link a ?dashboard=iw / service-manager
   └── modale: inserimento messaggio brogliaccio
 ```

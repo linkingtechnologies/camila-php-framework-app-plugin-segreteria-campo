@@ -204,7 +204,7 @@ export async function Home({ client, html, render, root }) {
                     </p>
                   </div>
                   <div class="media-right">
-                    <a href="./index.php?dashboard=m2" class="button is-primary is-light is-small">
+                    <a href="./index.php?dashboard=05" class="button is-primary is-light is-small">
                       <span class="icon"><i class="ri-calendar-line"></i></span>
                       <span>Configura evento</span>
                     </a>

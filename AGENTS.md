@@ -280,6 +280,15 @@ html`<select @change=${e => onChange(e.target.value)}>
 
 Questa regola si applica a tutti i `<select>` il cui valore o le cui opzioni dipendono da stato asincrono (servizi, mansioni, turni, categorie, ecc.).
 
+**Eccezioni note**: due `<select>` con opzioni **statiche** usano ancora `.value`
+e funzionano, perche' le opzioni sono gia' nel template quando lit-html applica
+il valore: la tendina SI/NO di `massive-check-out/step2.js` (`siNoSelect`) e
+quella "Per pagina" di `resource-manager/step1.js`. Il limite e' che lit-html
+confronta con l'ultimo valore *applicato*, non con quello mostrato: un reset
+dello stato verso quel valore, senza passare da uno diverso, lascerebbe la
+tendina sulla scelta dell'utente. Se si aggiunge un reset o si rendono dinamiche
+le opzioni, passare a `?selected`.
+
 ## Styling
 
 Use:
@@ -313,6 +322,11 @@ nel sorgente: in un wizard e' il box di testata di ciascuno step. La regola sta
 in `dashboard.css` perche' serve anche ai box emessi da `openBox()` nelle
 dashboard PHP, che sono fratelli di `#app` e non discendenti — per questo il
 selettore e' `#app .spa-title-box, .box.spa-title-box`.
+
+**Eccezione**: `comms-feed`, `requests-board` e `smart-assistant` non hanno un
+box di testata (usano un layout a flusso o a `card`), quindi non portano la
+classe. Non e' una dimenticanza: la regola vale solo dove c'e' un box da
+saldare alla tab bar.
 
 ### Gerarchia dei pulsanti nelle dashboard PHP
 
@@ -378,7 +392,7 @@ Due classi sui box governano l'aspetto dei secondari:
 | Classe | Resa | Dove |
 |---|---|---|
 | `sc-home` | tonale azzurro | box operativi |
-| `sc-home-quiet` | grigio tenue | box di consultazione (anagrafiche, elenchi) |
+| `sc-home-quiet` | grigio tenue | box di sola consultazione; oggi nessun box della home la usa (Anagrafiche resta `sc-home`) |
 
 `openBox()` non accetta classi: il box si emette con `add_raw()`, come in
 `dashboard_m0.inc.php`.
@@ -656,9 +670,25 @@ $camilaUI->insertButton('?dashboard=<id>', 'Etichetta visibile', 'icona-remix');
 L'ultimo argomento è un nome di icona Remix **senza** prefisso `ri-` e senza suffisso
 (`login-box`, `file-list-3`, `route`, `inbox`, …).
 
+## Eccezioni al wiring standard
+
+Due SPA non seguono i quattro innesti:
+
+* **Smart Assistant** non ha `.inc.php`, `dashboard_*` ne' voce in `menu.xml`:
+  `dashboard_m0.inc.php` la monta direttamente con
+  `mountMiniApp($pluginName, '/app-smart-assistant.js', '/app.css')`, perche'
+  vive nella home e non ha una pagina propria.
+* **Worktable Explorer** ha il pulsante in `dashboard_m2.inc.php` (tab
+  CONFIGURAZIONE), non in `m0`, e punta con
+  `?dashboard=worktable--worktable-explorer` all'explorer del plugin fratello
+  `worktable`. Il `worktable-explorer.inc.php` di questo plugin e la voce in
+  `menu.xml` esistono ma nessun pulsante li raggiunge.
+
 ## Modalità totem
 
-`dashboards.inc.php` e `dashboard_m0.inc.php` riconoscono l'utente totem con:
+`dashboard_m0.inc.php` riconosce l'utente totem con (la soppressione del menu
+di navigazione sta invece nel dispatcher condiviso `plugin_dashboards.inc.php`,
+non in `dashboards.inc.php`):
 
 ```php
 $_isTotemUser = strncasecmp($_CAMILA['user'] ?? '', 'totem', 5) === 0;

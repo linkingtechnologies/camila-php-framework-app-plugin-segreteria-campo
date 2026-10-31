@@ -106,6 +106,28 @@ $camilaUI->addGridSection(3, function ($colIndex) use ($camilaUI) {
 });
 $camilaUI->closeBox();
 
+else:
+
+// Totem/kiosk user: only the three SPAs that have a ?totem=1 mode, in the order
+// of the arrival -> monitoring -> departure workflow. The tab bar is already
+// suppressed for these users by the shared dispatcher (plugin_dashboards.inc.php).
+$camilaUI = new CamilaUserInterface();
+$_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="box spa-title-box sc-home">'));
+$camilaUI->insertTitle('Totem', 'qr-scan-2');
+$camilaUI->addGridSection(3, function ($colIndex) use ($camilaUI) {
+	switch ($colIndex) {
+		case 0:
+			$camilaUI->insertButton('?dashboard=massive-check-in&totem=1', 'Check-in', 'login-box');
+			break;
+		case 1:
+			$camilaUI->insertSecondaryButton('?dashboard=org-status&totem=1', 'Stato registrazione', 'file-list-3');
+			break;
+		case 2:
+			$camilaUI->insertButton('?dashboard=massive-check-out&totem=1', 'Check-out', 'logout-box');
+			break;
+	}
+});
+$camilaUI->closeBox();
 
 endif;
 

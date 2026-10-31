@@ -198,6 +198,57 @@ async function writeMov(client, { groupValue, risorsa, tipoRisorsa, da, a }) {
   });
 }
 
+function splitCsv(v) {
+  return norm(v).split(",").map(x => norm(x)).filter(Boolean);
+}
+
+// A declared squad moved onto a real intervention joins its `squadre-attivate`
+// and its organizations are merged into `organizzazioni-attivate` (union with
+// what is already there, deduplicated and sorted like intervention-manager
+// does). Nothing is ever removed: the columns say who worked there, while
+// `squadre-dichiarate.servizio` says where the squad is now.
+//
+// Never throws: the move itself has already succeeded, so a failure here is
+// returned as a warning text (null when everything went fine or there was
+// nothing to do). A service with no row in `servizi` is only a label coming
+// from the resources, not an intervention, so it is skipped silently.
+async function attivaSquadraSuServizio(client, sq, newService) {
+  if (!newService || newService === WAITING || newService === USCITA) return null;
+
+  try {
+    const res = await client.table("servizi").list({
+      filters: [client.filter("nome", "eq", newService)],
+      include: ["id", "nome", "squadre-attivate", "organizzazioni-attivate"],
+      size: 5
+    });
+    const found = Array.isArray(res) ? res : (res && Array.isArray(res.records) ? res.records : []);
+    const intervento = found.find(r => norm(r.nome) === newService);
+    if (!intervento) return null;
+
+    const nome = norm(sq.nome);
+    const squadre = splitCsv(intervento["squadre-attivate"]);
+    const orgs = new Set([
+      ...splitCsv(intervento["organizzazioni-attivate"]),
+      ...splitCsv(sq.organizzazioni)
+    ]);
+
+    const payload = {};
+    if (nome && !squadre.includes(nome)) payload["squadre-attivate"] = [...squadre, nome].join(", ");
+    const orgsCsv = Array.from(orgs).sort((a, b) => a.localeCompare(b, "it")).join(", ");
+    if (orgsCsv !== norm(intervento["organizzazioni-attivate"])) {
+      payload["organizzazioni-attivate"] = orgsCsv || null;
+    }
+    if (Object.keys(payload).length === 0) return null;
+
+    await client.table("servizi").update(intervento.id, payload);
+    return null;
+  } catch (e) {
+    return `La squadra "${norm(sq.nome)}" e' stata spostata, ma non e' stato possibile aggiornare squadre e organizzazioni attivate dell'intervento "${newService}": aggiungila a mano dalla scheda intervento.`;
+  }
+}
+
+// Returns a warning text when a follow-up write failed after the move
+// succeeded, null otherwise.
 async function applyServiceChange(client, card, newService, selectedTypes) {
   // Scheda di una squadra dichiarata: un solo oggetto da spostare.
   if (card.squadra) {
@@ -210,7 +261,7 @@ async function applyServiceChange(client, card, newService, selectedTypes) {
       da: card.service,
       a:  newService
     });
-    return;
+    return attivaSquadraSuServizio(client, sq, newService);
   }
 
   for (const r of (selectedTypes.has("volontari") ? card.volontari : [])) {
@@ -310,6 +361,8 @@ export async function GOR({ state, client, html, render, root }) {
   // --- local state ---
   let loading          = true;
   let error            = null;
+  // Non-blocking warning: a follow-up write failed after a move that succeeded.
+  let notice           = null;
   let search           = "";
   // `vista` dice COSA si guarda, `groupBy` COME e' raggruppato. Sono due cose
   // diverse e stavano in un controllo solo: le squadre dichiarate non sono un
@@ -558,12 +611,13 @@ export async function GOR({ state, client, html, render, root }) {
     if (payload.fromService === service) { rerender(); return; }
 
     loading = true;
+    notice  = null;
     rerender();
     try {
       if (payload.mode === "resource") {
         await applySingleMove(client, payload, service);
       } else {
-        await applyServiceChange(client, payload.card, service, payload.types);
+        notice = (await applyServiceChange(client, payload.card, service, payload.types)) || null;
       }
       await reloadData();
     } catch (err) {
@@ -684,7 +738,7 @@ export async function GOR({ state, client, html, render, root }) {
     rerender();
 
     try {
-      await applyServiceChange(client, modal.card, modal.newService, modal.selectedTypes);
+      notice = (await applyServiceChange(client, modal.card, modal.newService, modal.selectedTypes)) || null;
       modal   = null;
       loading = true;
       rerender();
@@ -1371,6 +1425,13 @@ export async function GOR({ state, client, html, render, root }) {
 
       <div class="box spa-title-box" style="padding:0;overflow:hidden">
 
+      ${notice ? html`
+        <div class="notification is-warning is-light is-size-7" style="margin:0;border-radius:0">
+          <button class="delete" @click=${() => { notice = null; rerender(); }}></button>
+          ${notice}
+        </div>
+      ` : ""}
+
       <!-- Toolbar -->
       <div style="background:#f8f9fa;border-bottom:1px solid #e8e8e8">
       <!-- Riga 1: filtri -->
@@ -1581,9 +1642,12 @@ export async function GOR({ state, client, html, render, root }) {
           const isTarget  = dropTarget === service;
           const isWaiting = service === WAITING;
 
-          const colV   = colCards.reduce((s, c) => s + c.volontari.length, 0);
-          const colM   = colCards.reduce((s, c) => s + c.mezzi.length, 0);
-          const colMat = colCards.reduce((s, c) => s + c.materiali.length, 0);
+          // A declared-squad card holds no registered resources, so its numbers
+          // are the DECLARED counts (same rule as the toolbar counter). `attrezzature`
+          // is free text, not a count, so there is no materials subtotal for squads.
+          const colV   = colCards.reduce((s, c) => s + (c.squadra ? nInt(c.squadra["n-volontari"]) : c.volontari.length), 0);
+          const colM   = colCards.reduce((s, c) => s + (c.squadra ? nInt(c.squadra["n-mezzi"]) : c.mezzi.length), 0);
+          const colMat = colCards.reduce((s, c) => s + (c.squadra ? 0 : c.materiali.length), 0);
 
           return html`
             <div

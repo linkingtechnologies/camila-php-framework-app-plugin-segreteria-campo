@@ -351,6 +351,30 @@ export async function Step3({ state, client, goTo, html, render, root }) {
     rerender();
   }
 
+  // "Imposta per tutti": mansione e servizio scelti una volta, applicati (con
+  // sovrascrittura) alle righe ancora inseribili. Le righe gia' presenti sono in
+  // sola lettura e quelle inserite non verrebbero piu' scritte, quindi restano
+  // fuori; quelle in errore rientrano perche' "Riprova" le reinvia.
+  const bulk = { mansione: "", servizio: "" };
+
+  function bulkTargets() {
+    return rows.filter(
+      r => !r.exists && (r.status === "pending" || r.status === "failed")
+    );
+  }
+
+  function applyBulk(field) {
+    const value = safe(bulk[field]);
+    if (!value || submitting) return;
+
+    mezziBlockMsg = null;
+    bulkTargets().forEach(r => {
+      r[field] = value;
+    });
+
+    rerender();
+  }
+
   async function insertWhere(predicate) {
     if (submitting) return;
 
@@ -547,14 +571,10 @@ export async function Step3({ state, client, goTo, html, render, root }) {
               <article class="message is-warning">
                 <div class="message-body">
                   Impossibile caricare la lista servizi (puoi comunque procedere).<br />
-                  <small
-                    >${String(
-                      serviziError &&
-                        (serviziError.payload ||
-                          serviziError.message ||
-                          serviziError)
-                    )}</small
-                  >
+                  <small>${errorText(serviziError)}</small>
+                  ${isSessionError(serviziError)
+                    ? html`<div class="mt-3"><a class="button is-primary" href="cf_logout.php">Esci e rientra</a></div>`
+                    : ""}
                 </div>
               </article>
             `
@@ -594,6 +614,65 @@ export async function Step3({ state, client, goTo, html, render, root }) {
                 </div>
               </article>
             `
+          : ""}
+
+        ${rows.length > 0
+          ? (() => {
+              const nTargets = bulkTargets().length;
+              const bulkDisabled = submitting || loadingExisting || nTargets === 0;
+              return html`
+                <div class="box mt-4 p-3">
+                  <p class="is-size-7 has-text-grey mb-2">
+                    Imposta per tutti (sovrascrive il valore di ogni riga ancora da inserire)
+                  </p>
+                  <div style="display:flex;flex-wrap:wrap;gap:1rem;align-items:flex-end">
+                    <div style="min-width:0">
+                      <label class="label is-small mb-1">Mansione</label>
+                      <div class="is-flex" style="gap:0.5rem">
+                        <div class="select is-small">
+                          <select
+                            @change=${e => { bulk.mansione = e.target.value; rerender(); }}
+                            ?disabled=${bulkDisabled}
+                          >
+                            <option value="" ?selected=${!bulk.mansione}>—</option>
+                            ${MANSIONI.map(m => html`<option value=${m} ?selected=${bulk.mansione === m}>${m}</option>`)}
+                          </select>
+                        </div>
+                        <button
+                          class="button is-small is-light"
+                          @click=${() => applyBulk("mansione")}
+                          ?disabled=${bulkDisabled || !bulk.mansione}
+                        >
+                          Applica a ${nTargets}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div style="min-width:0">
+                      <label class="label is-small mb-1">Servizio</label>
+                      <div class="is-flex" style="gap:0.5rem">
+                        <div class="select is-small">
+                          <select
+                            @change=${e => { bulk.servizio = e.target.value; rerender(); }}
+                            ?disabled=${bulkDisabled || loadingServizi || !!serviziError}
+                          >
+                            <option value="" ?selected=${!bulk.servizio}>—</option>
+                            ${serviziOptions.map(s => html`<option value=${s} ?selected=${bulk.servizio === s}>${s}</option>`)}
+                          </select>
+                        </div>
+                        <button
+                          class="button is-small is-light"
+                          @click=${() => applyBulk("servizio")}
+                          ?disabled=${bulkDisabled || loadingServizi || !!serviziError || !bulk.servizio}
+                        >
+                          Applica a ${nTargets}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              `;
+            })()
           : ""}
 
         <div class="table-container mt-4">

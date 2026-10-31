@@ -225,6 +225,8 @@ Il campo `servizio` viene letto dalla tabella preaccreditati e propagato fino ag
 | Step 2 → 3 | `doCheckin()` passa `servizio`, `beneficiLegge`, `numGgBenefici`, `cellulare`, `email`, `note` nel payload `checkinSelection.volunteers` |
 | Step 3 — init righe | tutti i campi usano `safe(v.campo) \|\| default`; default `"NO"` per i SI/NO, `""` per i testi |
 
+**Imposta per tutti (step 3):** la barra sopra la tabella tiene la scelta in un oggetto locale `bulk = { mansione, servizio }` (solo UI, non persistito; nasce a ogni mount dello step). `applyBulk(campo)` scrive il valore in `r[campo]` per le righe di `bulkTargets()` = `!r.exists && status in {"pending","failed"}`, con sovrascrittura. Nessuna chiamata API. La tendina servizio e il suo pulsante sono disabilitati come quelli di riga (`loadingServizi` o `serviziError`); tutta la barra lo è durante `submitting` e `loadingExisting`.
+
 ⚠️ **Nomi campo diversi tra tabelle**: `volontari-preaccreditati` usa `n-giorni-benefici-legge`; la tabella operativa `volontari` usa `num-gg-ben-legge`. La mappatura avviene internamente nella variabile `numGgBenefici`.
 
 **Campi pre-popolati da `volontari-preaccreditati` → step3:**

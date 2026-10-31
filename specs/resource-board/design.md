@@ -120,6 +120,7 @@ Single-view SPA (nessun wizard). Tutti i dati vengono caricati al mount e ricari
 | Aggiornamento `servizio` | `volontari` / `mezzi` / `materiali` (`.update(id, {...})`) |
 | Aggiornamento `squadra` | `volontari` / `mezzi` / `materiali` (`.update(id, {...})`) |
 | Scrittura storico movimenti | `mov-risorse` (`.create({...})`) |
+| Attivazione di una squadra dichiarata su un intervento | lettura e `.update` di `servizi` (`squadre-attivate`, `organizzazioni-attivate`), vedi §Squadra dichiarata su un intervento |
 
 ## 4. Logica di merge
 
@@ -312,11 +313,44 @@ Il campo `card.squadra` contiene il record quando la scheda e' di questo tipo,
 
 | | Scheda normale | Scheda squadra dichiarata |
 |---|---|---|
-| Cambio servizio | per tipo selezionato | l'intera squadra, nessuna scelta di tipi |
+| Cambio servizio | per tipo selezionato | l'intera squadra, nessuna scelta di tipi; se la destinazione e' un intervento, la squadra e le sue organizzazioni vi vengono aggiunte (§Squadra dichiarata su un intervento) |
 | Cambio squadra | disponibile | **nascosto** — la squadra non ha un campo `squadra`, lo *e'* |
 | Movimento scritto | `VOLONTARIO` / `MEZZO` / `MATERIALE` | `SQUADRA DICHIARATA`, con le organizzazioni come `gruppo` |
-| Conteggi mostrati | risorse presenti | conteggi **dichiarati** |
+| Conteggi mostrati | risorse presenti | conteggi **dichiarati** (`n-volontari`, `n-mezzi`), anche nei subtotali sotto l'intestazione di colonna; nessun subtotale materiali |
 | Marcata come vuota | nessuna risorsa dentro | nessuna consistenza dichiarata |
+
+### Squadra dichiarata su un intervento
+
+Dopo l'`update` di `squadre-dichiarate.servizio` e la riga `mov-risorse`,
+`applyServiceChange` chiama `attivaSquadraSuServizio(client, sq, newService)`:
+
+1. esce subito se `newService` e' `IN ATTESA DI SERVIZIO` o `USCITA DEFINITIVA`;
+2. cerca in `servizi` la riga con `nome == newService` (`filters` con `eq`); se
+   non c'e' e' solo un'etichetta delle risorse, e non fa nulla;
+3. aggiunge `sq.nome` a `squadre-attivate` (stringa con `", "`) se non c'e' gia';
+4. **unisce** `sq.organizzazioni` a `organizzazioni-attivate`: insieme delle
+   organizzazioni gia' presenti e di quelle della squadra, deduplicato, ordinato
+   con `localeCompare(…, "it")`, unito con `", "`. Non e' la derivazione di
+   `intervention-manager` §8b (che ricalcola tutto dai cataloghi): qui la squadra
+   e' dichiarata, quindi basta il suo campo `organizzazioni`;
+5. scrive con un solo `update` e **solo i campi cambiati**; se nulla cambia non
+   scrive.
+
+**Non toglie mai.** Spostare la squadra altrove non la rimuove dall'intervento
+precedente: `squadre-attivate` e' storia (chi ha lavorato li'), `servizio` e'
+stato corrente (AGENTS.md §Fotografia o riferimento).
+
+**Non fa fallire lo spostamento.** La funzione non lancia: restituisce `null` o
+un testo di avviso, che i due chiamanti (`onDrop`, `confirmServiceChange`)
+mettono in `notice`, mostrato come `notification is-warning` in cima alla
+toolbar con un pulsante di chiusura. `error` resta riservato ai fallimenti che
+bloccano.
+
+**Nessun movimento doppio.** `intervention-manager` §16 scrive `mov-risorse` solo
+per le squadre *aggiunte* rispetto al valore salvato; se il kanban le ha gia'
+aggiunte, al salvataggio non risultano nuove. Resta il rischio opposto: con la
+scheda intervento aperta e modificata, il salvataggio sovrascrive
+`squadre-attivate` con la sua copia e la squadra aggiunta dal kanban sparisce.
 
 **Il tag rosso non e' lo stesso tag.** Una scheda squadra non contiene mai
 risorse registrate — `buildCards` tiene apposta separati i due insiemi — quindi

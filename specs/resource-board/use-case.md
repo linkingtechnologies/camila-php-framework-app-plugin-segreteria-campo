@@ -33,6 +33,7 @@ Operatore di segreteria campo / coordinatore operativo.
 
 - Il campo `servizio` (o `squadra`) delle risorse spostate è aggiornato al nuovo valore
 - Per ogni risorsa spostata esiste un record in `mov-risorse` con data/ora, gruppo, identificativo risorsa, tipo, valore di provenienza e destinazione
+- Una squadra dichiarata spostata su un intervento compare nelle sue `squadre-attivate` e le sue organizzazioni in `organizzazioni-attivate` (unione, senza rimozioni)
 - Il kanban riflette immediatamente la nuova distribuzione
 
 ## 8. Postcondizioni — Errore/Fallimento parziale
@@ -90,6 +91,7 @@ Operatore di segreteria campo / coordinatore operativo.
 14. L'operatore clicca "Cambia servizio" su una card; il sistema apre la modale con select del nuovo servizio (include `IN ATTESA DI SERVIZIO`, servizi attivi e servizi disponibili) e checkbox per tipo risorsa (pre-selezionate per i tipi presenti).
 15. L'operatore seleziona il nuovo servizio e i tipi da spostare, poi clicca "Conferma".
 16. Il sistema aggiorna `servizio` su tutte le risorse selezionate, scrive i record `mov-risorse`, chiude la modale e ricarica il kanban.
+16b. Se la card e' una **squadra dichiarata** (con spostamento da drag o dalla modale) e la destinazione e' un intervento reale (non `IN ATTESA DI SERVIZIO` ne' `USCITA DEFINITIVA`, e presente in `servizi`), il sistema aggiorna anche quell'intervento: aggiunge il nome della squadra a `squadre-attivate` se manca e **unisce** le organizzazioni della squadra a `organizzazioni-attivate`. Non toglie mai nulla: quando la squadra esce o passa altrove, l'intervento che aveva servito resta com'e'.
 
 ### Cambio squadra massivo (modale)
 
@@ -147,6 +149,12 @@ Operatore di segreteria campo / coordinatore operativo.
 
 **15c. Errore API durante cambio servizio**
 - Il sistema mostra l'errore nella modale senza chiuderla; il pulsante "Conferma" torna abilitato.
+
+**16c. L'aggiornamento di `squadre-attivate` / `organizzazioni-attivate` fallisce (16b)**
+- Lo spostamento della squadra e il record `mov-risorse` restano validi; il sistema mostra un avviso giallo non bloccante nella toolbar, che nomina squadra e intervento e chiede di aggiungerla a mano dalla scheda intervento.
+
+**16d. Destinazione senza riga in `servizi`**
+- E' solo un'etichetta che viene dalle risorse, non un intervento: nessun aggiornamento e nessun avviso.
 
 **18a. Campo squadra vuoto alla conferma**
 - Il pulsante "Conferma" rimane disabilitato.
