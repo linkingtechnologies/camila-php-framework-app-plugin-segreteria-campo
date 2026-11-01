@@ -38,7 +38,7 @@ scansione.
 
 Se il codice non è riconosciuto vedi **Codice non riconosciuto. Verifica e
 riprova.** e puoi riprovare. Se la fotocamera non è disponibile resta la
-digitazione. `[DA VERIFICARE]` da dove arriva il QR dell'organizzazione.
+digitazione. Il QR dell'organizzazione è presente nel modulo di preaccreditamento.
 
 ## Passo 2 — Scegli i volontari {#passo-2}
 

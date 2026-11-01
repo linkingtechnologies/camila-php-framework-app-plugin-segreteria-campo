@@ -34,9 +34,7 @@ badge](guide:manuale/04-accreditare#badge)).
 
 ## 7.3 Pasti {#pasti}
 
-Nella scheda *Stime pasti* si inseriscono i pasti previsti, divisi in colazione, pranzo e cena. Il
-conteggio dei pasti consumati si registra leggendo il codice a barre dei badge di volontari e ospiti;
-nel vecchio manuale questo richiedeva un programma a parte. [DA VERIFICARE]
+Nella scheda *Stime pasti* si inseriscono i pasti previsti, divisi in colazione, pranzo e cena.
 
 ## 7.4 Riepilogo ospiti e risorse {#riepilogo}
 

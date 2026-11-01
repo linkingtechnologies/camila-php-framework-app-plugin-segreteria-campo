@@ -16,3 +16,10 @@ camila.iw.queued = In coda
 camila.iw.failed = non importati: %s
 camila.iw.nodata = nessuna riga letta su %s: controlla le intestazioni del file
 camila.iw.warn.failed = Alcune schede non sono state importate per intero. Controlla la scheda e, se serve, svuotala e importa di nuovo (ricarica la pagina).
+
+// --- barra dei tab (conf/menu.xml <lic_title>): le sole chiavi di questo file unite al dizionario condiviso ---
+menu.segreteria-campo.m0 = GESTIONE EVENTO
+menu.segreteria-campo.pre-accreditations = PREACCREDITAMENTI
+menu.segreteria-campo.m5 = VERIFICA DATI
+menu.segreteria-campo.m2 = CONFIGURAZIONE
+menu.segreteria-campo.m4 = AIUTO

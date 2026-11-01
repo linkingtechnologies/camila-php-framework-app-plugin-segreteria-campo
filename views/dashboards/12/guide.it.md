@@ -9,12 +9,8 @@ Non c'è un pulsante nella pagina iniziale: la pagina si apre dalla pagina
 `?dashboard=12` dopo quello dell'applicazione. Per l'uso di ogni giorno usa le
 [Mappe](guide:map-center).
 
-La pagina esiste in due versioni, a seconda del pulsante: **Mappa servizi
-(OpenStreetMap)** e **Mappa servizi (Google Maps)**. Quest'ultima compare solo se è
-stata configurata la chiave di Google in
-[Informazioni intervento](guide:dashboards/05), e [DA VERIFICARE]: in questa
-installazione manca il file del modello per la versione Google, quindi potrebbe non
-aprirsi. Qui si descrive quella OpenStreetMap, la sola completa.
+La pagina usa le carte di OpenStreetMap. Il pulsante **Mappa servizi (Google Maps)**,
+dove compare, non è più supportato: usa **Mappa servizi (OpenStreetMap)**.
 
 Servono la connessione a Internet (le carte arrivano da servizi esterni) e servizi con
 latitudine e longitudine: gli altri non compaiono. Le coordinate si danno dalla [scheda

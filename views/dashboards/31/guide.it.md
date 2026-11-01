@@ -25,4 +25,5 @@ L'archivio contiene i dati e i parametri dell'evento, ma non il programma. Il
 Prima di cambiare le configurazioni, prima di un aggiornamento del programma, a fine
 giornata durante l'evento e a fine evento. I dati personali sono dentro l'archivio: conservalo in un posto sicuro.
 
-Come si ripristina un backup non è descritto qui. [DA VERIFICARE]
+Il ripristino di un backup è un'operazione delicata, perché sostituisce i dati presenti: va
+fatta da un amministratore.

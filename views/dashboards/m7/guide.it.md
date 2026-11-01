@@ -13,8 +13,8 @@ Sotto **Mappe**:
   carte di OpenStreetMap;
 - **Mappa servizi (locale)**: la [versione che funziona senza
   Internet](guide:dashboards/12l);
-- **Mappa servizi (Google Maps)**: compare solo se in
-  [Informazioni intervento](guide:dashboards/05) è stata scritta la chiave di Google.
+- **Mappa servizi (Google Maps)**: la versione con Google non è più supportata; usa le
+  mappe qui sopra.
 
 ## Il GeoTracker {#geotracker}
 
