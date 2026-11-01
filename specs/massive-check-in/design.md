@@ -345,7 +345,7 @@ Il pulsante "Scansiona QR code" è sempre visibile. Il decoder QR usato è **jsQ
 
 3. `closeScanner()`: ferma `_scanning`, ferma i track, azzera `scanStream / scanMode / _scanCanvas / _scanCtx`.
 
-4. `rerender()` assegna `srcObject` al `<video id="wt-totem-scanner">` dopo ogni render (stesso pattern worktable-explorer/camera).
+4. `rerender()` assegna `srcObject` al `<video id="wt-totem-scanner">` dopo ogni render (stesso pattern della camera del Worktable Explorer, plugin `worktable`).
 
 ### Stato scanner
 

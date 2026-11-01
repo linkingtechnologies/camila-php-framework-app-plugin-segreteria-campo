@@ -10,4 +10,11 @@ $_CAMILA['page']->camila_add_js(
     "<link href=\"plugins/" . basename(__DIR__) . "/dashboard.css\" rel=\"stylesheet\">\n"
 );
 
+// Il "?" delle guide accanto ai pulsanti che aprono una SPA (vedi guide-links.js e
+// specs/guide/). E' un modulo: gira a pagina letta, quando i pulsanti ci sono.
+require_once(__DIR__ . '/guide-version.inc.php');
+$_CAMILA['page']->camila_add_js(
+    "<script type=\"module\" src=\"plugins/" . basename(__DIR__) . "/guide-links.js?v=" . sc_guide_version() . "\"></script>\n"
+);
+
 require_once(CAMILA_DIR . '/views/plugin_dashboards.inc.php');

@@ -112,9 +112,10 @@ Coordinatore sala operativa / Operatore di segreteria campo
 
 ### 2a. Messaggio ad alta priorità ricevuto
 
-- Il sistema rileva la priorità `"high"` (da campo `priorita` o da keyword nel testo).
-- Il messaggio appare con border rosso e badge "EMERGENZA".
+- Il sistema rileva la priorità `"high"` (dal campo `priorita`, se vale `ALTA` o `EMERGENZA`, oppure da keyword nel testo).
+- La card ha il bordo sinistro rosso e lo sfondo rosato, più marcato se il messaggio è recente (ultimi 4 minuti). **Non c'è un badge testuale**: la priorità si legge solo da bordo e sfondo.
 - Se audio abilitato: doppio beep acuto (1000Hz + 1200Hz).
+- Con priorità `"medium"` (`MEDIA`, `ATTENZIONE` o keyword) il bordo è ambra e lo sfondo giallino; il beep è quello breve, come per i messaggi normali.
 
 ### 3a. Canale non in elenco
 

@@ -92,7 +92,7 @@ presa in carico, ma la finestra in cui si è dichiarata disponibile.
 
 ### Elenco squadre
 
-1. L'operatore apre Gestione interventi e passa alla vista Squadre.
+1. L'operatore apre *Squadre dichiarate* dal box Anagrafiche della home.
 2. Il sistema carica le squadre e le mostra in elenco con nome, organizzazioni,
    consistenza, servizio e confronto con i nominativi registrati.
 3. L'operatore può restringere l'elenco con la ricerca testuale, che confronta

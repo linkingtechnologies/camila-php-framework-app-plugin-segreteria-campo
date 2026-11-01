@@ -196,6 +196,14 @@ export async function StockManager({ state, client, html, render, root }) {
   let deleteBusy      = false;
   let deleteError     = null;
 
+  // Modifying or deleting a movement depends on the permissions of the movements table (the
+  // worktable's own update/delete flags, which for a normal user are off and for an administrator
+  // always on): if the table allows it, the user can. If the permissions cannot be read, the
+  // cautious answer is kept: no controls. These are a guard of the interface; the REST API itself
+  // does not apply those flags to writes.
+  let canUpdate       = false;
+  let canDelete       = false;
+
   // ---
 
   function rerender() { render(view(), root); }
@@ -269,6 +277,7 @@ export async function StockManager({ state, client, html, render, root }) {
   // ---- modale new/edit ------------------------------------------------------
 
   function openModal(record) {
+    if (record && !canUpdate) return;    // editing an existing movement: only if the table allows it
     modal = emptyModal(record || null);
     rerender();
   }
@@ -303,6 +312,7 @@ export async function StockManager({ state, client, html, render, root }) {
 
   async function confirmModal() {
     if (!modal || modal.busy) return;
+    if (modal.mode === "edit" && !canUpdate) return;
 
     const err = validateModal();
     if (err) { modal = { ...modal, error: err }; rerender(); return; }
@@ -338,6 +348,7 @@ export async function StockManager({ state, client, html, render, root }) {
   // ---- delete ---------------------------------------------------------------
 
   function askDelete(id) {
+    if (!canDelete) return;
     deleteId    = id;
     deleteError = null;
     rerender();
@@ -350,7 +361,7 @@ export async function StockManager({ state, client, html, render, root }) {
   }
 
   async function confirmDelete() {
-    if (!deleteId || deleteBusy) return;
+    if (!canDelete || !deleteId || deleteBusy) return;
     deleteBusy = true; deleteError = null; rerender();
     try {
       await client.table("mov-consumabili").remove(deleteId);
@@ -472,12 +483,12 @@ export async function StockManager({ state, client, html, render, root }) {
               <th>Servizio</th>
               <th>Operatore</th>
               <th>Note</th>
-              <th></th>
+              ${canUpdate || canDelete ? html`<th></th>` : ""}
             </tr>
           </thead>
           <tbody>
             ${pageItems.length === 0 ? html`
-              <tr><td colspan="11" class="has-text-grey has-text-centered py-4">
+              <tr><td colspan=${canUpdate || canDelete ? 11 : 10} class="has-text-grey has-text-centered py-4">
                 ${search || filterTipo || filterMagazzino || filterArticolo
                   ? "Nessun risultato per i filtri selezionati."
                   : "Nessuna movimentazione registrata."}
@@ -495,16 +506,16 @@ export async function StockManager({ state, client, html, render, root }) {
                 <td>${norm(m.operatore) || html`<span class="has-text-grey">—</span>`}</td>
                 <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
                     title="${norm(m.note)}">${norm(m.note) || ""}</td>
-                <td style="white-space:nowrap;text-align:right">
-                  <button class="button is-ghost is-small px-1" title="Modifica"
+                ${canUpdate || canDelete ? html`<td style="white-space:nowrap;text-align:right">
+                  ${canUpdate ? html`<button class="button is-ghost is-small px-1" title="Modifica"
                     @click=${() => openModal(m)}>
                     <span class="icon is-small"><i class="ri-pencil-line"></i></span>
-                  </button>
-                  <button class="button is-ghost is-small px-1 has-text-danger" title="Elimina"
+                  </button>` : ""}
+                  ${canDelete ? html`<button class="button is-ghost is-small px-1 has-text-danger" title="Elimina"
                     @click=${() => askDelete(m.id)}>
                     <span class="icon is-small"><i class="ri-delete-bin-line"></i></span>
-                  </button>
-                </td>
+                  </button>` : ""}
+                </td>` : ""}
               </tr>
             `)}
           </tbody>
@@ -1209,6 +1220,14 @@ export async function StockManager({ state, client, html, render, root }) {
   }
 
   // ---- avvio ----------------------------------------------------------------
+
+  try {
+    const res = await client.table("mov-consumabili").permissions();
+    canUpdate = res?.can?.update === true;
+    canDelete = res?.can?.delete === true;
+  } catch (_) {
+    canUpdate = canDelete = false;     // permissions unknown: no edit/delete controls
+  }
 
   await load();
   return view();

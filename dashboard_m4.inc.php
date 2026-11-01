@@ -11,7 +11,8 @@ $camilaUI->insertLineBreak();
 
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="row columns">'));
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-4 column is-12-mobile is-4-desktop">'));
-$camilaUI->insertButton('plugins/segreteria-campo/docs.php', 'Manuale','globe',true,'','_blank');
+// Il manuale e' la guida in Markdown (guide.php); docs.php, con il vecchio .odt, resta ma non e' piu' linkato da qui.
+$camilaUI->insertButton('plugins/' . basename(__DIR__) . '/guide.php', 'Manuale','globe',true,'','_blank');
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '</div>'));
 $_CAMILA['page']->add_raw(new HAW_raw(HAW_HTML, '<div class="col-xs-12 col-md-4 column is-12-mobile is-4-desktop">'));
 $camilaUI->insertButton('?dashboard=iw', 'Importa dati esempio','upload');

@@ -55,3 +55,35 @@
   border-color: transparent;
   color: #2c2c2a;
 }
+
+/* === "?" accanto ai pulsanti che aprono una SPA con guida (guide-links.js) ===
+   Un cerchietto grigio, volutamente poco vistoso: si nota quando lo si cerca. Non e'
+   un `.button`, quindi non eredita i colori tonali dei box. Allineato in alto con il
+   pulsante `is-small` (30px) e centrato su di esso: il margine superiore e' la meta'
+   della differenza fra le due altezze. */
+.sc-help {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 1.2rem;
+  height: 1.2rem;
+  margin: .34rem 0 0 .35rem;
+  padding: 0;
+  border: 1px solid #c9cdd3;
+  border-radius: 50%;
+  background: transparent;
+  color: #8a919c;
+  font-family: inherit;
+  font-size: .7rem;
+  font-weight: 600;
+  line-height: 1;
+  vertical-align: top;
+  cursor: pointer;
+}
+.sc-help:hover,
+.sc-help:focus-visible {
+  background-color: #e6f1fb;
+  border-color: #85b7eb;
+  color: #0c447c;
+}

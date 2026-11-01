@@ -1339,7 +1339,7 @@ export async function InterventionManager({ client, html, render, root }) {
 
             <p class="help">
               Viene creata e subito attivata su questo intervento. Il resto della
-              scheda si completa nella vista Squadre dichiarate.
+              scheda si completa nella pagina Squadre dichiarate.
             </p>
           </section>
 

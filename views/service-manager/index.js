@@ -476,7 +476,7 @@ export async function ServiceManager({ state, client, html, render, root }) {
   // ---- clona servizio -------------------------------------------------------
 
   async function cloneService() {
-    if (!selected) return;
+    if (!selected || PROTECTED.includes(norm(selected.nome))) return;
     formBusy = true; formError = null; formSuccess = null; rerender();
     try {
       const maxOrd = services.reduce((m, s) => Math.max(m, parseInt(s.ordine) || 0), 0);
@@ -763,13 +763,14 @@ export async function ServiceManager({ state, client, html, render, root }) {
                     `}
                   ` : ""}
                   ${formMode === "edit" ? html`
-                    <!-- CLONA -->
+                    <!-- CLONA: not for the protected services (a second "USCITA DEFINITIVA" would be wrong) -->
+                    ${!isProtected ? html`
                     <button class="button is-light is-small"
                       ?disabled=${formBusy || deleteBusy} @click=${cloneService}
                       title="Crea una copia di questo servizio">
                       <span class="icon"><i class="ri-file-copy-line"></i></span>
                       <span>Clona</span>
-                    </button>
+                    </button>` : ""}
                     <!-- NUOVO -->
                     <button class="button is-light is-small ml-auto"
                       ?disabled=${formBusy || deleteBusy} @click=${startNew}>

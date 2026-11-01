@@ -46,6 +46,10 @@ $iwI18N = [
     'iw.imported'      => $pluginLang['camila.iw.imported']      ?? '',
     'iw.records'       => $pluginLang['camila.iw.records']       ?? '',
     'iw.warn.nonempty' => $pluginLang['camila.iw.warn.nonempty'] ?? '',
+    'iw.queued'        => $pluginLang['camila.iw.queued']        ?? '',
+    'iw.failed'        => $pluginLang['camila.iw.failed']        ?? '',
+    'iw.nodata'        => $pluginLang['camila.iw.nodata']        ?? '',
+    'iw.warn.failed'   => $pluginLang['camila.iw.warn.failed']   ?? '',
 ];
 
 $refrCode  = "<script src='../../camila/js/worktable-client.js'></script>";

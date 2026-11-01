@@ -88,15 +88,17 @@ Each SPA has a dedicated specification directory under `specs/`. Read the releva
 | Smart Assistant | `app-smart-assistant.js` | `views/smart-assistant/` | [`specs/smart-assistant/`](specs/smart-assistant/) |
 | Movimentazione consumabili | `app-stock-manager.js` | `views/stock-manager/` | [`specs/stock-manager/`](specs/stock-manager/) |
 | Gestione magazzini | `app-warehouse-manager.js` | `views/warehouse-manager/` | [`specs/warehouse-manager/`](specs/warehouse-manager/) |
-| WorkTable Explorer | `app-worktable-explorer.js` | `views/worktable-explorer/` | [`specs/worktable-explorer/`](specs/worktable-explorer/) |
+| Guide per pagina (infrastruttura, non una SPA) | `guide.php` | `views/shared/guide.js` | [`specs/guide/`](specs/guide/) |
 
 I moduli condivisi fra piu' viste stanno in `views/shared/` e non hanno una SPA
 propria: vedere §Moduli condivisi.
 
-**Squadre dichiarate** e' raggiungibile da due punti con lo stesso codice: un
-pulsante nel box amministrativo per tenere l'anagrafica, e la terza vista di
-`intervention-manager` per usarla mentre si lavora a un intervento. Non e' una
-duplicazione — vedere §Pannelli incorporabili.
+**Squadre dichiarate** si gestisce da un punto solo: il pulsante nel box
+Anagrafiche. Da `intervention-manager` si **crea** soltanto, con la creazione
+rapida del blocco «Squadre e referente». Era anche la terza vista di
+`intervention-manager`: la vista e' stata tolta (specs/intervention-manager/
+design.md §15), la fabbrica che la rendeva incorporabile e' rimasta — vedere
+§Pannelli incorporabili.
 
 Anche **Riepilogo preaccreditamenti** ha due ingressi: il pulsante nel box
 Accreditamento della home e quello nella pagina d'ingresso del tab
@@ -128,13 +130,176 @@ quando"; la SPA risponde a "quanti ne aspetto e quanti ne sono arrivati".
 
 Gli endpoint API del plugin hanno spec proprie sotto [`specs/api/`](specs/api/).
 
+## Manuale utente
+
+**Il pulsante *Manuale* del tab AIUTO apre ora `guide.php`**, cioe' la guida in Markdown
+(§Guide per pagina, piu' sotto). **`docs/<lingua>/manual.odt` non e' piu' un sorgente: e' generato**
+da `php docs/build-guide.php` a partire da quei Markdown, e sostituisce il vecchio manuale scritto a
+mano (non si modifica: si rigenera). Quanto segue descrive il **vecchio flusso**, che serviva
+quando il sorgente era l'`.odt`; resta documentato perche' `docs.php` e `html/` esistono ancora, ma
+l'HTML in `docs/<lingua>/html/` e' quello del vecchio manuale e non e' piu' linkato dal programma.
+
+Il vecchio manuale per gli operatori stava in `docs/<lingua>/`. **Il suo sorgente era
+`manual.odt`** (LibreOffice); `html/manual.html` era l'esportazione che
+`docs.php` serve. Si modificava l'`.odt` e si riesportava l'HTML: ritoccare solo l'HTML faceva
+divergere i due file.
+
+**Si rigenera con il CLI del framework**, non a mano:
+`generate-plugin-docs segreteria-campo it` (i percorsi sono relativi alla
+cartella che contiene `plugins/`). Cancella `html/` e la ricrea con la libreria
+`lebedevsergey/odt2xhtml`, che sta nel `vendor`. L'export e' deterministico:
+rigenerato dall'`.odt` del 12 luglio 2026 ridava HTML, CSS e icone **identici**
+byte per byte. Due conseguenze: il CSS (`manual.css`) e' generato, quindi un
+ritocco di presentazione va in `docs.php` (cosi' le didascalie "Table1" che la
+libreria stampa sopra le tabelle sono nascoste li'); e un elenco annidato
+eredita lo stile del genitore, perche' la libreria ignora quello dichiarato
+sul livello interno.
+
+Il manuale e' scritto per compiti dell'operatore (procedure P01-P24), non per
+SPA, ma ogni SPA ha un capitolo sotto *Gestione evento*:
+
+| SPA | Nel manuale |
+|---|---|
+| Massive Check-in | *Check-in massivo* |
+| Org Status | *Stato registrazione* |
+| Massive Check-out | *Check-out massivo* |
+| Movimentazione risorse | *Movimentazione risorse*, procedura P05 |
+| Gestione interventi | *Gestione interventi* |
+| Squadre dichiarate | *Squadre dichiarate* (e il paragrafo *Squadre dichiarate sulla lavagna* in *Movimentazione risorse*) |
+| Gestione richieste | *Richieste*, procedura P13 |
+| Comunicazioni live | *Comunicazioni live* |
+| Mappe | *Mappe* |
+| Riepilogo preaccreditamenti | *Riepilogo preaccreditamenti* |
+| Gestione servizi | *Gestione servizi*, procedura P05 |
+| Movimentazione consumabili, Gestione magazzini | *Consumabili e magazzini* |
+| Database risorse | *Database risorse* |
+| Smart Assistant | *L'assistente intelligente* |
+| modalita' totem | *Modalita' totem* |
+| Import Wizard | una frase in *Dati di esempio* |
+
+**Hanno gia' la guida Markdown** (§Guide per pagina): tutte le SPA con una vista
+tranne Import Wizard, che renderizza inline e non ha una cartella sotto `views/`.
+Per queste e' la guida `views/<spa>/guide.it.md` ad aggiornarsi per prima; il capitolo
+dell'`.odt` resta finche' il manuale non viene ritirato. Le **dashboard PHP senza SPA**
+hanno la guida in `views/dashboards/<id>/`: Report (`m1`) e Riepilogo ospiti (`01`),
+Attestati (`27`, `28`), le quattro pagine dei preaccreditamenti, Controllo dati (`ic1`)
+le mappe dei servizi (`12`, `12l`, e la pagina `m7` che le raccoglie) e le pagine di
+configurazione e server (`05`, `06`, `00`, `30`, `31`).
+`php docs/check-guides.php` elenca in fondo le altre dashboard raggiungibili che ne sono
+prive: oggi `22`-`26` (pianificazione, il cui tab e' commentato in `menu.xml`), `iw`
+(Import Wizard) e `gmap`/`omap` (GeoTracker, altra applicazione).
+
+I capitoli del manuale in Markdown sono stati scritti dal vecchio manuale, dalle specifiche e dalle
+guide delle pagine, **non verificati contro l'interfaccia in uso**: dove non c'e' certezza il testo
+porta il segnaposto `[DA VERIFICARE]`, evidenziato in giallo. Il controllo di coerenza li conta
+(`--release` li rifiuta): va risolto ciascuno prima di considerare il manuale pubblicabile.
+
+### Guide e manuale (Markdown)
+
+Il manuale e' fatto di **una guida per ogni pagina** (SPA, o dashboard PHP senza SPA), in
+Markdown, scritta accanto al codice che descrive, e di capitoli che le collegano. Tutte le SPA con
+una vista hanno la guida; il manuale `.odt` scritto a mano non c'e' piu'.
+
+**La fonte unica e' il Markdown**: la guida generale (`generale.md`) e i capitoli in
+`docs/guide/<lingua>/manuale/` raccontano l'evento per fasi — preparare, accreditare, gestire,
+tracciare, rendicontare, piu' l'accoglienza solo per chi ospita civili — e rimandano con `guide:`
+alle guide delle pagine. `.odt`, PDF o HTML sono **derivati** da produrre da `guide.json` e dai
+Markdown (solo `.odt`, vedi [`specs/guide/`](specs/guide/)); non si modificano a mano. **Un comando
+solo**: `php docs/build-guide.php` controlla le guide e poi scrive `docs/<lingua>/manual.odt`
+(`--release` per una versione: nessun `[DA VERIFICARE]`, nessun avviso, numeri di pagina
+nell'indice tramite LibreOffice). Se il controllo non passa, l'`.odt` non si genera.
+
+| File | Cosa |
+|---|---|
+| `views/<spa>/guide.<lingua>.md` | la guida di quella SPA |
+| `views/dashboards/<id>/guide.<lingua>.md` | la guida di una dashboard PHP senza SPA, una per id (`dashboard_<id>.inc.php`); nell'indice e' `"view": "dashboards/<id>"` |
+| `docs/guide/<lingua>/generale.md` | la **radice** del manuale: come si legge e l'indice dei capitoli |
+| `docs/guide/<lingua>/manuale/<capitolo>.md` | i capitoli (Parte I `01`-`02`, Parte II `03`-`08`, Parte III `A`-`H`); nell'indice sono `"view": "manuale/<capitolo>"` con `file` |
+| `docs/guide/guide.json` | l'indice: lingue, radice, capitoli e guide delle pagine, nell'ordine del manuale |
+| `views/shared/guide.js` | parser Markdown, pannello «?», pagina del manuale (menu laterale, ricerca, «Apri la pagina») |
+| `guide.php` | il manuale completo: tutte le guide in una pagina; lo apre il pulsante *Manuale* del tab AIUTO |
+| `guide-links.js` | il piccolo «?» accanto ai pulsanti delle dashboard che aprono una pagina con guida, e il «?» fisso dentro le dashboard senza SPA |
+| `docs/check-guides.php` | il controllo di coerenza |
+| `docs/build-guide.php` | controllo + generazione di `docs/<lingua>/manual.odt` |
+
+Una SPA elencata in `guide.json` riceve da `app-boot.js` un pulsante «?» in basso
+a destra (mai in modalita' totem) che apre la guida in un pannello. In un wizard
+il pannello si apre sul passo in cui si e' e lo segue quando si avanza. Nelle
+dashboard, `guide-links.js` aggiunge accanto al pulsante che apre quella SPA un
+«?» discreto che apre lo stesso pannello: lo trova dal browser, quindi basta
+elencare la SPA in `guide.json`. Specifica in [`specs/guide/`](specs/guide/).
+
+Per chi scrive una guida:
+
+* **il grassetto e' testo come lo mostra l'interfaccia** (un pulsante, un campo,
+  un messaggio): l'enfasi va in *corsivo*. `N` in un'etichetta vale per un numero
+  o un'interpolazione (`Applica a N`);
+* ogni passo di un wizard ha una sezione `{#passo-N}`: un identificativo stabile,
+  uguale in tutte le lingue;
+* si usa il sottoinsieme di Markdown che `guide.js` capisce (elencato in testa al
+  file);
+* cio' che non si e' potuto confermare porta `[DA VERIFICARE]`, evidenziato anche senza
+  apici inversi; una versione (`build-guide.php --release`) non ne ammette;
+* la pagina va aggiunta a `guide.json`, altrimenti non ha il pulsante; il suo **Apri la
+  pagina** punta a `?dashboard=<id>` ricavato da `view` (o dal campo `page`);
+* un capitolo che nomina una pagina la richiama con `guide:<vista>` invece di ripeterne la spiegazione.
+
+`php docs/check-guides.php` verifica che ogni grassetto compaia nel codice della
+SPA, che i wizard abbiano tutti i passi e che i collegamenti esistano. E' il
+controllo che il manuale non poteva fare: vede i pulsanti *dentro* le SPA. Per una
+guida di dashboard PHP il testo cercato e' `dashboard_<id>.inc.php` piu' i file del
+campo `source` della voce in `guide.json`; un'etichetta composta a runtime va in
+corsivo.
+
+**Lingue.** `guide.<lingua>.md`, con ripiego sulla lingua predefinita
+dell'indice. La guida italiana e' la fonte: le traduzioni si controllano sugli
+identificativi, non sulle etichette, perche' l'interfaccia e' tutta in italiano.
+La lingua della pagina non arriva ancora alle SPA (`APP_CONFIG` ha solo
+`baseUrl` e i parametri dell'API): `guide.js` legge `APP_CONFIG.lang`, poi
+`<html lang>`. Per valorizzare `APP_CONFIG.lang` serve una riga in
+`mountMiniApp` (`camila/ui.class.inc.php`, framework).
+
+### Regola di allineamento
+
+Se una modifica cambia cio' che l'operatore **vede o fa** — un'etichetta, la
+posizione di un pulsante, un passo di un wizard, un campo — si aggiornano nello
+stesso intervento la specifica (`use-case.md`) **e** quel che la descrive per
+l'operatore: la guida della pagina (`views/<spa>/guide.it.md` o
+`views/dashboards/<id>/guide.it.md`) **e** i capitoli di `docs/guide/it/manuale/` che la
+nominano o ne descrivono il comportamento (si cerca il nome della pagina). Una pagina nuova
+va aggiunta alla tabella di copertura qui sopra e a `guide.json`, con la sua guida.
+
+Prima di chiudere si lancia `php docs/build-guide.php` (il controllo di coerenza, poi la
+generazione dell'`.odt`) e si riportano le voci che la modifica ha toccato. Il `.odt` e' un
+derivato: si rigenera, non si modifica.
+
+Se la guida non viene aggiornata — perche' manca la sezione, o perche' non si sa ancora come
+si comporta l'interfaccia — **lo si dichiara in chiusura**, con la guida o il capitolo interessato
+e il testo proposto, oppure si lascia un `[DA VERIFICARE]` nel punto. Non si lascia la guida
+indietro in silenzio: e' la stessa regola di §Specification-Driven Development, applicata a un
+terzo documento.
+
+Le modifiche che non cambiano nulla per l'operatore (refactoring, prestazioni,
+correzioni interne) non toccano le guide.
+
+### Controllo di coerenza
+
+`docs/check-guides.php` (lanciato da `docs/build-guide.php`, vedi sopra) verifica le guide in
+Markdown contro il codice: ogni grassetto e' nel codice della pagina, i collegamenti e le pagine
+esistono, i wizard hanno tutti i passi. E' di sola lettura ed esce con 1 se trova qualcosa.
+Dice se un'etichetta c'e', **non** se la procedura e' descritta bene.
+
+Il vecchio `docs/check-manual.php`, che confrontava il manuale `.odt` scritto a mano con
+l'interfaccia, e la bozza `docs/it/manual-aggiornamento.md` sono stati tolti: non vedevano i
+Markdown e il `.odt` e' ora generato.
+
 Una spec directory contiene:
 - `use-case.md` — comportamento atteso (il "cosa"): goal, attori, scenario principale, flussi alternativi in stile Cockburn
 - `design.md` — scelte tecniche (il "come"): state shape, tabelle coinvolte, logica di merge/verifica, payload
 
 **La copertura non è ancora completa.** Allo stato attuale:
 
-- senza `use-case.md`: `import-wizard`, `map-center`, `requests-board`, `resource-manager`, `worktable-explorer`
+- senza `use-case.md`: `import-wizard`, `map-center`, `requests-board`, `resource-manager`
 - senza `design.md`: nessuna
 
 Quando si modifica una SPA la cui spec manca, scrivere il file mancante seguendo la struttura in §Specification Style prima o insieme alla modifica.
@@ -349,7 +514,7 @@ quasi sempre nell'operativita', mentre arrivi e partenze arrivano a ondate.
 movimentazione ed elenco per ciascun tipo. E' stato rimosso: la registrazione la
 fa il check-in massivo, la movimentazione ha la sua SPA in Operatività e ci
 arrivano anche i link dei report (`?dashboard=02/03/04`), gli elenchi grezzi
-restano raggiungibili da WorkTable Explorer. Non riaggiungerlo senza una ragione
+restano raggiungibili dal WorkTable Explorer (plugin `worktable`). Non riaggiungerlo senza una ragione
 nuova.
 
 Nel box Anagrafiche le etichette sono **sostantivi semplici** — "Servizi", non
@@ -436,6 +601,7 @@ Il codice usato da piu' viste sta in `views/shared/`. Oggi ci sono
 `map-picker.js` (selettore di posizione su mappa, Leaflet + Nominatim),
 `org-picker.js` (selezione multipla di organizzazioni con ricerca e filtro per
 provincia) e `vocabularies.js` (elenchi di valori letti dalle colonne).
+`guide.js` rende le guide Markdown e il pannello «?» (vedi §Guide per pagina).
 
 **Contratto**: un modulo condiviso non renderizza da se'. Esporta una fabbrica
 che riceve `html` e un `rerender` dell'ospite, e restituisce un `template()`:
@@ -500,8 +666,9 @@ incorporato in `intervention-manager`.
 
 ## Pannelli incorporabili
 
-Una vista puo' vivere **sia come SPA a se' sia dentro un'altra**. Lo fa
-`team-manager`, che e' la terza vista di `intervention-manager`.
+Una vista puo' vivere **sia come SPA a se' sia dentro un'altra**. Lo faceva
+`team-manager`, che era la terza vista di `intervention-manager`; la vista e' stata
+tolta ma la fabbrica `createTeamPanel` e' rimasta, ed e' lo schema da seguire.
 
 Il file esporta due cose:
 
@@ -555,7 +722,7 @@ raggiungibile da un collegamento.
 |---|---|---|
 | scheda intervento | nota di brogliaccio | `brogliaccio` (tabella) |
 | scheda intervento | richiesta | `requests-board` |
-| scheda intervento | squadra dichiarata | vista Squadre dichiarate |
+| scheda intervento | squadra dichiarata | `team-manager` (Anagrafiche → Squadre dichiarate) |
 
 Evita di avere due interfacce di modifica sugli stessi dati da tenere
 allineate.
@@ -681,8 +848,9 @@ Due SPA non seguono i quattro innesti:
 * **Worktable Explorer** ha il pulsante in `dashboard_m2.inc.php` (tab
   CONFIGURAZIONE), non in `m0`, e punta con
   `?dashboard=worktable--worktable-explorer` all'explorer del plugin fratello
-  `worktable`. Il `worktable-explorer.inc.php` di questo plugin e la voce in
-  `menu.xml` esistono ma nessun pulsante li raggiunge.
+  `worktable`. **Questo plugin non ha piu' un proprio explorer**: file, specifica, guida e voce di
+  `menu.xml` sono stati tolti. Per questo il pulsante non ha il «?» delle guide: la guida, se c'e', sta
+  nel plugin `worktable`.
 
 ## Modalità totem
 
@@ -817,7 +985,6 @@ Queste non sono estensioni da introdurre: fanno già parte della superficie eser
 |---|---|
 | `sequence()` | `views/massive-check-in/step6.js`, `views/resource-manager/step2.js` — prefill di id progressivi |
 | `call()` | lookup codice totem in check-in / check-out / org-status; `views/smart-assistant/home.js` |
-| allegati | `views/worktable-explorer/index.js` — upload da fotocamera, preview via blob URL, delete |
 | `importTable*`, `tables()` | `app-import-wizard.js` |
 | `permissions()` | `views/resource-manager/step1.js` (unica SPA con read-only fallback) |
 
@@ -1106,10 +1273,9 @@ pulsante **Esci e rientra**. Due varianti da conoscere:
   per riga, e se la sessione muore falliscono tutte. Ogni riga dice solo
   *Sessione non piu' valida* (`SESSIONE_BREVE`) e la frase completa con il
   pulsante compare **una volta** sopra i contatori;
-* **errori che viaggiano come stringa** — `worktable-explorer` e l'editing
-  inline di `resource-manager/step1` passano il testo e non l'oggetto, quindi
-  riconoscono il caso confrontando con la frase. L'avviso di sessione in
-  `worktable-explorer` non sparisce dopo 5 secondi come gli errori transitori.
+* **errori che viaggiano come stringa** — l'editing inline di
+  `resource-manager/step1` passa il testo e non l'oggetto, quindi riconosce il
+  caso confrontando con la frase.
 
 Quando si aggiunge una vista che chiama l'API, aggiungere il caso sessione con
 lo stesso schema. Nessun entry point deve piu' stampare `String(err.payload)`:
@@ -1441,8 +1607,8 @@ Dettagli in [`specs/api/describe/`](specs/api/describe/).
 
 Da sapere: nel describe esteso **`name` e' il nome pubblico** della colonna, e
 il nome fisico non viene piu' esposto. Prima `name` era quello fisico e
-`alias` quello pubblico — controintuitivo, ed e' la ragione per cui
-`views/worktable-explorer/index.js` ha un ramo di riserva che leggeva i nomi
+`alias` quello pubblico — controintuitivo, e chi leggeva `alias` e `name`
+dalla definizione vecchia (come faceva l'explorer, oggi in un altro plugin) leggeva i nomi
 sbagliati.
 
 Resta **una** copia di riserva, dentro `vocabularies.js`. Scatta se il describe

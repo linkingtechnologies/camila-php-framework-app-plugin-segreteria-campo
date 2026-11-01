@@ -19,8 +19,8 @@ senza modifiche.
 
 ## 1. Struttura
 
-Pannello a due colonne con creazione in popup, **incorporato** nella gestione
-interventi.
+Pannello a due colonne con creazione in popup. Oggi vive solo come SPA a se'
+(box Anagrafiche); in passato era **incorporato** nella gestione interventi.
 
 Il codice e' una fabbrica riusabile, `createTeamPanel({ client, html, rerender,
 embedded })`, sullo stesso schema di `views/shared/map-picker.js`: non
@@ -32,7 +32,7 @@ a se': e' quella che serve il pulsante nel box amministrativo, tramite
 `app-team-manager.js`, `team-manager.inc.php` e `dashboard_team-manager.inc.php`.
 
 ```
-[ Gestione interventi ]        [ Elenco | Kanban | Squadre ]
+[ Squadre dichiarate ]
 [Toolbar: 🔍 Cerca… | + Nuova squadra | ↺ ]
 [Totali: N squadre · N volontari · N mezzi · N attrezzature]
 ┌────────────────────┬────────────────────────────────────────────┐

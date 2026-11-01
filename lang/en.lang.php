@@ -12,3 +12,7 @@ camila.iw.btn.import = Import
 camila.iw.imported = Imported: %s
 camila.iw.records = %s records
 camila.iw.warn.nonempty = The following sheets already contain data. The import will add new records:
+camila.iw.queued = Queued
+camila.iw.failed = not imported: %s
+camila.iw.nodata = no rows read out of %s: check the file headers
+camila.iw.warn.failed = Some sheets were not imported in full. Check the sheet and, if needed, empty it and import again (reload the page).

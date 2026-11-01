@@ -210,6 +210,7 @@ export function mountSpa({
 
   const client = WorkTableClient(window.APP_CONFIG || {});
   const state = { step: 1, ...initialState };
+  let guide = null;
 
   // Wizard steps are guarded on every render, not only on the transition that
   // leads to them: a reload or a stale state must not land on a step whose
@@ -231,6 +232,7 @@ export function mountSpa({
       throw new Error(`views/${view}/step${n}.js non esporta Step${n}`);
     }
     render(await Step({ state, client, goTo, html, render, root }), root);
+    guide?.sync();   // an open guide follows the step
   }
 
   async function mountView() {
@@ -255,8 +257,36 @@ export function mountSpa({
     mount();
   }
 
+  // The guide is optional: a SPA gets the "?" button only if docs/guide/guide.json
+  // lists it, the kiosk (totem) never gets it, and nothing here may break the SPA.
+  async function setupGuide() {
+    try {
+      if (new URLSearchParams(window.location.search).get("totem") === "1") return;
+      const res = await fetch(new URL(`./docs/guide/guide.json?v=${VERSION}`, import.meta.url));
+      if (!res.ok) return;
+      const manifest = await res.json();
+      // "floating": false keeps the guide in the manual and behind links, without the
+      // button on this page (the Smart Assistant lives in the home: a "?" there would
+      // read as help for the whole home).
+      const entry = manifest.guides?.find(g => g.view === view);
+      if (!entry || entry.floating === false) return;
+      const mod = await import(`./views/shared/guide.js?v=${VERSION}`);
+      guide = mod.createGuideDrawer({
+        html,
+        render,
+        view,
+        manifest,
+        version: VERSION,
+        getAnchor: () => (steps > 0 ? `passo-${state.step}` : null)
+      });
+    } catch (e) {
+      console.warn("guide:", e);
+    }
+  }
+
   render(loading === "spinner" ? LOADING_SPINNER : html`<div></div>`, root);
   mount();
+  setupGuide();
 
   return { state, goTo, mount };
 }

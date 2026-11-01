@@ -16,8 +16,19 @@ const state = {
   examples: {},
   selected: new Set(),
   importing: new Set(),
+  queued: new Set(),    // selected, waiting for the one before: the imports run one at a time
   results: {},
 };
+
+// What a finished import says. The API counts rows it could not insert in `failed`; showing only
+// `imported` made a sheet that lost rows look like a sheet with nothing to import.
+function resultText(r) {
+  if (r.imported === 0 && r.failed === 0 && r.total > 0) {
+    return `${t('iw.imported', 0)} · ${t('iw.nodata', r.total)}`;
+  }
+  return t('iw.imported', r.imported) + (r.failed > 0 ? ` · ${t('iw.failed', r.failed)}` : '');
+}
+const resultClass = r => (!r.ok ? 'is-danger' : (r.failed > 0 || (r.imported === 0 && r.total > 0)) ? 'is-warning' : 'is-success');
 
 function rerender() { render(App(), root); }
 
@@ -30,7 +41,8 @@ function toggleSelect(name) {
 function App() {
   const importable   = state.tables.filter(tbl => state.examples[tbl.short_title] && !state.results[tbl.name]);
   const allChecked   = importable.length > 0 && importable.every(tbl => state.selected.has(tbl.name));
-  const anyImporting = state.importing.size > 0;
+  const anyImporting = state.importing.size > 0 || state.queued.size > 0;
+  const anyIncomplete = Object.values(state.results).some(r => r.ok && resultClass(r) === 'is-warning');
   const nSelected    = state.selected.size;
   const warnTables   = state.tables.filter(tbl => state.selected.has(tbl.name) && tbl.count > 0);
 
@@ -63,11 +75,13 @@ function App() {
       <td>
         ${importing
           ? html`<progress class="progress is-small" style="max-width:160px"></progress>`
-          : result
-            ? html`<span class="tag is-light ${result.ok ? 'is-success' : 'is-danger'}">
-                ${result.ok ? t('iw.imported', result.imported) : result.error}
-              </span>`
-            : html`<span class="has-text-grey">—</span>`}
+          : state.queued.has(tbl.name)
+            ? html`<span class="tag is-light">${t('iw.queued')}</span>`
+            : result
+              ? html`<span class="tag is-light ${resultClass(result)}">
+                  ${result.ok ? resultText(result) : result.error}
+                </span>`
+              : html`<span class="has-text-grey">—</span>`}
       </td>
     </tr>`;
   });
@@ -108,6 +122,9 @@ function App() {
         </div>
       </article>` : ''}
 
+    ${anyIncomplete ? html`
+      <article class="message is-warning"><div class="message-body">${t('iw.warn.failed')}</div></article>` : ''}
+
     ${state.loading ? html`<progress class="progress is-small is-primary"></progress>` : ''}
 
     ${!state.loading
@@ -132,19 +149,31 @@ async function doImport(tablename, filepath) {
   state.importing.add(tablename); rerender();
   try {
     const res = await client.importTable(tablename, filepath);
-    state.results[tablename] = { ok: true, imported: res.imported };
+    state.results[tablename] = {
+      ok: true,
+      imported: res.imported ?? 0,
+      failed: res.failed ?? 0,
+      total: res.total ?? res.imported ?? 0,
+    };
   } catch (e) {
     state.results[tablename] = { ok: false, error: e?.payload?.message || e?.message || t('iw.error.unknown') };
   } finally { state.importing.delete(tablename); rerender(); }
 }
 
-function runImports() {
-  const toImport = [...state.selected].map(name => {
-    const tbl = state.tables.find(tbl => tbl.name === name);
-    return tbl ? { name, filepath: state.examples[tbl.short_title]?.filepath } : null;
-  }).filter(Boolean);
+// One sheet at a time, in the order of the table. Started together they would write to the database
+// together, and SQLite (the local installation) takes one writer at a time: the others fail rows with
+// "database is locked", more or less at random, and a sheet could end with fewer rows than its file.
+async function runImports() {
+  const toImport = state.tables
+    .filter(tbl => state.selected.has(tbl.name))
+    .map(tbl => ({ name: tbl.name, filepath: state.examples[tbl.short_title]?.filepath }));
   state.selected.clear();
-  toImport.forEach(({ name, filepath }) => doImport(name, filepath));
+  toImport.forEach(({ name }) => state.queued.add(name));
+  rerender();
+  for (const { name, filepath } of toImport) {
+    state.queued.delete(name);
+    await doImport(name, filepath);
+  }
 }
 
 async function load() {

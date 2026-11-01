@@ -104,9 +104,19 @@ Chiavi definite:
 | `camila.iw.imported` | Importati: %s | Imported: %s |
 | `camila.iw.records` | %s record | %s records |
 | `camila.iw.warn.nonempty` | Le seguenti schede contengono già dei dati. L'import aggiungerà nuovi record: | The following sheets already contain data. The import will add new records: |
+| `camila.iw.queued` | In coda | Queued |
+| `camila.iw.failed` | non importati: %s | not imported: %s |
+| `camila.iw.nodata` | nessuna riga letta su %s: controlla le intestazioni del file | no rows read out of %s: check the file headers |
+| `camila.iw.warn.failed` | Alcune schede non sono state importate per intero. Controlla la scheda e, se serve, svuotala e importa di nuovo (ricarica la pagina). | Some sheets were not imported in full. Check the sheet and, if needed, empty it and import again (reload the page). |
 
 Nel JS: `t(key, ...args)` — legge `window.I18N[key]`, sostituisce `%s` con gli argomenti posizionali.
 
-## 6. Comportamento import parallelo
+## 6. Import in sequenza
 
-`runImports()` svuota la selezione e chiama `doImport(name, filepath)` per ogni riga selezionata senza `await`. Ogni chiamata è indipendente e aggiorna `state.importing` (un `Set`) e `state.results` in autonomia. Il re-render avviene per ogni transizione di stato.
+`runImports()` svuota la selezione e importa **una scheda alla volta**, nell'ordine delle schede (`state.tables`), aspettando la fine di ciascuna (`await doImport(...)`). Le schede ancora da fare stanno in `state.queued` (un `Set`) e mostrano «In coda»; quella in corso sta in `state.importing` e mostra la barra. Il pulsante e le caselle restano disattivati finche' `importing` o `queued` non sono vuoti.
+
+**Perche' non in parallelo.** Fino alla v. precedente le importazioni partivano insieme, senza `await`. L'API chiude subito la sessione e nginx ha piu' processi PHP, quindi le richieste giravano davvero insieme; con SQLite (installazione locale), che ammette un solo scrittore alla volta, gli inserimenti delle altre schede fallivano con «database is locked», a caso. L'importatore del framework li conta in `failed` e prosegue, e il wizard mostrava solo `imported`: una scheda che aveva perso righe sembrava una scheda con 0 record da importare. Provato su una copia del database: 4 schede da 400 righe in sequenza, tutte e 1600 importate; in parallelo da 23 a 86 righe perse per scheda (fino a 274 con 6 schede da 1000), con un risultato diverso a ogni prova.
+
+**Il risultato mostra anche cio' che non e' entrato.** `state.results[nome]` tiene `{ ok, imported, failed, total }` (dalla risposta dell'API, `failed` e `total` valgono 0 se mancano). Il testo e' «Importati: N», seguito da «· non importati: M» se `failed > 0`; se `imported` e `failed` sono 0 ma `total > 0` (nessuna riga riconosciuta: di solito le intestazioni del file non combaciano con le colonne della scheda) dice «Importati: 0 · nessuna riga letta su N…». In entrambi i casi l'etichetta e' gialla (`is-warning`) e compare l'avviso `iw.warn.failed`. Una scheda gia' nei risultati non si puo' reimportare senza ricaricare la pagina.
+
+**Limite noto.** La causa piu' a monte sta nel framework (`configurator::importXlsData`, una transazione per riga, nessuna attesa sul blocco): la sequenza nel wizard la evita ma non la corregge per chi importa da altri punti (per esempio due amministratori insieme).

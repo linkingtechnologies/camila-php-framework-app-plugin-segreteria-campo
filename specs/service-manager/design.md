@@ -103,7 +103,7 @@ Colori disponibili (`COLORI`): `rosso`, `nero`, `blu`, `verde`, `grigio`, `aranc
 
 Lettere disponibili (`LETTERE`): A–Z, 1–9, `! # $ % & + - = @`, oppure vuoto (nessuna lettera). Corrispondono ai file immagine `marker_<colore><lettera>.png` nella cartella `templates/images/en/`. Il campo è selezionabile tramite picker a griglia — non è un input libero.
 
-Servizi protetti (`PROTECTED`): `IN ATTESA DI SERVIZIO`, `USCITA DEFINITIVA`
+Servizi protetti (`PROTECTED`): `IN ATTESA DI SERVIZIO`, `USCITA DEFINITIVA`. Non si eliminano, non si riordinano e **non si clonano**: nel form il pulsante Clona non e' disegnato (`!isProtected`, mentre Nuovo resta) e `cloneService()` esce subito se il servizio e' protetto.
 
 ## 4. Componenti UI
 

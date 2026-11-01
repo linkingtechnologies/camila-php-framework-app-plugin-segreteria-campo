@@ -12,3 +12,7 @@ camila.iw.btn.import = Importa
 camila.iw.imported = Importati: %s
 camila.iw.records = %s record
 camila.iw.warn.nonempty = Le seguenti schede contengono già dei dati. L'import aggiungerà nuovi record:
+camila.iw.queued = In coda
+camila.iw.failed = non importati: %s
+camila.iw.nodata = nessuna riga letta su %s: controlla le intestazioni del file
+camila.iw.warn.failed = Alcune schede non sono state importate per intero. Controlla la scheda e, se serve, svuotala e importa di nuovo (ricarica la pagina).

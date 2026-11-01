@@ -979,8 +979,9 @@ export async function createTeamPanel({ client, html, rerender, embedded = false
 
 /* ==========================
    SPA autonoma
-   Resta disponibile come pagina a se': la gestione squadre vive dentro
-   intervention-manager, ma il pannello non e' legato a quel contesto.
+   Oggi e' l'unico punto di gestione delle squadre (box Anagrafiche). In passato il
+   pannello era anche incorporato in intervention-manager: e' rimasto indipendente
+   dal contesto che lo ospita, quindi puo' tornare ad esserlo.
 ========================== */
 
 export async function TeamManager({ client, html, render, root }) {

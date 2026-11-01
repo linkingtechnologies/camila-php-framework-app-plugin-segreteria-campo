@@ -126,6 +126,8 @@ if ($useGzip) ob_start('ob_gzhandler'); else ob_start();
     margin: 16px 0;
     font-size: 0.98em;
   }
+  /* ODT2XHTML prints the internal table style name ("Table1") as a caption */
+  .doc caption { display: none; }
   .doc th, .doc td {
     border: 1px solid var(--border);
     padding: 8px 10px;

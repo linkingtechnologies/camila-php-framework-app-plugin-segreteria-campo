@@ -145,7 +145,7 @@ La pill usa `position: sticky; top: 0` dentro il pannello scrollabile, quindi ri
 Rilevata da `detectPriority(r)` che restituisce `{ level, label }`:
 
 1. Campo `priorita`: `ALTA` → `{ level:"high", label:"ALTA" }`; `EMERGENZA` → `{ level:"high", label:"EMERGENZA" }`; `MEDIA` → `{ level:"medium", label:"MEDIA" }`; `ATTENZIONE` → `{ level:"medium", label:"ATTENZIONE" }`
-2. Keyword nel testo `messaggio` (uppercase, solo se `priorita` è vuoto): `EMERGENZA`, `SOS`, `URGENTE`, `URGENZA`, `INCENDIO`, `FERITO`, `FERITI`, `PERICOLO`, `MAYDAY` → `{ level:"high", label:"EMERGENZA" }`; `ATTENZIONE`, `ALLERTA`, `PROBLEMA` → `{ level:"medium", label:"ATTENZIONE" }`
+2. Keyword nel testo `messaggio` (uppercase, se `priorita` non è uno dei quattro valori del punto 1: vuoto o qualunque altro): `EMERGENZA`, `SOS`, `URGENTE`, `URGENZA`, `INCENDIO`, `FERITO`, `FERITI`, `PERICOLO`, `MAYDAY` → `{ level:"high", label:"EMERGENZA" }`; `ATTENZIONE`, `ALLERTA`, `PROBLEMA` → `{ level:"medium", label:"ATTENZIONE" }`
 3. Default: `{ level:"normal", label:"" }`
 
 Nessun badge testuale — la priorità è indicata solo tramite sfondo e bordo laterale della card.
@@ -168,7 +168,7 @@ Nessun badge testuale — la priorità è indicata solo tramite sfondo e bordo l
 | `medium` | `#f59e0b` (ambra) | `#fffbf0` | `#fff3d0` |
 | `normal` | `#e5e7eb` (grigio) | `#fff` | `#eff6ff` (azzurro) |
 
-"Recente" = `received-date` negli ultimi 4 minuti, calcolato a ogni render → torna a sfondo normale automaticamente allo scadere del tempo.
+"Recente" = `data/ora` negli ultimi 4 minuti (`isRecent`; senza `data/ora` il messaggio non e' recente), calcolato a ogni render → torna a sfondo normale automaticamente allo scadere del tempo.
 
 Messaggi in `newIds`: classe `cf-new` → animazione `cf-flash` (box-shadow blu che sfuma in 4s).
 

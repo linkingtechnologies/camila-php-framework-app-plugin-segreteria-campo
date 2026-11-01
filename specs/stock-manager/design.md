@@ -93,6 +93,11 @@ const PAGE_SIZE = 50;
   // modale new/edit
   modal:             null | ModalState,
 
+  // modifica e eliminazione: dai permessi della tabella mov-consumabili, letti al mount
+  // (permissions(): can.update / can.delete; false se la chiamata fallisce)
+  canUpdate:         Boolean,      // default false
+  canDelete:         Boolean,      // default false
+
   // delete inline
   deleteId:          String | null,
   deleteBusy:        Boolean,
@@ -136,8 +141,9 @@ const PAGE_SIZE = 50;
 | Lettura magazzini | `magazzini` |
 | Lettura servizi | `servizi` |
 | Creazione movimentazione | `mov-consumabili` (`.create()`) |
-| Modifica movimentazione | `mov-consumabili` (`.update(id, payload)`) |
-| Eliminazione movimentazione | `mov-consumabili` (`.remove(id)`) |
+| Permessi sulle movimentazioni | `mov-consumabili` (`.permissions()`), una volta al mount |
+| Modifica movimentazione (se `can.update`) | `mov-consumabili` (`.update(id, payload)`) |
+| Eliminazione movimentazione (se `can.delete`) | `mov-consumabili` (`.remove(id)`) |
 
 ## 5. Caricamento dati
 
@@ -164,6 +170,8 @@ const pageItems  = filtered.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
 ```
 
 ## 7. Edit e Delete movimentazioni
+
+**Modifica ed eliminazione dipendono dai permessi della scheda.** Al mount, prima del primo `load()`, la SPA chiede `client.table("mov-consumabili").permissions()` e tiene `canUpdate = can.update === true` e `canDelete = can.delete === true`; se la chiamata fallisce restano entrambi `false` (sola lettura, caso prudente di AGENTS.md §Permissions). La colonna delle azioni compare se c'e' almeno un permesso e mostra la matita solo con `canUpdate`, il cestino solo con `canDelete`; `openModal(record)`, `confirmModal` in modalita' edit, `askDelete` e `confirmDelete` escono senza fare nulla se manca il permesso. I flag `canupdate`/`candelete` si impostano sulla scheda in Camila e gli amministratori li hanno sempre veri (`camila_access_*`), quindi per riservare queste operazioni agli amministratori basta spegnerli sulla scheda MOV. CONSUMABILI. **E' una protezione dell'interfaccia, non del server**: i REST non applicano quei flag (valgono per la pagina PHP della scheda e per `permissions()`), quindi una scrittura diretta sull'API non e' bloccata. Per una protezione vera servirebbe un controllo lato server nel framework (`authorization.tableHandler`).
 
 **Edit**: click su ✏️ → apre modal pre-compilato con `mode:"edit"` e `editId`. Salvataggio via `.update(id, payload)`.
 

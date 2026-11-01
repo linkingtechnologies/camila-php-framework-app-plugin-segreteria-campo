@@ -55,7 +55,7 @@ Operatore di segreteria campo / responsabile configurazione.
 
 ### 9b — Clonazione servizio
 
-1. Con un servizio selezionato (non protetto), l'operatore clicca **Clona**.
+1. Con un servizio selezionato (non protetto), l'operatore clicca **Clona**. Per i servizi protetti il pulsante **non compare** (resta **Nuovo**) e `cloneService()` esce comunque senza fare nulla.
 2. Il sistema crea una copia del servizio con nome `<nome originale> (copia)` e ordine successivo all'ultimo.
 3. Il nuovo servizio viene selezionato automaticamente con messaggio "Servizio clonato — modifica il nome e salva."
 
