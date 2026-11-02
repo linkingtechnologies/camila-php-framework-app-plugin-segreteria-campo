@@ -165,7 +165,7 @@ SPA, ma ogni SPA ha un capitolo sotto *Gestione evento*:
 | Massive Check-out | *Check-out massivo* |
 | Movimentazione risorse | *Movimentazione risorse*, procedura P05 |
 | Gestione interventi | *Gestione interventi* |
-| Squadre dichiarate | *Squadre dichiarate* (e il paragrafo *Squadre dichiarate sulla lavagna* in *Movimentazione risorse*) |
+| Squadre dichiarate | *Squadre dichiarate* (e il paragrafo *Squadre dichiarate sul kanban* in *Movimentazione risorse*) |
 | Gestione richieste | *Richieste*, procedura P13 |
 | Comunicazioni live | *Comunicazioni live* |
 | Mappe | *Mappe* |
@@ -214,7 +214,7 @@ nell'indice tramite LibreOffice). Se il controllo non passa, l'`.odt` non si gen
 | `views/<spa>/guide.<lingua>.md` | la guida di quella SPA |
 | `views/dashboards/<id>/guide.<lingua>.md` | la guida di una dashboard PHP senza SPA, una per id (`dashboard_<id>.inc.php`); nell'indice e' `"view": "dashboards/<id>"` |
 | `docs/guide/<lingua>/generale.md` | la **radice** del manuale: come si legge e l'indice dei capitoli |
-| `docs/guide/<lingua>/manuale/<capitolo>.md` | i capitoli (Parte I `01`-`02`, Parte II `03`-`08`, Parte III `A`-`H`); nell'indice sono `"view": "manuale/<capitolo>"` con `file` |
+| `docs/guide/<lingua>/manuale/<capitolo>.md` | i capitoli (Parte I `01`-`02`, Parte II `03`-`09` (il 9 e' l'indice delle procedure per compito), Parte III `A`-`G`); nell'indice sono `"view": "manuale/<capitolo>"` con `file` |
 | `docs/guide/guide.json` | l'indice: lingue, radice, capitoli e guide delle pagine, nell'ordine del manuale |
 | `views/shared/guide.js` | parser Markdown, pannello «?», pagina del manuale (menu laterale, ricerca, «Apri la pagina») |
 | `guide.php` | il manuale completo: tutte le guide in una pagina; lo apre il pulsante *Manuale* del tab AIUTO |
@@ -299,7 +299,7 @@ Una spec directory contiene:
 
 **La copertura non è ancora completa.** Allo stato attuale:
 
-- senza `use-case.md`: `import-wizard`, `map-center`, `requests-board`, `resource-manager`
+- senza `use-case.md`: `import-wizard`, `map-center`, `requests-board`
 - senza `design.md`: nessuna
 
 Quando si modifica una SPA la cui spec manca, scrivere il file mancante seguendo la struttura in §Specification Style prima o insieme alla modifica.
@@ -601,6 +601,8 @@ Il codice usato da piu' viste sta in `views/shared/`. Oggi ci sono
 `map-picker.js` (selettore di posizione su mappa, Leaflet + Nominatim),
 `org-picker.js` (selezione multipla di organizzazioni con ricerca e filtro per
 provincia) e `vocabularies.js` (elenchi di valori letti dalle colonne).
+`spreadsheet.js` scrive file `.xlsx` e `.ods` dal browser, con il loro controllo (usato dall'esportazione
+di `resource-manager`; vedi `specs/resource-manager/design.md` §7d).
 `guide.js` rende le guide Markdown e il pannello «?» (vedi §Guide per pagina).
 
 **Contratto**: un modulo condiviso non renderizza da se'. Esporta una fabbrica

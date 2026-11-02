@@ -1,14 +1,15 @@
 # Movimentazione risorse {#top}
 
 Il quadro d'insieme di dove si trovano le risorse in campo: volontari, mezzi e
-materiali, raggruppati per servizio su una lavagna a colonne. Da qui le sposti da
+materiali, raggruppati per servizio su un *kanban*, cioè una lavagna a colonne, una per
+servizio, con le schede che si spostano da una colonna all'altra. Da qui le sposti da
 un servizio all'altro. Si apre da *Operatività → Movimentazione risorse*.
 
 ## Cosa vedi {#cosa-vedi}
 
 - In alto la barra con la ricerca, i filtri e i comandi.
 - Sotto la barra **Servizi:**, con un'etichetta per ogni servizio che ha risorse.
-- Poi la lavagna: una colonna per ogni servizio. La prima è sempre *IN ATTESA DI
+- Poi il kanban: una colonna per ogni servizio. La prima è sempre *IN ATTESA DI
   SERVIZIO*, dove stanno le risorse non ancora assegnate.
 
 Nell'intestazione di una colonna vedi il nome del servizio e quanti gruppi
@@ -22,7 +23,7 @@ con le sue risorse in quel servizio.
 
 Il comando **Mostra:** ha tre pulsanti:
 
-- **Risorse registrate**: la lavagna di volontari, mezzi e materiali registrati
+- **Risorse registrate**: il kanban di volontari, mezzi e materiali registrati
   con il check-in;
 - **Squadre dichiarate**: le squadre note solo per numeri (vedi sotto);
 - **Disponibilità nel tempo**: una linea temporale delle squadre (vedi sotto).
@@ -63,7 +64,7 @@ come possibili destinazioni. Fuori dal trascinamento stanno dietro il pulsante
 **+N**: premilo per vederli (**Mostra servizi non assegnati**) o nasconderli
 (**Nascondi servizi non assegnati**).
 
-Mentre la lavagna salva vedi **Caricamento risorse…**. Gli spostamenti già
+Mentre il kanban salva vedi **Caricamento risorse…**. Gli spostamenti già
 riusciti prima di un errore restano validi.
 
 ## Cambiare squadra {#squadra}
@@ -77,14 +78,14 @@ esistenti o scrivine uno nuovo (*Seleziona o digita una nuova squadra…*), poi 
 
 - Il campo di ricerca (*Cerca gruppo, risorsa, servizio…*) filtra le schede mentre
   scrivi; la ✕ lo svuota.
-- **Tutte le province** e **Tutte le organizzazioni** restringono la lavagna; i
+- **Tutte le province** e **Tutte le organizzazioni** restringono il kanban; i
   menu compaiono solo se c'è più di un valore.
 - Con un filtro attivo compare una striscia gialla: **Filtro attivo:** con i
   valori scelti e «stai vedendo X di Y». **Rimuovi filtri** (la ✕) li toglie.
 - **Aggiorna** rilegge i dati. Le frecce accanto scorrono le colonne se non ci
   stanno tutte.
 
-## Squadre dichiarate sulla lavagna {#squadre-dichiarate}
+## Squadre dichiarate sul kanban {#squadre-dichiarate}
 
 Le squadre note solo per numeri (senza nominativi) compaiono come schede con i
 loro numeri dichiarati, l'organizzazione e la disponibilità. Una scheda senza
@@ -103,7 +104,7 @@ dalla scheda dell'intervento.
 
 ## Disponibilità nel tempo {#disponibilita}
 
-Con **Disponibilità nel tempo** la lavagna è sostituita da una linea temporale:
+Con **Disponibilità nel tempo** il kanban è sostituito da una linea temporale:
 una riga per squadra, una barra per la sua finestra di disponibilità e una linea
 **Adesso**. I colori dicono se la finestra è **Da iniziare**, **In corso** o
 **Terminata**.

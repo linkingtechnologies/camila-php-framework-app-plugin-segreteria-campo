@@ -368,6 +368,97 @@ dire la vecchia. Nella stessa occasione quel `<select>` e' passato da `.value` a
 
 Una colonna nascosta non e' modificabile inline, perche' la cella non c'e'.
 
+## 7d. Esportazione in Excel e in ODS
+
+I pulsanti **Esporta in Excel** ed **Esporta in ODS** stanno nella riga di **Colonne**
+(`renderColPanel()`), affiancati, per ognuna delle tre schede. Esporta cio' che l'operatore sta guardando: la stessa
+tabella, gli stessi filtri (`buildFilters(tab)`), lo stesso ordine (`getOrder(tab)`) e
+le colonne **visibili** (`cols`, cioe' `colsOrdinate` meno le nascoste), nell'ordine in
+cui le vede. L'intestazione usa `colLabel(tab, k)`: l'etichetta della worktable, non
+l'abbreviazione della tabella a schermo. Mai `id`, `uuid`, `id2`.
+
+```text
+exportSheet(tab, cols, format)                       // format: "xlsx" | "ods"
+  exportByTab[tab] = { busy: true, format, error: null }   // redisegna solo i pulsanti (skipFetch)
+  rows = []
+  per page = 1..EXPORT_MAX_PAGES (200):
+      list({ filters, order + ["id","asc"], page: [page, EXPORT_PAGE (1000)] })
+      rows += records;  fermo se la pagina e' vuota o rows >= results
+  buildXlsx | buildOds ({ sheetName: etichetta della scheda, headers, rows, numeric, dates })
+  verifyXlsx | verifyOds (bytes, stessi dati)  // se non passa: errore, nessun download
+  saveBytes(bytes, "database-<tab>_<AAAA-MM-GG>.<xlsx|ods>")
+```
+
+- **Non e' la pagina a schermo.** Il punto dell'esportazione e' la lista intera, quindi
+  rilegge a blocchi con lo stesso client della tabella, e con gli stessi permessi di lettura.
+  Niente endpoint nuovo e niente dati che escono dal browser.
+- **`id` come ultima chiave d'ordine**, se non c'e' gia': con un ordine su una colonna con
+  valori ripetuti, due richieste di pagine successive potrebbero ripetere o saltare righe.
+- **Un file per scheda**, non un file con tre fogli: il foglio si chiama come la scheda.
+- **Due formati, un solo flusso:** l'unica differenza e' la funzione che scrive e quella che controlla.
+  Un solo pulsante alla volta lavora (`busy` li disattiva entrambi) e a girare e' quello premuto.
+- **Il file lo scrive `views/shared/spreadsheet.js`**, un modulo puro (nessun DOM, nessuno stato)
+  con un writer `.xlsx` e uno `.ods` minimi, dagli stessi dati (stesse colonne, stesse regole per
+  numeri e date, stesso controllo). Il writer `.xlsx`: un foglio, intestazione in grassetto su fondo chiaro,
+  prima riga bloccata, filtro automatico su ogni colonna, larghezze dal contenuto, zip
+  senza compressione (serve solo il CRC-32). Un import dinamico con `?v=VERSION`, come
+  ogni modulo condiviso.
+- **Celle di testo, tranne le colonne numeriche.** Una colonna e' scritta come numero solo
+  se il describe esteso ne dice il tipo (`integer`, `decimal`, `number`, `float`) **e** il
+  valore e' un numero scritto in modo canonico (niente zeri iniziali). Codici fiscali,
+  cellulari, targhe e codici inventario arrivano a Excel come sono stati scritti, senza
+  perdere gli zeri o diventare `3,3E+11`.
+- **Date vere.** Una colonna e' scritta come data Excel se il describe esteso ne dice il tipo
+  (`date`, `datetime`, `timestamp`); senza describe, la sola colonna data di queste tre tabelle,
+  `data-di-nascita`, si riconosce dal nome. Nella cella c'e' il numero seriale della data con il
+  formato breve di Excel (`numFmtId` 14, o 22 se c'e' anche l'ora): Excel la mostra nel formato
+  regionale di chi apre il file (gg/mm/aaaa su un PC italiano) e la ordina e la filtra come data.
+  `toSerial()` capisce `AAAA-MM-GG`, `AAAA-MM-GG hh:mm[:ss]` (anche con la `T`) e `gg/mm/aaaa`.
+  **Cio' che non e' una data resta il testo che era**: formato sconosciuto, data impossibile
+  (31 febbraio), la data zero di un database (`0000-00-00`), `n.d.`. Resta testo anche una data
+  prima del 1° marzo 1900: il sistema 1900 di Excel conta un 29 febbraio 1900 che non e' mai
+  esistito, e prima di allora il numero sarebbe sbagliato di un giorno. Niente fuso orario: la
+  data e' quella scritta, senza conversioni. Il controllo del file confronta il numero seriale.
+- **Stato:** `state.step1.exportByTab[tab] = { busy, error }`. `busy` disattiva il pulsante
+  e mostra *Esportazione…*; con lista vuota (`total === 0`) il pulsante e' disattivato.
+- **Errori:** `errorText(e)` come nel resto della SPA; con la sessione non piu' valida
+  il messaggio e' giallo e porta il collegamento **Esci e rientra**. Nessun file parziale.
+- **Funziona anche in sola lettura:** esportare non scrive.
+- **Controllo del file** (`verifyXlsx()`, e `verifyOds()` per l'ods): prima di offrirlo, il file appena scritto viene riletto
+  contro i dati da cui nasce. Controlla lo zip (record finale, intestazioni centrali e locali,
+  dimensioni, CRC-32 di ogni parte), che le sei parti attese ci siano, che ogni parte XML sia ben
+  formata (`DOMParser`; il foglio oltre 4 MB di testo non passa dal DOM e resta coperto dai conti),
+  che i tag di apertura e chiusura si bilancino, che le righe vadano da 1 a N senza buchi, che ogni
+  cella stia nella sua riga e in ordine di colonna, che il numero di celle coincida con i valori non
+  vuoti, che filtro e nome definito coprano esattamente i dati, e il contenuto cella per cella della
+  prima riga, della seconda e dell'ultima. Un file che non passa **non viene salvato**: l'errore dice
+  il primo problema e `console.warn` li elenca tutti.
+  **Limite dichiarato:** trova gli errori del writer, non dice se Excel accettera' il file. Excel
+  e' piu' severo di qualunque controllo fatto qui; solo aprirlo in Excel lo prova.
+- **Il formato `.ods`** (`buildOds()`): zip con `mimetype` come **primo** elemento, non compresso e senza
+  altro scritto dentro, poi `META-INF/manifest.xml`, `content.xml`, `styles.xml`, `meta.xml` e
+  `settings.xml`. Le date sono vere (`office:date-value`, ISO) e non hanno il limite del 1900 di Excel:
+  una data come `1850-01-01` e' una data anche qui, mentre in `.xlsx` resta testo. Gli stili data usano
+  `number:automatic-order`, quindi LibreOffice ne sceglie l'ordine giorno-mese-anno dalla lingua di chi
+  apre il file. In ODF un a capo, una tabulazione e una serie di spazi sono **elementi** (`text:line-break`,
+  `text:tab`, `text:s`), non caratteri: scritti normali si fonderebbero in uno spazio solo.
+  Intestazione in grassetto su fondo chiaro, filtro automatico (`table:database-range`).
+- **Riga bloccata nell'ods:** e' un'impostazione di visualizzazione in `settings.xml`, e LibreOffice la
+  legge solo se la radice dichiara lo spazio `xmlns:ooo` e accanto al gruppo `ooo:view-settings` c'e' il
+  gruppo (anche vuoto) `ooo:configuration-settings`. Senza, la riga semplicemente non si blocca, senza
+  errori. Verificato aprendo il file con LibreOffice da script (`hasFrozenPanes()`), come per l'xlsx.
+- Un carattere spaiato (meta' di un emoji) non e' scrivibile in UTF-8: writer e controllo lo
+  normalizzano allo stesso modo (U+FFFD), cosi' non nasce un falso allarme.
+- **Dimensioni:** lo zip non e' compresso, quindi 50.000 righe per 5 colonne pesano circa 18 MB
+  (costruzione e controllo: meno di un secondo ciascuno); un `.ods` della stessa lista pesa circa il
+  doppio (34 MB), perche' ogni cella porta i suoi attributi. Nessun limite pratico per i programmi, ma
+  sono file grandi da allegare a una mail. Una compressione (deflate) li ridurrebbe molto: non c'e'.
+- Il file non include gli allegati (le foto) e non e' un backup: per quello c'e' *Backup
+  schede dati*.
+
+Verificato con PhpSpreadsheet (rilettura di fogli, riga bloccata, filtro, grassetto) e con
+LibreOffice (conversione in CSV: zeri iniziali, caratteri XML, accenti, a capo).
+
 ## 8. Editing inline (step 1, doppio click su cella)
 
 ### Campi con gestione speciale

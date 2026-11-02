@@ -93,7 +93,7 @@ Operatore di segreteria campo. Per il punto D, chi mantiene il plugin.
 ### C. Il manuale completo
 
 1. L'operatore preme **Manuale** nel tab AIUTO (o apre `guide.php`): la pagina si apre in una nuova scheda.
-2. Il sistema mostra la guida generale, i capitoli (Parte I, II, III) e le guide delle pagine («Riferimento»), nell'ordine dell'indice `guide.json`.
+2. Il sistema mostra la guida generale, i capitoli (Parte I, II, III) e le guide delle pagine («Funzionalità»), nell'ordine dell'indice `guide.json`.
 3. A sinistra un menu fisso elenca tutte le guide e, sotto ciascuna, le sue sezioni. Mentre l'operatore scorre il testo, la guida e la sezione in lettura si evidenziano e la guida corrente si apre.
 4. Sotto i 960 px il menu e' un cassetto dietro il pulsante **Indice**; scegliere una voce lo chiude.
 5. Scrivendo almeno due caratteri nel campo di ricerca (o premendo `/` per raggiungerlo) il menu mostra i risultati: guida, titolo della sezione e un frammento con le parole trovate. Non contano maiuscole e accenti; servono tutti i termini. Un clic porta alla sezione.

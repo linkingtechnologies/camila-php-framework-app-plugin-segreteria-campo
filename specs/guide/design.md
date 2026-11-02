@@ -10,7 +10,7 @@ views/<spa>/guide.<lingua>.md      guida di una SPA, accanto al suo codice
 views/<spa>/guide/img/…            schermate di quella SPA (riferite con percorso relativo)
 views/dashboards/<id>/guide.<lingua>.md   guida di una dashboard PHP senza SPA (`dashboard_<id>.inc.php`)
 docs/guide/<lingua>/generale.md    la radice del manuale: come si legge e indice dei capitoli
-docs/guide/<lingua>/manuale/*.md   i capitoli (Parte I `01`-`02`, Parte II `03`-`08`, Parte III `A`-`H`)
+docs/guide/<lingua>/manuale/*.md   i capitoli (Parte I `01`-`02`, Parte II `03`-`09` (il 9 e' l'indice delle procedure per compito), Parte III `A`-`G`)
 docs/guide/guide.json              indice: radice, capitoli e guide delle pagine, nell'ordine del manuale
 views/shared/guide.js              parser + renderer + pannello + pagina del manuale (menu laterale, ricerca)
 guide.php                          shell del manuale completo (nessuna sessione, come docs.php)
@@ -64,7 +64,7 @@ elencata non ha il pulsante, anche se il file esiste.
 stanno in `docs/guide/<lingua>/manuale/` — Parte I (`01`, `02`), Parte II (`03`…`08`, con
 l'accoglienza `07` solo per chi ospita civili), Parte III (appendici `A`…`H`). Nell'indice sono
 le prime voci di `guides`, con `view: "manuale/<nome>"` e `file`, e `group` "Parte …"; le guide
-delle pagine seguono con `group` "Riferimento · …". Un capitolo racconta *quando e perche'* e
+delle pagine seguono con `group` "Funzionalità · …". Un capitolo racconta *quando e perche'* e
 rimanda con `guide:` alla guida della pagina per il *come*. L'ordine dell'indice e' l'ordine del
 manuale stampato.
 

@@ -6,7 +6,7 @@ ciascuno un colore, una lettera e una posizione sulla mappa. Si apre da
 *Anagrafiche → Servizi*.
 
 I servizi compaiono nei menu di check-in, check-out, movimentazione e mappe, e
-ogni colonna della lavagna di Movimentazione risorse è uno di essi.
+ogni colonna del kanban di Movimentazione risorse è uno di essi.
 
 ## La lista {#lista}
 

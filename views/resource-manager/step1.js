@@ -88,6 +88,14 @@ export async function Step1(props) {
   state.step1.colPrefByTab ||= { volontari: null, mezzi: null, materiali: null };
   state.step1.colPanelOpen ||= false;
 
+  // Spreadsheet export, per tab: { busy, format ("xlsx" | "ods", the one being made), error }.
+  // Not persisted, a download is not a state to come back to.
+  state.step1.exportByTab ||= {
+    volontari: { busy: false, format: null, error: null },
+    mezzi: { busy: false, format: null, error: null },
+    materiali: { busy: false, format: null, error: null },
+  };
+
   // Quick search state. Lives in `state` so it survives the trip to the record
   // editor and back: returning from a record keeps the result list.
   state.step1.quickSearch ||= {
@@ -616,6 +624,77 @@ export async function Step1(props) {
     try { localStorage.removeItem(COL_PREF_KEY(tab)); } catch (_) {}
     state.step1.colPrefByTab[tab] = { order: [], hidden: [] };
     refresh();
+  }
+
+  // Spreadsheet export of what the operator is looking at: the same table, search
+  // and filters, the same sort, and the columns the table shows, in their order.
+  // It is not limited to the page on screen - the point of exporting is the whole
+  // list - so it reads the rows again, in pages of EXPORT_PAGE, through the same
+  // client (and so with the same permissions) as the table itself. Nothing is
+  // sent anywhere: the file is built in the browser (views/shared/spreadsheet.js),
+  // as .xlsx (Excel) or .ods (LibreOffice), from the same rows.
+  const EXPORT_PAGE = 1000;
+  const EXPORT_MAX_PAGES = 200;
+
+  async function exportSheet(tab, cols, format) {
+    const ex = state.step1.exportByTab[tab];
+    if (ex.busy) return;
+    ex.busy = true;
+    ex.format = format;
+    ex.error = null;
+    state.step1.skipFetch = true;   // redraw the button only, not the table
+    refresh();
+
+    try {
+      // `id` as the last sort key: pages of a list sorted on a column with ties
+      // would otherwise be free to repeat or skip rows between two requests.
+      const order = getOrder(tab) || [];
+      if (!order.some(([k]) => k === "id")) order.push(["id", "asc"]);
+
+      const table = client.table(TAB_TABLE[tab]);
+      const rows = [];
+      for (let page = 1; page <= EXPORT_MAX_PAGES; page++) {
+        const res = await table.list({ filters: buildFilters(tab), order, page: [page, EXPORT_PAGE] });
+        const batch = normalizeListResponse(res);
+        rows.push(...batch);
+        const total = Number(res?.results ?? rows.length);
+        if (!batch.length || rows.length >= total) break;
+      }
+
+      await ensureColumnsMeta(tab);
+      const meta = state.step1.colMetaByTab[tab]?.columns || {};
+      // numbers only where the worktable says the column is numeric: a phone
+      // number or a code must reach the spreadsheet as typed
+      const numeric = cols.map((k) => /^(integer|decimal|number|float)/i.test(String(meta[k]?.type || "")));
+      // dates likewise: only where the worktable says the column is a date. Without a
+      // describe (no type at all) the one date column of these tables is known by name.
+      const dates = cols.map((k) => /^(date|datetime|timestamp)/i.test(String(meta[k]?.type || "")) || (!meta[k] && k === "data-di-nascita"));
+
+      const sheet = await import(`../shared/spreadsheet.js?v=${VERSION}`);
+      const headers = cols.map((k) => colLabel(tab, k));
+      const tableRows = rows.map((r) => cols.map((k) => r?.[k] ?? ""));
+      const spec = { headers, rows: tableRows, numeric, dates };
+      const ods = format === "ods";
+      const bytes = (ods ? sheet.buildOds : sheet.buildXlsx)({ sheetName: TAB_LABELS[tab], ...spec });
+
+      // Re-read the file against the data it was made from. This catches a mistake of
+      // the writer (damaged zip, XML not well formed, lost row); it cannot say whether
+      // Excel or LibreOffice will accept the file. A file that fails is not offered
+      // for download.
+      const check = (ods ? sheet.verifyOds : sheet.verifyXlsx)(bytes, spec);
+      if (!check.ok) {
+        console.warn(`${format} check failed:`, check.problems);
+        throw new Error(`Il file generato non ha superato il controllo e non è stato salvato (${check.problems[0]}).`);
+      }
+      const today = new Date().toLocaleDateString("sv-SE");   // YYYY-MM-DD
+      sheet.saveBytes(bytes, `database-${tab}_${today}.${format}`, ods ? sheet.ODS_MIME : sheet.XLSX_MIME);
+    } catch (e) {
+      ex.error = errorText(e);
+    } finally {
+      ex.busy = false;
+      state.step1.skipFetch = true;
+      refresh();
+    }
   }
 
   function buildFilters(tab) {
@@ -1385,6 +1464,7 @@ export async function Step1(props) {
     }
 
     function renderColPanel() {
+      const exp = state.step1.exportByTab[tab];
       const pref = readColPref(tab);
       const personalizzato = pref.order.length > 0 || pref.hidden.length > 0;
 
@@ -1402,6 +1482,25 @@ export async function Step1(props) {
             ? html`<button class="button is-small is-text" @click=${() => resetColPref(tab)}>
                      Ripristina ordine predefinito
                    </button>`
+            : ""}
+
+          <div class="buttons has-addons mb-0">
+            <button class="button is-small" ?disabled=${exp.busy || total === 0}
+              title="Scarica in Excel (.xlsx) tutte le righe della lista, con i filtri applicati e le colonne che vedi"
+              @click=${() => exportSheet(tab, cols, "xlsx")}>
+              <span class="icon is-small"><i class="${exp.busy && exp.format === "xlsx" ? "ri-loader-4-line rm-spin" : "ri-file-excel-2-line"}"></i></span>
+              <span>${exp.busy && exp.format === "xlsx" ? "Esportazione…" : "Esporta in Excel"}</span>
+            </button>
+            <button class="button is-small" ?disabled=${exp.busy || total === 0}
+              title="Scarica in ODS (LibreOffice, OpenOffice) tutte le righe della lista, con i filtri applicati e le colonne che vedi"
+              @click=${() => exportSheet(tab, cols, "ods")}>
+              <span class="icon is-small"><i class="${exp.busy && exp.format === "ods" ? "ri-loader-4-line rm-spin" : "ri-file-text-line"}"></i></span>
+              <span>${exp.busy && exp.format === "ods" ? "Esportazione…" : "Esporta in ODS"}</span>
+            </button>
+          </div>
+          ${exp.error
+            ? html`<span class="help ${exp.error === SESSIONE_NON_VALIDA ? "is-warning" : "is-danger"} mb-0">${exp.error}${
+                exp.error === SESSIONE_NON_VALIDA ? html` <a href="cf_logout.php">Esci e rientra</a>` : ""}</span>`
             : ""}
 
           <div class="is-flex is-align-items-center ml-auto" style="gap:.35rem">

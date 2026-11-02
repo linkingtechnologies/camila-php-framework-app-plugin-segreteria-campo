@@ -60,6 +60,37 @@ restano memorizzate in questo browser e non cambiano nulla per gli altri.
 L'ordine iniziale delle colonne è quello impostato sulla tabella in Camila. Una
 colonna aggiunta alla tabella compare da sola al posto giusto.
 
+### Esportare in Excel o in ODS {#esporta}
+
+**Esporta in Excel** ed **Esporta in ODS**, accanto a **Colonne**, scaricano la lista che
+stai guardando in un file, uno per scheda: `database-volontari_2026-11-02.xlsx` per Excel,
+`database-volontari_2026-11-02.ods` per LibreOffice e OpenOffice, con la data di oggi. Il
+contenuto è lo stesso: scegli il formato del programma che usi. (Excel apre anche gli ODS e
+LibreOffice anche gli XLSX.)
+
+- *Quali righe*: tutta la lista, non solo la pagina a schermo, con i filtri e l'ordine
+  che hai scelto. Se filtri per un'organizzazione, nel file ci sono solo le sue risorse;
+- *Quali colonne*: quelle che vedi, nell'ordine in cui le vedi. Le colonne che hai nascosto
+  con **Colonne** non ci sono;
+- l'intestazione porta i nomi completi delle colonne, in grassetto, con la prima riga
+  bloccata e il filtro già attivo, così il foglio si ordina e si filtra subito;
+- codici fiscali, cellulari, targhe e codici inventario arrivano come testo: non perdono
+  gli zeri iniziali e non diventano numeri in notazione scientifica;
+- le date (la data di nascita) arrivano come date vere: il programma le mostra nel formato del
+  tuo computer (gg/mm/aaaa) e puoi ordinarle e filtrarle come date. Un valore che non è una
+  data valida, per esempio un «31 febbraio» o un testo come «n.d.», resta scritto com'era.
+
+Mentre scarica, il pulsante premuto dice **Esportazione…** e l'altro è fermo. Con una lista
+vuota sono disattivati.
+Si può usare anche in sola lettura: non cambia nessun dato. Non include le foto e non
+sostituisce il backup.
+
+Prima di offrirti il file, il programma lo rilegge e controlla che sia integro e che
+contenga i dati della lista. Se qualcosa non va, il motivo compare accanto al pulsante e non
+viene salvato nessun file a metà: se vedi **Il file generato non ha superato il controllo**,
+riprova e, se si ripete, avvisa chi gestisce il sistema. Se la sessione non è più valida,
+premi **Esci e rientra**.
+
 ### Correggere una cella {#cella}
 
 Con un *doppio clic* su una cella la modifichi sul posto:

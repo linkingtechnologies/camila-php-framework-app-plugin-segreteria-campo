@@ -3,10 +3,10 @@
 Registra e segue le richieste: di risorse, di materiali, di documenti e così via,
 fatte dall'interno o dall'esterno. Si apre da *Operatività → Richieste*.
 
-Le richieste stanno su una lavagna a colonne, una per stato: una richiesta
-cambia stato quando la sposti da una colonna all'altra.
+Le richieste stanno su un *kanban*, cioè una lavagna a colonne, una per stato: una
+richiesta cambia stato quando la sposti da una colonna all'altra.
 
-## La lavagna {#lavagna}
+## Il kanban {#kanban}
 
 Ci sono tante colonne quanti sono gli stati, sempre presenti anche se vuote; se
 non ci stanno tutte, scorri in orizzontale. Nell'intestazione di ogni colonna vedi
@@ -23,7 +23,7 @@ guardando.
 ## Cambiare lo stato {#stato}
 
 Trascina la scheda in un'altra colonna: lo stato cambia subito. Se il
-salvataggio non riesce, la lavagna si ricarica con lo stato di prima.
+salvataggio non riesce, il kanban si ricarica con lo stato di prima.
 
 ## Cercare e filtrare {#filtri}
 
@@ -58,7 +58,7 @@ basta svuotare il campo. Gli altri campi non si possono svuotare.
 ## Eliminare {#elimina}
 
 Sulla scheda, il cestino (**Elimina**) chiede conferma: **Eliminare questa
-richiesta?** La scheda sparisce subito; se l'eliminazione non riesce la lavagna
+richiesta?** La scheda sparisce subito; se l'eliminazione non riesce il kanban
 si ricarica e la richiesta ricompare.
 
 ## Se qualcosa non va {#problemi}
