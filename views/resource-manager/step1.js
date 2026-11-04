@@ -66,13 +66,15 @@ export async function Step1(props) {
   // Same idea as massive check-in, which opens on the organisation too.
   state.step1.createPicker ||= null;   // null = chiuso, altrimenti { tab, q }
 
-  // The picker lists the organisations that ALREADY have volunteers, from a
-  // distinct on `db-volontari` - deliberately not the same source as the form
-  // dropdown, which reads the registry `db-organizzazioni`. Creating a resource
-  // is about an organisation already on the field; the dropdown has to be able
-  // to offer every one on record.
-  state.step1.orgFromRecords ||= null;
-  state.step1.orgFromRecordsLoading ||= false;
+  // The magnifier next to the organisation filter opens a searchable list of the
+  // same organisations: null, or { tab, q, focus }. `focus` asks refresh() to put
+  // the cursor in the search box once, right after the popup is drawn.
+  state.step1.orgFilterPicker ||= null;
+
+  // The picker reads the registry `db-organizzazioni` (state.step1.orgCatalog), like
+  // every other organisation list in this view. It used to read the distinct
+  // organisations of `db-volontari`, which left out any organisation with no
+  // volunteers yet.
 
   // Table font size, a display preference like the column order: same storage,
   // but one key for the whole SPA - it is about the operator's eyes, not about
@@ -87,6 +89,19 @@ export async function Step1(props) {
   // Not in a worktable - it is a per-browser preference, not shared data.
   state.step1.colPrefByTab ||= { volontari: null, mezzi: null, materiali: null };
   state.step1.colPanelOpen ||= false;
+
+  // The transfer popup (a mezzo or materiale passes to another organisation):
+  // null, or { tab, row, query, dest: { code, name, province } | null, motivo,
+  //            busy, error, done }.
+  // `transferLog` remembers whether the register `trasferimenti-risorse` can be
+  // written: { checked, ok, error }. A transfer that cannot be traced is refused.
+  state.step1.transfer ||= null;
+  state.step1.transferLog ||= { checked: false, ok: false, error: null };
+
+  // The classifications popup (categoria / tipologia of mezzi and materiali):
+  // { open, loading, error, counts: { mezzi, materiali } | null }, where each entry is
+  // { total, pairs: Map<JSON [categoria, tipologia], number of resources> }.
+  state.step1.classPopup ||= { open: false, loading: false, error: null, counts: null };
 
   // Spreadsheet export, per tab: { busy, format ("xlsx" | "ods", the one being made), error }.
   // Not persisted, a download is not a state to come back to.
@@ -333,13 +348,6 @@ export async function Step1(props) {
       res,
     ];
     for (const c of candidates) if (Array.isArray(c)) return c;
-    return [];
-  }
-
-  function normalizeDistinctResponse(res) {
-    if (Array.isArray(res)) return res;
-    if (Array.isArray(res?.records)) return res.records;
-    if (Array.isArray(res?.data?.records)) return res.data.records;
     return [];
   }
 
@@ -697,6 +705,256 @@ export async function Step1(props) {
     }
   }
 
+  // ---- transfer to another organisation ----------------------------------------
+  // The organisation of a mezzo or materiale is chosen when it is created and then
+  // read-only in the table (INLINE_SKIP). Moving it to another organisation is a
+  // different act - it changes who the resource belongs to - so it has its own
+  // action: the destination, a reason (required) and a line in `trasferimenti-risorse`.
+  // The three fields that follow the organisation change together: organizzazione,
+  // codice-organizzazione and provincia (the province of the destination).
+  const TRANSFER_TABLE = "trasferimenti-risorse";
+  const TRANSFER_REASON_MIN = 3;
+  const TRANSFER_REASON_MAX = 255;   // the size of the column in the register
+
+  const nowDateTime = () => new Date().toLocaleString("sv-SE", { hour12: false }).replace(",", "");
+
+  const resourceLabel = (tab, r) => safe(tab === "mezzi" ? r?.targa : r?.["id-materiale"]).trim() || safe(r?.id);
+
+  // Is the register there, and can this user insert into it? Asked once, when a
+  // Mezzi/Materiali tab is first shown, and remembered.
+  async function ensureTransferLog() {
+    const tl = state.step1.transferLog;
+    if (tl.checked) return tl.ok;
+    try {
+      const res = await client.table(TRANSFER_TABLE).permissions();
+      const can = res?.can || {};
+      tl.ok = can.create === true;
+      tl.error = tl.ok ? null : "Non hai il permesso di scrivere nel registro dei trasferimenti.";
+    } catch (e) {
+      tl.ok = false;
+      // a missing table answers with an error too: say what is missing, not a code
+      tl.error = isSessionError(e)
+        ? SESSIONE_NON_VALIDA
+        : "Il registro dei trasferimenti (" + TRANSFER_TABLE + ") non è disponibile su questa installazione.";
+    }
+    tl.checked = true;
+    return tl.ok;
+  }
+
+  // A transfer changes the resource AND inserts a row in the register: both permissions are needed.
+  function canTransfer(perms) {
+    const tl = state.step1.transferLog;
+    return !!perms.canUpdate && tl.checked && tl.ok;
+  }
+
+  function transferTitle(perms) {
+    if (!perms.canUpdate) return "Sola lettura";
+    const tl = state.step1.transferLog;
+    if (tl.checked && !tl.ok) return tl.error || "Registro dei trasferimenti non disponibile";
+    return "Trasferisci a un'altra organizzazione";
+  }
+
+  async function openTransfer(tab, row) {
+    if (!getEffectivePermissions(tab).canUpdate) return;
+    // the icon is already disabled without create permission on the register;
+    // this is the same guard for any other way in
+    if (!(await ensureTransferLog())) return;
+    state.step1.transfer = { tab, row, query: "", dest: null, motivo: "", busy: false, error: null, done: null };
+    await ensureOrgCatalog();
+    state.step1.skipFetch = true;
+    refresh();
+  }
+
+  function closeTransfer() {
+    const tr = state.step1.transfer;
+    if (tr?.busy) return;
+    state.step1.transfer = null;
+    state.step1.skipFetch = true;
+    refresh();
+  }
+
+  function setTransferField(field, value) {
+    const tr = state.step1.transfer;
+    if (!tr) return;
+    tr[field] = value;
+    state.step1.skipFetch = true;
+    refresh();
+  }
+
+  function pickTransferDest(org) {
+    const tr = state.step1.transfer;
+    if (!tr) return;
+    tr.dest = { code: org.code, name: org.name, province: (state.step1.orgProvinceByCode || {})[org.code] || "" };
+    tr.query = "";
+    state.step1.skipFetch = true;
+    refresh();
+  }
+
+  // Organisations that match what was typed, without the one the resource is in.
+  function transferMatches(tr) {
+    const q = searchNorm(tr.query);
+    if (q.length < 2) return [];
+    const from = safe(tr.row?.["codice-organizzazione"]).trim();
+    return (state.step1.orgCatalog || [])
+      .filter((o) => o.code !== from && searchNorm(`${o.name} ${o.code}`).includes(q))
+      .slice(0, 8);
+  }
+
+  function transferProblem(tr) {
+    if (!tr.dest) return "Scegli l'organizzazione di destinazione.";
+    if (safe(tr.motivo).trim().length < TRANSFER_REASON_MIN) return "Scrivi la motivazione.";
+    return "";
+  }
+
+  // What the register keeps about the resource itself, as text (history, not a
+  // reference): empty values go as null, like any empty field. `targa` is kept
+  // for mezzi and `id-materiale` / `note` for materiali only; the other side stays null.
+  function transferSnapshot(tab, row) {
+    const v = (x) => safe(x).trim() || null;
+    const isMezzo = tab === "mezzi";
+    return {
+      targa: isMezzo ? v(row.targa) : null,
+      "id-materiale": isMezzo ? null : v(row["id-materiale"]),
+      categoria: v(row.categoria),
+      tipologia: v(row.tipologia),
+      "marca/modello": [row.marca, row.modello].map(safe).map((s) => s.trim()).filter(Boolean).join(" ") || null,
+      "codice-inventario": v(row["codice-inventario"]),
+      proprietario: v(row.proprietario),
+      note: isMezzo ? null : v(row.note),
+    };
+  }
+
+  async function confirmTransfer() {
+    const tr = state.step1.transfer;
+    if (!tr || tr.busy || transferProblem(tr) || !state.step1.transferLog.ok) return;
+    if (!getEffectivePermissions(tr.tab).canUpdate) return;
+
+    const { tab, row, dest } = tr;
+    const table = client.table(TAB_TABLE[tab]);
+    const motivo = safe(tr.motivo).trim().slice(0, TRANSFER_REASON_MAX);
+    const before = {
+      organizzazione: safe(row.organizzazione),
+      codiceOrganizzazione: safe(row["codice-organizzazione"]),
+      provincia: safe(row.provincia),
+    };
+
+    tr.busy = true;
+    tr.error = null;
+    state.step1.skipFetch = true;
+    refresh();
+
+    let updated = false;
+    try {
+      // 1. the resource changes organisation. An empty province is sent as null, like any empty field.
+      await table.update(row.id, {
+        organizzazione: dest.name,
+        "codice-organizzazione": dest.code,
+        provincia: dest.province || null,
+      });
+      updated = true;
+
+      // 2. the register keeps the names as text, not as references: it is history,
+      // and must still read the same when an organisation is renamed later
+      await client.table(TRANSFER_TABLE).create({
+        "data/ora": nowDateTime(),
+        "tipo-risorsa": tab === "mezzi" ? "MEZZO" : "MATERIALE",
+        // text, not a number: with UUID mode on the API exposes the GUID as `id`
+        // (the numeric key becomes `id2`), so Number() would give NaN
+        "id-risorsa": safe(row.id).trim() || null,
+        ...transferSnapshot(tab, row),
+        "organizzazione-origine": before.organizzazione,
+        "codice-organizzazione-origine": before.codiceOrganizzazione,
+        "provincia-origine": before.provincia || null,
+        "organizzazione-destinazione": dest.name,
+        "codice-organizzazione-destinazione": dest.code,
+        "provincia-destinazione": dest.province || null,
+        motivazione: motivo,
+      });
+
+      tr.done = { from: before.organizzazione, to: dest.name, label: resourceLabel(tab, row) };
+      tr.busy = false;
+      state.step1.skipFetch = false;   // the list changes: reload it
+      await refresh();
+    } catch (e) {
+      tr.busy = false;
+      if (updated) {
+        // The resource has moved but the register did not take the line. A transfer
+        // that is not traced must not stand: put the resource back.
+        try {
+          await table.update(row.id, {
+            organizzazione: before.organizzazione || null,
+            "codice-organizzazione": before.codiceOrganizzazione || null,
+            provincia: before.provincia || null,
+          });
+          tr.error = `Il trasferimento non è stato registrato, quindi è stato annullato: la risorsa è rimasta dov'era. ${errorText(e)}`;
+        } catch (e2) {
+          tr.error = `ATTENZIONE: la risorsa è stata trasferita a "${dest.name}" ma il trasferimento non è stato registrato, e non è stato possibile annullarlo. `
+            + `Riportala a "${before.organizzazione}" a mano e avvisa chi gestisce il sistema. ${errorText(e2)}`;
+        }
+        state.step1.skipFetch = false;
+        await refresh();
+      } else {
+        tr.error = errorText(e);
+        state.step1.skipFetch = true;
+        refresh();
+      }
+    }
+  }
+
+  // ---- classifications popup -------------------------------------------------
+  // The popup lists the classification of mezzi and materiali: every categoria with
+  // its tipologie, as the worktable defines them (MEZZI_CAT_OPT, MEZZI_TIP_OPT, ...),
+  // and how many resources of the registry carry each one. The definition is already
+  // in memory; the counts are read when the popup opens, so they are never stale.
+  // Only the two columns are asked for, in pages like the export, so the request
+  // stays small however many resources there are.
+  async function countClasses(tab) {
+    const table = client.table(TAB_TABLE[tab]);
+    const pairs = new Map();
+    let total = 0;
+    for (let page = 1; page <= EXPORT_MAX_PAGES; page++) {
+      const res = await table.list({ include: ["categoria", "tipologia"], order: [["id", "asc"]], page: [page, EXPORT_PAGE] });
+      const batch = normalizeListResponse(res);
+      for (const r of batch) {
+        const key = JSON.stringify([safe(r?.categoria).trim(), safe(r?.tipologia).trim()]);
+        pairs.set(key, (pairs.get(key) || 0) + 1);
+      }
+      total += batch.length;
+      const all = Number(res?.results ?? total);
+      if (!batch.length || total >= all) break;
+    }
+    return { total, pairs };
+  }
+
+  async function openClassPopup() {
+    const cp = state.step1.classPopup;
+    if (cp.loading) return;
+    cp.open = true;
+    cp.loading = true;
+    cp.error = null;
+    cp.counts = null;
+    state.step1.skipFetch = true;   // redraw the popup only, not the table
+    refresh();
+
+    try {
+      const [mezzi, materiali] = await Promise.all([countClasses("mezzi"), countClasses("materiali")]);
+      cp.counts = { mezzi, materiali };
+    } catch (e) {
+      // the definition is still worth showing: only the numbers are missing
+      cp.error = errorText(e);
+    } finally {
+      cp.loading = false;
+      state.step1.skipFetch = true;
+      refresh();
+    }
+  }
+
+  function closeClassPopup() {
+    state.step1.classPopup.open = false;
+    state.step1.skipFetch = true;
+    refresh();
+  }
+
   function buildFilters(tab) {
     const out = [];
 
@@ -774,6 +1032,12 @@ export async function Step1(props) {
     const tpl = await view();
     if (seq !== renderSeq) return;
     render(tpl, root);
+    // the organisation search box takes the cursor once, when its popup opens
+    const ofp = state.step1.orgFilterPicker;
+    if (ofp?.focus) {
+      ofp.focus = false;
+      root.querySelector("[data-orgfilter-focus]")?.focus();
+    }
     // focus inline edit input/select after render
     if (state.step1.inlineEdit && !state.step1.inlineEdit.saving) {
       const el = root.querySelector("[data-inline-focus]");
@@ -927,7 +1191,6 @@ export async function Step1(props) {
     const perms = getEffectivePermissions(tab);
     if (!perms.canCreate) return;
     state.step1.createPicker = { tab, q: "" };
-    ensureOrgFromRecords();
     refresh();
   }
 
@@ -958,41 +1221,50 @@ export async function Step1(props) {
     goTo(2);
   }
 
-  async function ensureOrgFromRecords() {
-    if (state.step1.orgFromRecords || state.step1.orgFromRecordsLoading) return;
-    state.step1.orgFromRecordsLoading = true;
-    try {
-      const res = await client.table("db-volontari").distinct("codice-organizzazione", {
-        include: "codice-organizzazione,organizzazione,provincia",
-      });
-      const map = new Map();
-      for (const r of normalizeDistinctResponse(res)) {
-        const code = (r?.["codice-organizzazione"] ?? "").toString().trim();
-        const name = (r?.["organizzazione"] ?? "").toString().trim();
-        const prov = (r?.["provincia"] ?? "").toString().trim().toUpperCase();
-        if (code && !map.has(code)) map.set(code, { code, name, province: prov });
-      }
-      state.step1.orgFromRecords = [...map.values()].sort((a, b) =>
-        a.name.localeCompare(b.name, "it", { sensitivity: "base" })
-      );
-    } catch (_) {
-      // falls back to the registry: better a longer list than none
-      state.step1.orgFromRecords = [];
-    }
-    state.step1.orgFromRecordsLoading = false;
-    refresh();
-  }
-
-  function createPickerRisultati() {
-    const pk = state.step1.createPicker;
-    if (!pk) return [];
-    const q = searchNorm(pk.q);
-    const dai = state.step1.orgFromRecords;
-    const list = dai && dai.length ? dai : state.step1.orgCatalog || [];
+  // Organisations matching a search text, by name or code, sorted by name (what the
+  // operator types; the catalog itself is ordered by code). Empty text = all of them.
+  function searchOrgs(text) {
+    const q = searchNorm(text);
+    const list = [...(state.step1.orgCatalog || [])].sort((a, b) =>
+      a.name.localeCompare(b.name, "it", { sensitivity: "base" })
+    );
     if (!q) return list;
     return list.filter(
       (o) => searchNorm(o.name).includes(q) || searchNorm(o.code).includes(q)
     );
+  }
+
+  function createPickerRisultati() {
+    const pk = state.step1.createPicker;
+    return pk ? searchOrgs(pk.q) : [];
+  }
+
+  // ---- organisation filter popup (magnifier) -------------------------------
+  // Only the list is redrawn while typing (skipFetch): the table behind does not change
+  // until an organisation is chosen.
+  function openOrgFilter(tab) {
+    state.step1.orgFilterPicker = { tab, q: "", focus: true };
+    state.step1.skipFetch = true;
+    refresh();
+  }
+
+  function closeOrgFilter() {
+    state.step1.orgFilterPicker = null;
+    state.step1.skipFetch = true;
+    refresh();
+  }
+
+  function setOrgFilterQuery(v) {
+    if (!state.step1.orgFilterPicker) return;
+    state.step1.orgFilterPicker.q = v || "";
+    state.step1.skipFetch = true;
+    refresh();
+  }
+
+  // "all" (or an organisation code) goes through the same handler as the dropdown
+  function pickOrgFilter(tab, code) {
+    state.step1.orgFilterPicker = null;
+    onOrgChange(tab, code);
   }
 
   function startEdit(tab, id) {
@@ -1152,6 +1424,8 @@ export async function Step1(props) {
     await ensurePermissions(tab);
     await ensureLoaded(tab);
     await ensureColumnsMeta(tab);
+    // transfers need create permission on the register: known before the row icon is drawn
+    if (tab !== "volontari") await ensureTransferLog();
 
     const rows = state.master?.[tab] || [];
     const pag = state.step1.paginationByTab[tab];
@@ -1426,9 +1700,7 @@ export async function Step1(props) {
                 : ""}
 
               <div style="max-height:22rem;overflow-y:auto">
-                ${state.step1.orgFromRecordsLoading
-                  ? html`<progress class="progress is-small m-3" style="width:auto"></progress>`
-                  : risultati.length === 0
+                ${risultati.length === 0
                   ? html`<p class="has-text-grey is-size-7 p-3 has-text-centered">
                            ${(state.step1.orgCatalog || []).length === 0
                              ? "Nessuna organizzazione trovata."
@@ -1461,6 +1733,247 @@ export async function Step1(props) {
           </div>
         </div>
       `;
+    }
+
+    function renderOrgFilterPopup() {
+      const pk = state.step1.orgFilterPicker;
+      if (!pk) return "";
+      const risultati = searchOrgs(pk.q);
+      const current = state.selectedOrgByTab?.[pk.tab] || "all";
+      const provByCode = state.step1.orgProvinceByCode || {};
+      const showAll = !searchNorm(pk.q);
+
+      return html`
+        <div class="modal is-active">
+          <div class="modal-background" @click=${closeOrgFilter}></div>
+          <div class="modal-card" style="max-width:40rem">
+            <header class="modal-card-head">
+              <p class="modal-card-title is-size-6">Filtra per organizzazione — ${TAB_LABELS[pk.tab]}</p>
+              <button class="delete" aria-label="close" @click=${closeOrgFilter}></button>
+            </header>
+
+            <section class="modal-card-body">
+              <div class="control has-icons-left mb-3">
+                <input
+                  class="input rm-search"
+                  type="search"
+                  data-orgfilter-focus
+                  placeholder="Cerca per denominazione o codice…"
+                  .value=${safe(pk.q)}
+                  @input=${(e) => setOrgFilterQuery(e.target.value)}
+                />
+                <span class="icon is-left has-text-link"><i class="ri-search-line"></i></span>
+              </div>
+
+              ${state.step1.orgCatalogError
+                ? html`<p class="help is-danger">
+                         Anagrafica organizzazioni non disponibile: ${state.step1.orgCatalogError}
+                       </p>`
+                : ""}
+
+              <div style="max-height:22rem;overflow-y:auto">
+                ${showAll
+                  ? html`<button
+                      type="button"
+                      class="button is-fullwidth ${current === "all" ? "is-link is-light" : "is-white"}"
+                      style="justify-content:flex-start;text-align:left"
+                      @click=${() => pickOrgFilter(pk.tab, "all")}
+                    ><strong>Tutte le organizzazioni</strong></button>`
+                  : ""}
+                ${risultati.length === 0
+                  ? html`<p class="has-text-grey is-size-7 p-3 has-text-centered">
+                           ${(state.step1.orgCatalog || []).length === 0
+                             ? "Nessuna organizzazione trovata."
+                             : "Nessun risultato."}
+                         </p>`
+                  : risultati.map(
+                      (o) => html`
+                        <button
+                          type="button"
+                          class="button is-fullwidth ${current === o.code ? "is-link is-light" : "is-white"}"
+                          style="justify-content:flex-start;text-align:left;white-space:normal"
+                          @click=${() => pickOrgFilter(pk.tab, o.code)}
+                        >
+                          <strong>${o.name || "(senza denominazione)"}</strong>
+                          ${o.code ? html`<span class="tag ml-2">${o.code}</span>` : ""}
+                          ${o.province || provByCode[o.code]
+                            ? html`<span class="tag is-light ml-2">${o.province || provByCode[o.code]}</span>`
+                            : ""}
+                        </button>
+                      `
+                    )}
+              </div>
+            </section>
+
+            <footer class="modal-card-foot">
+              <button class="button" @click=${closeOrgFilter}>Annulla</button>
+            </footer>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderTransferPopup() {
+      const tr = state.step1.transfer;
+      if (!tr) return "";
+      const row = tr.row;
+      const log = state.step1.transferLog;
+      const problem = transferProblem(tr);
+      const matches = transferMatches(tr);
+      const sessione = (tr.error || "") === SESSIONE_NON_VALIDA;
+      const kind = tr.tab === "mezzi" ? "mezzo" : "materiale";
+      const detail = tr.tab === "mezzi"
+        ? [row.marca, row.modello].map(safe).filter(Boolean).join(" ")
+        : [row.categoria, row.tipologia].map(safe).filter(Boolean).join(" / ");
+
+      return html`
+        <div class="modal is-active">
+          <div class="modal-background" @click=${closeTransfer}></div>
+          <div class="modal-card" style="max-width:40rem;width:calc(100% - 2rem)">
+            <header class="modal-card-head">
+              <p class="modal-card-title is-size-6">Trasferisci ${kind} a un'altra organizzazione</p>
+              <button class="delete" aria-label="Chiudi" ?disabled=${tr.busy} @click=${closeTransfer}></button>
+            </header>
+            <section class="modal-card-body">
+              <p class="mb-1"><strong>${resourceLabel(tr.tab, row)}</strong>${detail ? html` <span class="has-text-grey">${detail}</span>` : ""}</p>
+              <p class="is-size-7 has-text-grey mb-3">
+                Organizzazione attuale: <strong>${safe(row.organizzazione) || "—"}</strong>
+                ${safe(row["codice-organizzazione"]) ? html` (${safe(row["codice-organizzazione"])})` : ""}
+              </p>
+
+              ${tr.done ? html`
+                <article class="message is-success">
+                  <div class="message-body">
+                    <strong>${tr.done.label}</strong> trasferito da ${tr.done.from || "—"} a <strong>${tr.done.to}</strong>.
+                    Il trasferimento è stato registrato.
+                  </div>
+                </article>` : html`
+                ${!log.ok
+                  ? html`<article class="message is-warning"><div class="message-body">${log.error || tr.error}${
+                      sessione ? html` <a href="cf_logout.php">Esci e rientra</a>` : ""}
+                      Senza il registro il trasferimento è disattivato: non si potrebbe tracciare.</div></article>`
+                  : html`
+                  <div class="field">
+                    <label class="label is-small">Organizzazione di destinazione</label>
+                    ${tr.dest
+                      ? html`<div class="notification is-info is-light py-2 px-3 mb-2">
+                          <button class="delete is-small" aria-label="Cambia destinazione" ?disabled=${tr.busy}
+                            @click=${() => setTransferField("dest", null)}></button>
+                          <strong>${tr.dest.name}</strong> (${tr.dest.code})${tr.dest.province ? html` — provincia ${tr.dest.province}` : ""}
+                        </div>`
+                      : html`
+                        <input class="input is-small" type="text" placeholder="Cerca per denominazione o codice…"
+                          .value=${tr.query} ?disabled=${tr.busy}
+                          @input=${(e) => setTransferField("query", e.target.value)}>
+                        ${tr.query.trim().length >= 2 && !matches.length
+                          ? html`<p class="help">Nessuna organizzazione trovata.</p>` : ""}
+                        ${matches.length ? html`
+                          <div class="mt-1" style="max-height:12rem;overflow:auto">
+                            ${matches.map((o) => html`
+                              <button class="button is-small is-fullwidth is-justify-content-flex-start mb-1"
+                                @click=${() => pickTransferDest(o)}>
+                                <span>${o.name}</span>
+                                <span class="has-text-grey ml-2">${o.code}</span>
+                              </button>`)}
+                          </div>` : ""}`}
+                  </div>
+                  <div class="field">
+                    <label class="label is-small">Motivazione</label>
+                    <textarea class="textarea is-small" rows="3" maxlength=${TRANSFER_REASON_MAX}
+                      placeholder="Perché cambia organizzazione (obbligatoria)" ?disabled=${tr.busy}
+                      .value=${tr.motivo} @input=${(e) => setTransferField("motivo", e.target.value)}></textarea>
+                    <p class="help">${safe(tr.motivo).length} / ${TRANSFER_REASON_MAX}</p>
+                  </div>
+                  <p class="is-size-7 has-text-grey">
+                    Cambiano organizzazione, codice organizzazione e provincia della risorsa; il trasferimento
+                    viene registrato con data, ora e utente.
+                  </p>
+                  ${tr.error ? html`<p class="help ${sessione ? "is-warning" : "is-danger"} mt-2">${tr.error}${
+                      sessione ? html` <a href="cf_logout.php">Esci e rientra</a>` : ""}</p>` : ""}`}`}
+            </section>
+            <footer class="modal-card-foot">
+              ${tr.done
+                ? html`<button class="button is-success" @click=${closeTransfer}>Chiudi</button>`
+                : html`
+                  <button class="button is-link" ?disabled=${tr.busy || !log.ok || !!problem} title=${problem}
+                    @click=${confirmTransfer}>
+                    ${tr.busy ? "Trasferimento…" : "Trasferisci"}
+                  </button>
+                  <button class="button" ?disabled=${tr.busy} @click=${closeTransfer}>Annulla</button>`}
+            </footer>
+          </div>
+        </div>`;
+    }
+
+    // One column of the popup: the categories of a table with their tipologie and counts.
+    function classSection(label, cats, byCat, data) {
+      const pairs = data?.pairs || null;
+      const n = (cat, tip) => (pairs ? pairs.get(JSON.stringify([cat, tip])) || 0 : null);
+      const sumCat = (cat) => (pairs ? [...pairs].reduce((a, [k, v]) => a + (JSON.parse(k)[0] === cat ? v : 0), 0) : null);
+      const badge = (v) => (v === null ? "" : html`<span class="tag ${v ? "is-info is-light" : "is-light has-text-grey-light"} ml-2">${v}</span>`);
+
+      // "Non assegnata" has no tipologie of its own in the list: the tipologia that goes
+      // with it is "Non assegnata" too (the rule of the inline editor).
+      const tipsOf = (cat) => (byCat[cat] && byCat[cat].length ? byCat[cat] : (cat === "Non assegnata" ? ["Non assegnata"] : []));
+
+      const known = new Set();
+      for (const cat of cats) for (const tip of tipsOf(cat)) known.add(JSON.stringify([cat, tip]));
+      // what the registry holds that the list does not define
+      const outside = pairs ? [...pairs].filter(([k]) => !known.has(k)) : [];
+
+      return html`
+        <div class="column is-6">
+          <h4 class="title is-6 mb-2">${label}${data ? html`<span class="has-text-weight-normal has-text-grey"> — ${data.total} risorse</span>` : ""}</h4>
+          ${cats.length === 0 ? html`<p class="has-text-grey">Nessuna classificazione definita.</p>` : ""}
+          ${cats.map((cat) => html`
+            <p class="has-text-weight-semibold mt-3 mb-1">${cat}${badge(sumCat(cat))}</p>
+            <ul class="mt-0 mb-0" style="list-style:none;margin-left:.25rem">
+              ${tipsOf(cat).map((tip) => html`<li class="is-size-7">${tip}${badge(n(cat, tip))}</li>`)}
+            </ul>
+          `)}
+          ${outside.length ? html`
+            <p class="has-text-weight-semibold has-text-warning-dark mt-4 mb-1">Fuori elenco</p>
+            <p class="is-size-7 has-text-grey mb-1">Valori presenti nelle risorse ma non definiti sulla scheda.</p>
+            <ul style="list-style:none;margin-left:.25rem">
+              ${outside.map(([k, v]) => {
+                const [cat, tip] = JSON.parse(k);
+                return html`<li class="is-size-7">${cat || "(categoria vuota)"} / ${tip || "(tipologia vuota)"}${badge(v)}</li>`;
+              })}
+            </ul>` : ""}
+        </div>`;
+    }
+
+    function renderClassPopup() {
+      const cp = state.step1.classPopup;
+      if (!cp.open) return "";
+      return html`
+        <div class="modal is-active">
+          <div class="modal-background" @click=${closeClassPopup}></div>
+          <div class="modal-card" style="max-width:56rem;width:calc(100% - 2rem)">
+            <header class="modal-card-head">
+              <p class="modal-card-title is-size-6">Classificazioni di mezzi e materiali</p>
+              <button class="delete" aria-label="Chiudi" @click=${closeClassPopup}></button>
+            </header>
+            <section class="modal-card-body">
+              <p class="is-size-7 has-text-grey mb-3">
+                Categorie e tipologie come sono definite sulla scheda; il numero accanto a ciascuna
+                è quante risorse del database la usano.
+              </p>
+              ${cp.loading ? html`<p class="is-size-7 has-text-grey"><span class="icon is-small rm-spin"><i class="ri-loader-4-line"></i></span> Conteggio delle risorse…</p>` : ""}
+              ${cp.error
+                ? html`<p class="help ${cp.error === SESSIONE_NON_VALIDA ? "is-warning" : "is-danger"}">Conteggi non disponibili: ${cp.error}${
+                    cp.error === SESSIONE_NON_VALIDA ? html` <a href="cf_logout.php">Esci e rientra</a>` : ""}</p>`
+                : ""}
+              <div class="columns">
+                ${classSection("Mezzi", MEZZI_CAT_OPT, MEZZI_TIP_OPT, cp.counts?.mezzi)}
+                ${classSection("Materiali", MAT_CAT_OPT, MAT_TIP_OPT, cp.counts?.materiali)}
+              </div>
+            </section>
+            <footer class="modal-card-foot">
+              <button class="button" @click=${closeClassPopup}>Chiudi</button>
+            </footer>
+          </div>
+        </div>`;
     }
 
     function renderColPanel() {
@@ -1498,6 +2011,12 @@ export async function Step1(props) {
               <span>${exp.busy && exp.format === "ods" ? "Esportazione…" : "Esporta in ODS"}</span>
             </button>
           </div>
+          ${tab === "volontari" ? "" : html`
+            <button class="button is-small" @click=${openClassPopup}
+              title="Mostra categorie e tipologie di mezzi e materiali, con quante risorse le usano">
+              <span class="icon is-small"><i class="ri-node-tree"></i></span>
+              <span>Classificazioni</span>
+            </button>`}
           ${exp.error
             ? html`<span class="help ${exp.error === SESSIONE_NON_VALIDA ? "is-warning" : "is-danger"} mb-0">${exp.error}${
                 exp.error === SESSIONE_NON_VALIDA ? html` <a href="cf_logout.php">Esci e rientra</a>` : ""}</span>`
@@ -1645,6 +2164,9 @@ export async function Step1(props) {
       </style>
       ${renderCatTipOverlay()}
       ${renderCreatePicker()}
+      ${renderOrgFilterPopup()}
+      ${renderClassPopup()}
+      ${renderTransferPopup()}
       <div style="padding:1rem 1.25rem">
           <div class="level is-mobile">
             <div class="level-left">
@@ -1688,16 +2210,28 @@ export async function Step1(props) {
           <div class="box spa-title-box p-3">
             <div class="is-flex rm-filtri" style="gap:.75rem">
 
-              <div style="width:200px;flex-shrink:0;">
+              <div style="width:236px;flex-shrink:0;">
                 <label class="label is-small mb-1">Organizzazione</label>
-                <div class="select is-small is-fullwidth">
-                  <select
-                    .value=${state.selectedOrgByTab?.[tab] || "all"}
-                    @change=${(e) => onOrgChange(tab, e.target.value)}
+                <div class="is-flex" style="gap:.25rem">
+                  <div class="select is-small" style="flex:1;min-width:0">
+                    <select
+                      style="width:100%"
+                      @change=${(e) => onOrgChange(tab, e.target.value)}
+                    >
+                      <option value="all" ?selected=${(state.selectedOrgByTab?.[tab] || "all") === "all"}>Tutte</option>
+                      ${(state.step1.orgCatalog || []).map((o) => html`<option value=${o.code} ?selected=${(state.selectedOrgByTab?.[tab] || "all") === o.code}>${o.name}</option>`)}
+                    </select>
+                  </div>
+                  <button
+                    type="button"
+                    class="button is-small"
+                    style="flex-shrink:0"
+                    title="Cerca l'organizzazione"
+                    aria-label="Cerca l'organizzazione"
+                    @click=${() => openOrgFilter(tab)}
                   >
-                    <option value="all">Tutte</option>
-                    ${(state.step1.orgCatalog || []).map((o) => html`<option value=${o.code}>${o.name}</option>`)}
-                  </select>
+                    <span class="icon is-small"><i class="ri-search-line"></i></span>
+                  </button>
                 </div>
               </div>
 
@@ -1861,6 +2395,15 @@ export async function Step1(props) {
                                     >
                                       <span class="icon is-small"><i class="ri-delete-bin-6-line"></i></span>
                                     </button>
+                                    ${tab === "volontari" ? null : html`
+                                    <button
+                                      class="button is-small is-warning is-light"
+                                      @click=${() => openTransfer(tab, r)}
+                                      ?disabled=${!canTransfer(perms)}
+                                      title=${transferTitle(perms)}
+                                    >
+                                      <span class="icon is-small"><i class="ri-arrow-left-right-line"></i></span>
+                                    </button>`}
                                   </div>
                                 </td>
                               `

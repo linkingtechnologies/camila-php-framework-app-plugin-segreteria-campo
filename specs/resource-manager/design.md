@@ -44,6 +44,7 @@ Se `editMode === "create"`, il form è vuoto (con prefill `id-materiale` via `.s
 | Volontari | `db-volontari` |
 | Mezzi | `db-mezzi` |
 | Materiali | `db-materiali` |
+| Registro dei trasferimenti di organizzazione (solo scrittura, da §7f) | `trasferimenti-risorse` |
 
 ## 5. Colonne
 
@@ -162,11 +163,23 @@ Flex fisso senza wrap (`is-flex`, no `is-flex-wrap-wrap`). Larghezze fisse per o
 
 | Controllo | Larghezza |
 |---|---|
-| Organizzazione | 200px |
+| Organizzazione (tendina + lente) | 236px |
 | Categoria *(solo Mezzi e Materiali)* | 160px |
 | Tipologia *(solo Mezzi e Materiali)* | 200px |
 | Filtro per colonna | `flex:1` |
 | Per pagina | 90px |
+
+**La lente** (`ri-search-line`, `title` «Cerca l'organizzazione») sta a destra della tendina
+Organizzazione e apre `renderOrgFilterPopup()`, una finestra con la ricerca per denominazione o
+codice sullo stesso catalogo `db-organizzazioni` (`searchOrgs()`, ordinato per denominazione; la
+stessa funzione serve la finestra di creazione). In cima c'e' **Tutte le organizzazioni**, solo a
+ricerca vuota; l'organizzazione attualmente filtrata e' evidenziata; il cursore va nel campo di
+ricerca all'apertura (`refresh()` legge `orgFilterPicker.focus` una volta sola). Un clic su una voce
+chiude la finestra e passa per `onOrgChange()`, cioe' lo stesso gestore della tendina: stato in
+`state.selectedOrgByTab[tab]`, ritorno alla prima pagina, nuova lettura. Aprire, scrivere nella ricerca
+e chiudere usano `skipFetch`: la tabella dietro non si rilegge finche' non si sceglie. La tendina
+usa `?selected` sulle opzioni, non `.value` (AGENTS.md), perche' la scelta puo' arrivare dalla finestra.
+Stato: `state.step1.orgFilterPicker = null | { tab, q, focus }`.
 
 ### Filtri server-side
 
@@ -459,6 +472,107 @@ exportSheet(tab, cols, format)                       // format: "xlsx" | "ods"
 Verificato con PhpSpreadsheet (rilettura di fogli, riga bloccata, filtro, grassetto) e con
 LibreOffice (conversione in CSV: zeri iniziali, caratteri XML, accenti, a capo).
 
+## 7e. Popup delle classificazioni
+
+Il pulsante **Classificazioni** sta nella riga di **Colonne**, accanto a quelli di esportazione, ma solo
+nelle schede **Mezzi** e **Materiali** (in Volontari non c'e' classificazione). Apre una finestra
+(`renderClassPopup()`) con **due colonne**, Mezzi e Materiali, sempre entrambe: ogni categoria con le sue
+tipologie e, accanto a ciascuna, quante risorse del database la usano.
+
+- **La definizione** viene dagli elenchi che la SPA ha gia' in memoria (`MEZZI_CAT_OPT`/`MEZZI_TIP_OPT`,
+  `MAT_CAT_OPT`/`MAT_TIP_OPT`, da `loadCatalog()` di `views/shared/vocabularies.js`): niente chiamata in piu'.
+  Alla categoria «Non assegnata», che nell'elenco non ha tipologie sue, si affianca la tipologia «Non
+  assegnata», come fa l'editor in linea.
+- **I conteggi** (`countClasses(tab)`) si leggono **all'apertura**, non al caricamento della pagina, cosi'
+  non sono mai vecchi e chi non apre il popup non paga nulla. Si chiedono solo le due colonne
+  (`include: ["categoria","tipologia"]`), a blocchi di `EXPORT_PAGE` e ordinati per `id` come
+  l'esportazione, per le due tabelle in parallelo. La chiave del conteggio e' la coppia
+  `JSON.stringify([categoria, tipologia])`; il totale di una categoria e' la somma delle sue coppie.
+- **Fuori elenco:** le coppie presenti nelle risorse ma non definite sulla scheda (un valore rinominato, uno
+  importato, uno vuoto) compaiono in un gruppo a parte, con «(categoria vuota)» / «(tipologia vuota)» dove
+  manca il valore. E' il modo piu' rapido per accorgersi di un dato fuori vocabolario.
+- **Se i conteggi falliscono** (rete, server, sessione) il popup resta aperto con la sola definizione e un
+  messaggio «Conteggi non disponibili: …» (con **Esci e rientra** se la sessione non e' valida): la
+  definizione serve comunque.
+- **Stato:** `state.step1.classPopup = { open, loading, error, counts }`. Apertura e chiusura ridisegnano
+  solo la finestra (`skipFetch`): la tabella dietro non si ricarica. Si chiude con la ✕, con **Chiudi** o
+  con un clic sullo sfondo.
+- Sola lettura: non scrive nulla, quindi funziona anche senza permessi di scrittura.
+
+## 7f. Trasferimento a un'altra organizzazione
+
+L'organizzazione di un mezzo o di un materiale si sceglie alla creazione e poi e' in sola lettura nella
+tabella (`INLINE_SKIP`). Cambiarla e' un atto diverso - cambia a chi appartiene la risorsa - e ha un'azione
+propria: la quarta icona della riga (`ri-arrow-left-right-line`, «Trasferisci a un'altra organizzazione»),
+solo nelle schede Mezzi e Materiali e solo con `canUpdate`.
+
+**La finestra** (`renderTransferPopup()`): la risorsa (targa, marca e modello; oppure id materiale,
+categoria e tipologia), l'organizzazione attuale, la ricerca della destinazione, la **Motivazione** e i
+pulsanti **Trasferisci** / **Annulla**.
+
+- **Destinazione:** si cerca per denominazione o codice (almeno due caratteri, 8 risultati al massimo) nel
+  catalogo `db-organizzazioni` che la SPA ha gia' (`state.step1.orgCatalog`), **escludendo l'organizzazione
+  attuale**. La provincia e' quella della destinazione (`state.step1.orgProvinceByCode`).
+- **Motivazione obbligatoria**: almeno 3 caratteri, al massimo 255 (la dimensione della colonna).
+  **Trasferisci** resta disattivato finche' mancano destinazione e motivazione.
+- **Cosa cambia nella risorsa:** `organizzazione`, `codice-organizzazione` e `provincia`, insieme e nient'altro.
+  Una provincia vuota si invia `null`, come ogni campo vuoto.
+
+**Il registro `trasferimenti-risorse`** (definizione: `tables/xls/it/96_Trasferimenti risorse.xlsx`,
+scheda «TRASFERIMENTI RISORSE», categoria RISORSE, ordinata per data decrescente, **solo inserimenti**: niente
+modifiche e niente cancellazioni, e' uno storico). Una riga per trasferimento:
+
+| Colonna (nome API) | Contenuto |
+|---|---|
+| `data/ora` | `AAAA-MM-GG hh:mm:ss`, dell'ora in cui si preme **Trasferisci** |
+| `tipo-risorsa` | `MEZZO` o `MATERIALE` |
+| `id-risorsa` | l'`id` che l'API da' alla riga in `db-mezzi` / `db-materiali`, **come testo**: con la modalita' UUID attiva e' un GUID (la chiave numerica diventa `id2`), altrimenti il numero. Con `tipo-risorsa` dice in quale scheda cercare |
+| `targa` | la targa; solo per i mezzi, `null` per i materiali |
+| `id-materiale` | l'id materiale; solo per i materiali, `null` per i mezzi |
+| `categoria`, `tipologia` | la classificazione della risorsa al momento del trasferimento |
+| `marca/modello` | marca e modello uniti da uno spazio (uno solo se l'altro manca) |
+| `codice-inventario`, `proprietario` | come sulla risorsa |
+| `note` | le note della risorsa; solo per i materiali, `null` per i mezzi |
+| `organizzazione-origine`, `codice-organizzazione-origine`, `provincia-origine` | i valori **prima** del trasferimento |
+| `organizzazione-destinazione`, `codice-organizzazione-destinazione`, `provincia-destinazione` | i valori **dopo** |
+| `motivazione` | il testo scritto dall'operatore |
+
+I dati della risorsa si ricavano in `transferSnapshot(tab, row)`; un valore vuoto va come `null`. Il registro
+**non copia** referente, telefono, provenienza e i codici inventario regionale/provinciale: cambiano nel
+tempo o esistono solo in alcune installazioni. Le colonne in piu' rispetto alla prima versione richiedono la
+definizione aggiornata: una tabella gia' importata con la versione precedente va reimportata o completata.
+
+I nomi si copiano **come testo, non come riferimenti** («fotografia o riferimento», AGENTS.md): e' storia,
+e deve leggersi uguale anche se un'organizzazione viene poi rinominata. **Chi** ha trasferito non ha una
+colonna: lo scrive Camila nelle colonne di sistema (`created_by_name`, `created_by_surname`) a ogni inserimento
+tramite API, dall'utente della sessione.
+
+**Un trasferimento che non si puo' tracciare non si fa.** Tre protezioni:
+
+1. **Prima di tutto**, quando una scheda Mezzi o Materiali viene mostrata, `view()` chiama
+   `ensureTransferLog()`: chiede `permissions()` del registro e ricorda la risposta
+   (`state.step1.transferLog`). **Il trasferimento e' consentito solo se `can.create === true` sul registro**
+   (in aggiunta a `canUpdate` sulla risorsa). Altrimenti l'icona della riga e' disattivata e il `title` dice
+   perche' (`transferTitle()`): «Non hai il permesso di scrivere nel registro dei trasferimenti.», oppure
+   «Il registro dei trasferimenti (…) non è disponibile su questa installazione.» se la tabella non c'e'.
+   `openTransfer()` ripete la stessa verifica, e `confirmTransfer()` ancora, come ultima difesa.
+   Limite noto: come per ogni permesso della SPA e' una guardia d'interfaccia; l'API non applica i flag
+   della scheda (vedi AGENTS.md §Permissions). Un errore di rete transitorio nella verifica vale come
+   «non disponibile» fino al ricaricamento della pagina.
+2. **L'ordine** in `confirmTransfer()`: prima l'`update` della risorsa, poi la riga di registro.
+3. **Se la riga di registro non si scrive**, l'`update` viene **annullato** (si rimettono i tre valori di
+   prima) e l'operatore legge che il trasferimento non e' avvenuto. Se anche l'annullamento fallisce compare
+   un avviso **«ATTENZIONE»** che dice dove e' finita la risorsa e dove va riportata a mano: e' l'unico caso
+   in cui i dati possono restare incoerenti, ed e' dichiarato.
+
+A trasferimento riuscito la finestra mostra la conferma e la lista dietro si ricarica (la risorsa sparisce
+dalla lista se e' filtrata per l'organizzazione di prima); **Chiudi** la chiude. Con la sessione non piu'
+valida compare il messaggio giallo con **Esci e rientra**.
+
+**Installazione:** il registro e' una scheda nuova. Un'installazione gia' in uso la riceve importando
+`96_Trasferimenti risorse.xlsx` dall'amministrazione di Camila (**non** con la reimpostazione delle schede
+del plugin, che le azzera tutte). Finche' non c'e', il trasferimento e' disattivato e la finestra lo dice.
+
 ## 8. Editing inline (step 1, doppio click su cella)
 
 ### Campi con gestione speciale
@@ -614,27 +728,23 @@ da `ensureLoaded()` dello step 2 quando costruisce la bozza di un nuovo record.
 Viene azzerato sia dall'annullamento sia dopo il salvataggio: vale per quella
 creazione e non deve sopravviverle.
 
-### Due sorgenti, di proposito
+### Una sola sorgente: `db-organizzazioni`
 
-| Dove | Sorgente | Perché |
-|---|---|---|
-| finestra di creazione | `db-volontari.distinct("codice-organizzazione")` | si crea una risorsa per un'organizzazione **già in campo**: l'elenco corto è quello giusto |
-| tendina del form, filtro elenco | `db-organizzazioni` | deve poter offrire **ogni** organizzazione censita, anche una senza volontari |
+La finestra di creazione, il filtro dell'elenco e la destinazione del
+trasferimento (§7f) leggono tutti la stessa anagrafica, `state.step1.orgCatalog`
+(`ensureOrgCatalog()`). La finestra la ordina per **denominazione**, che è ciò
+che l'operatore digita; il catalogo è ordinato per codice.
 
-Non è una svista: sono due domande diverse. La finestra risponde a "per chi sto
-inserendo", e proporre lì tutta l'anagrafica allungherebbe l'elenco con
-organizzazioni che all'evento non ci sono. La tendina del form risponde a "a chi
-appartiene questo record", e deve ammettere anche i casi che la finestra non
-copre.
+Prima la finestra leggeva le organizzazioni dai volontari
+(`db-volontari.distinct("codice-organizzazione")`, con ripiego sull'anagrafica):
+un elenco più corto, "già in campo". È stato tolto perché un'organizzazione
+**senza volontari** non compariva e, non essendo l'organizzazione modificabile dal
+form, non c'era modo di registrarle una risorsa; e perché il refuso di un singolo
+volontario diventava un'opzione valida (gli stessi difetti di cui sopra). Non
+c'è più `orgFromRecords` né la chiamata alla distinct all'apertura della finestra.
 
-Conseguenza da conoscere: **un'organizzazione senza volontari non compare nella
-finestra**, e non essendo modificabile dal form (sotto) non c'è modo di
-assegnarla da qui. Va prima registrato almeno un volontario di quella
-organizzazione.
-
-La distinct parte quando la finestra si apre, non al mount, e il risultato resta
-in `state.step1.orgFromRecords`. Se fallisce si ricade sull'anagrafica: meglio
-un elenco più lungo che nessun elenco.
+Conseguenza da conoscere: la finestra offre **ogni** organizzazione censita,
+anche quelle che all'evento non ci sono; si cerca per denominazione o codice.
 
 ### L'organizzazione non si cambia dal form
 
@@ -643,8 +753,8 @@ niente modifica. Si stabilisce alla creazione, scegliendola nella finestra, e da
 lì non cambia più — né creando né modificando.
 
 Ne discende che `codice-organizzazione` e `provincia`, che da essa si derivano,
-sono stabili per tutta la vita del record. Spostare una risorsa a un'altra
-organizzazione non è un'operazione prevista da questa SPA.
+sono stabili per tutta la vita del record. L'unico modo di cambiarla è il
+trasferimento di un mezzo o di un materiale (§7f), che lo registra con la motivazione.
 
 Il `<select>` che c'era prima, con l'opzione "fuori elenco" e il riallineamento
 di provincia al cambio, non esiste più; `orgCatalogByName` e `orgSelectKey`

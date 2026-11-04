@@ -39,7 +39,10 @@ parziali.**
 Sotto le schede:
 
 - **Organizzazione**: mostra solo le risorse di quell'organizzazione (**Tutte** le
-  toglie il filtro).
+  toglie il filtro). Accanto alla tendina c'è la lente (*Cerca l'organizzazione*): apre
+  una finestra dove scrivi parte del nome o del codice (*Cerca per denominazione o
+  codice…*) e scegli dall'elenco. **Tutte le organizzazioni**, in cima, toglie il
+  filtro; **Annulla** chiude senza cambiare nulla.
 - **Categoria** e **Tipologia**: solo nelle schede Mezzi e Materiali. La tipologia
   dipende dalla categoria scelta.
 - **Filtro per colonna**: scegli una colonna e scrivi un testo (*contiene…*).
@@ -91,6 +94,57 @@ viene salvato nessun file a metà: se vedi **Il file generato non ha superato il
 riprova e, se si ripete, avvisa chi gestisce il sistema. Se la sessione non è più valida,
 premi **Esci e rientra**.
 
+### Vedere le classificazioni {#classificazioni}
+
+Nelle schede *Mezzi* e *Materiali*, **Classificazioni** (accanto a **Colonne**) apre una
+finestra con le categorie e le tipologie di mezzi e materiali, come sono definite sulla
+tabella. In due colonne, una per Mezzi e una per Materiali:
+
+- ogni *categoria* è seguita dalle sue *tipologie*;
+- il numero accanto a ciascuna è quante risorse del database la usano: serve a vedere
+  subito quali classificazioni sono davvero in uso e quali no (un numero grigio, 0, vuol
+  dire che nessuna risorsa la usa);
+- sotto **Fuori elenco** compaiono le combinazioni che le risorse hanno ma che la tabella
+  non prevede, per esempio una categoria rinominata o un campo lasciato vuoto: sono quelle
+  da correggere.
+
+I numeri si leggono quando apri la finestra, quindi sono sempre aggiornati. Se non si
+caricano compare **Conteggi non disponibili** con il motivo, e l'elenco delle classificazioni
+resta visibile. Si chiude con la ✕, con **Chiudi** o con un clic fuori dalla finestra.
+Non cambia nessun dato, quindi si può usare anche in sola lettura.
+
+### Trasferire a un'altra organizzazione {#trasferimento}
+
+L'organizzazione di un mezzo o di un materiale non si cambia con la correzione sul posto:
+la sceglie chi lo registra. Se la risorsa passa davvero a un'altra organizzazione, nelle
+schede *Mezzi* e *Materiali* usa l'icona **Trasferisci** della riga (le due frecce).
+
+1. Nella finestra vedi la risorsa e l'organizzazione attuale. In **Organizzazione di
+   destinazione** scrivi almeno due lettere del nome o del codice (*Cerca per denominazione o
+   codice…*) e scegli dall'elenco. L'organizzazione attuale non è offerta; se non c'è
+   nulla vedi **Nessuna organizzazione trovata.**
+2. Scrivi la **Motivazione**: è obbligatoria (da tre a 255 caratteri) e resta nel registro.
+3. **Trasferisci** si attiva solo quando destinazione e motivazione ci sono. Cambiano
+   insieme l'organizzazione, il codice organizzazione e la provincia (quella della nuova
+   organizzazione). **Annulla** chiude senza cambiare nulla.
+
+A fatto avvenuto la finestra conferma e la lista si aggiorna: se stavi guardando le risorse
+della vecchia organizzazione, quella risorsa sparisce dall'elenco. **Chiudi** la chiude.
+
+Ogni trasferimento è scritto nel registro *Trasferimenti risorse* (una scheda dati, in
+sola aggiunta): data e ora, chi lo ha fatto, la risorsa (targa o id materiale, categoria,
+tipologia, marca e modello, codice inventario, proprietario e, per i materiali, le note),
+l'organizzazione di prima e quella di dopo, e la motivazione. I nomi restano scritti com'erano anche se un'organizzazione viene
+poi rinominata.
+
+Per trasferire serve il permesso di *inserimento* sulla scheda *Trasferimenti risorse*,
+oltre a quello di modifica sulla risorsa: senza, l'icona è disattivata e, passandoci sopra,
+dice il motivo. Lo stesso accade se la scheda non è stata ancora aggiunta all'installazione:
+un trasferimento che non si può registrare non si fa, e chi gestisce il sistema deve
+aggiungere la scheda o darti il permesso. Se il registro rifiuta la riga, il cambio viene
+annullato e la risorsa resta dov'era; se anche l'annullamento fallisce compare
+**ATTENZIONE** con l'organizzazione a cui riportarla a mano.
+
 ### Correggere una cella {#cella}
 
 Con un *doppio clic* su una cella la modifichi sul posto:
@@ -112,8 +166,9 @@ Se il salvataggio non riesce, il messaggio compare sotto la cella.
 
 1. Premi *Aggiungi nuova risorsa nella categoria* con il nome della scheda attiva.
 2. Si apre **Nuova risorsa**: scegli l'organizzazione cercandola per denominazione o
-   codice (*Cerca per denominazione o codice…*). Vedi prima quelle già presenti nel
-   database; senza nulla **Nessuna organizzazione trovata.**
+   codice (*Cerca per denominazione o codice…*). L'elenco è l'anagrafica delle
+   organizzazioni, in ordine alfabetico, anche per chi non ha ancora volontari
+   registrati; se l'anagrafica è vuota vedi **Nessuna organizzazione trovata.**
 3. Un clic sull'organizzazione apre il passo 2 con la scheda vuota.
 
 **Annulla** o la ✕ chiudono senza creare nulla.

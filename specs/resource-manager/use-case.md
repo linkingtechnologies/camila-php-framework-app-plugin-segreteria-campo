@@ -64,11 +64,13 @@ Operatore di segreteria (per la sola consultazione, anche senza permesso di scri
 
 1. L'operatore apre il database di una scheda; il sistema mostra la lista paginata (50 righe) ordinata sulla colonna predefinita della scheda.
 2. L'operatore cerca nel campo di ricerca rapida (almeno due caratteri): il sistema cerca in tutte e tre le schede insieme, senza distinguere maiuscole e accenti, e mostra i primi dodici risultati; un clic apre la scheda della risorsa.
-3. L'operatore restringe la lista con i filtri: organizzazione, categoria e tipologia (solo mezzi e materiali) e filtro per colonna; cambiare filtro, ordine o scheda riporta alla prima pagina.
+3. L'operatore restringe la lista con i filtri: organizzazione, categoria e tipologia (solo mezzi e materiali) e filtro per colonna; cambiare filtro, ordine o scheda riporta alla prima pagina. L'organizzazione si sceglie dalla tendina oppure con la lente accanto, che apre una finestra con la ricerca per denominazione o codice.
 4. L'operatore ordina cliccando l'intestazione di una colonna, e con **Colonne** riordina o nasconde le colonne e sceglie la dimensione del carattere; queste scelte restano nel suo browser.
 5. L'operatore corregge una cella con un doppio clic: *Invio* salva, *Esc* annulla.
 6. L'operatore preme **Esporta in Excel** o **Esporta in ODS**: il sistema rilegge tutte le righe della lista, con gli stessi filtri e lo stesso ordine, e salva `database-<scheda>_<AAAA-MM-GG>.xlsx` (o `.ods`) con le colonne visibili nell'ordine in cui le vede, intestate con le etichette della scheda.
 7. L'operatore apre la matita (modifica) o aggiunge una risorsa con **Aggiungi nuova risorsa nella categoria…**, scegliendo prima l'organizzazione.
+9. Nelle schede Mezzi e Materiali, con il permesso di modifica e quello di inserimento sul registro, l'operatore preme l'icona **Trasferisci** di una riga: sceglie l'organizzazione di destinazione, scrive la **Motivazione** (obbligatoria) e conferma; il sistema cambia `organizzazione`, `codice-organizzazione` e `provincia` della risorsa e scrive una riga nel registro `trasferimenti-risorse`, con data, ora, utente, i dati della risorsa (targa o id materiale, categoria, tipologia, marca e modello, codice inventario, proprietario e, per i materiali, le note), organizzazione di partenza e di arrivo e motivazione.
+8. Nelle schede Mezzi e Materiali l'operatore preme **Classificazioni**: il sistema mostra in una finestra le categorie e le tipologie di mezzi e materiali, come sono definite sulla scheda, ciascuna con il numero di risorse del database che la usano.
 
 ### Passo 2 — La scheda
 
@@ -88,6 +90,9 @@ Operatore di segreteria (per la sola consultazione, anche senza permesso di scri
 
 ### 2a. Meno di due caratteri, o nessun risultato
 - Il sistema lo dice (*Almeno 2 caratteri.*, *Nessun risultato.*); se i cataloghi non si caricano, la ricerca e' segnalata come non disponibile o parziale.
+
+### 3a. La lente per scegliere l'organizzazione
+- La finestra elenca tutta l'anagrafica `db-organizzazioni` in ordine di denominazione; scrivendo, l'elenco si restringe (denominazione o codice, senza distinguere maiuscole e accenti) e **Tutte le organizzazioni** scompare. Un clic su una voce applica il filtro, chiude la finestra e riporta alla prima pagina; **Annulla**, la ✕ o un clic fuori la chiudono senza cambiare nulla. Senza risultati la finestra dice «Nessun risultato.»; se l'anagrafica non si carica lo dice, e la lista della scheda resta consultabile.
 
 ### 5a. Colonna non correggibile sul posto
 - Provincia, organizzazione, codice organizzazione, id materiale e le colonne dichiarate in sola lettura dalla tabella non si correggono qui: la provincia segue l'organizzazione, che si sceglie una volta alla creazione.
@@ -113,6 +118,24 @@ Operatore di segreteria (per la sola consultazione, anche senza permesso di scri
 ### 6e. Il file generato non supera il controllo
 - Prima di offrirlo, il sistema rilegge il file contro i dati da cui nasce. Se qualcosa non torna (zip danneggiato, XML non ben formato, una riga persa) il file non viene salvato e il sistema lo dice accanto al pulsante.
 - Il controllo non garantisce che Excel o LibreOffice aprano il file: trova gli errori di costruzione, non le severita' di quei programmi.
+
+### 9a. Nessun permesso di inserimento sul registro, o registro assente
+- Si trasferisce solo con il permesso di **inserimento** sulla scheda `trasferimenti-risorse`, oltre a quello di modifica sulla risorsa. Senza, l'icona **Trasferisci** e' disattivata e il suo suggerimento dice il motivo (nessun permesso, oppure registro non disponibile su questa installazione). Un trasferimento che non si puo' tracciare non si fa; nulla viene scritto.
+
+### 9b. La riga di registro non si scrive
+- Il sistema annulla il cambio di organizzazione appena fatto: la risorsa resta dov'era e l'operatore lo legge. Se anche l'annullamento fallisce, un avviso «ATTENZIONE» dice dove e' finita la risorsa e dove va riportata.
+
+### 9c. Destinazione e motivazione
+- **Trasferisci** e' disattivato finche' non sono scelte un'organizzazione di destinazione (diversa da quella attuale) e una motivazione di almeno tre caratteri.
+
+### 9d. Sola lettura, sessione scaduta
+- Senza permesso di modifica sulla risorsa l'icona e' disattivata (come per 9a). Con la sessione non piu' valida la finestra mostra il messaggio giallo con **Esci e rientra**.
+
+### 8a. Valori fuori elenco
+- Le coppie categoria/tipologia presenti nelle risorse ma non definite sulla scheda compaiono nel gruppo **Fuori elenco**, con la loro quantita'; un valore mancante e' indicato come «(categoria vuota)» o «(tipologia vuota)».
+
+### 8b. I conteggi non si caricano
+- La finestra mostra comunque la definizione e dice «Conteggi non disponibili» con il motivo (con **Esci e rientra** se la sessione non e' valida). Non scrive nulla e non e' offerta nella scheda Volontari.
 
 ### 7a. Eliminazione
 - Il cestino chiede conferma con una finestra del browser; l'eliminazione e' definitiva.
