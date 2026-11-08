@@ -3,18 +3,21 @@
  <tab>
   <id>m0</id>
   <title>GESTIONE EVENTO</title>
+  <lic_title>menu.segreteria-campo.m0</lic_title>
   <url>?dashboard=m0</url>
   <pages>02,03,04,27,28,massive-check-in,org-status,massive-check-out,resource-board,service-manager,intervention-manager,team-manager,stock-manager,warehouse-manager,map-center,m6,m1,01,m7,12,12l,comms-feed,requests-board,resource-manager</pages>
  </tab>
  <tab>
    <id>pre-accreditations</id>
   <title>PREACCREDITAMENTI</title>
+  <lic_title>menu.segreteria-campo.pre-accreditations</lic_title>
   <url>?dashboard=pre-accreditations</url>
   <pages>pre-accreditations,pre-accreditations-summary,pre-accreditations-by-service,pre-accreditations-vehicles-by-service,pre-accreditations-by-overnight-stay</pages>
  </tab> 
  <tab>
   <id>m5</id>
   <title>VERIFICA DATI</title>
+  <lic_title>menu.segreteria-campo.m5</lic_title>
   <url>?dashboard=m5</url>
   <pages>ic1</pages>
  </tab>
@@ -27,12 +30,14 @@
  <tab>
   <id>m2</id>
   <title>CONFIGURAZIONE</title>
+  <lic_title>menu.segreteria-campo.m2</lic_title>
   <url>?dashboard=m2</url>
   <pages>00,05,06,30,31,iw</pages>
  </tab>
  <tab>
   <id>m4</id>
   <title>AIUTO</title>
+  <lic_title>menu.segreteria-campo.m4</lic_title>
   <url>?dashboard=m4</url>
  </tab>
 </menu>
