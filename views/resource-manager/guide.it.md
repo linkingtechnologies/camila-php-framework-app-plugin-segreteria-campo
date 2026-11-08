@@ -2,8 +2,8 @@
 
 L'anagrafica *permanente* di volontari, mezzi e materiali: esiste prima
 dell'evento e resta dopo. Qui la consulti, la correggi e la completi. Si apre da
-*Anagrafiche*, con tre pulsanti — Database volontari, Database mezzi, Database
-materiali — che aprono la stessa pagina sulla scheda corrispondente.
+*Anagrafiche*, con quattro pulsanti — Database volontari, Database mezzi, Database
+materiali e Database organizzazioni — che aprono la stessa pagina sulla scheda corrispondente.
 
 Non è l'elenco di chi è presente a campo: quello lo scrive il [Check-in
 massivo](guide:massive-check-in) su altre tabelle. Qui le persone e i mezzi sono
@@ -14,15 +14,15 @@ Sono due passi: l'elenco, poi la scheda di una risorsa.
 ## Passo 1 — L'elenco {#passo-1}
 
 In alto, **Database Risorse** e il pulsante per aggiungere una risorsa. Subito
-sotto, la ricerca rapida; poi le schede **Riepilogo**, **Mappa**, **Volontari**, **Mezzi**
+sotto, la ricerca rapida; poi le schede **Riepilogo**, **Mappa**, **Organizzazioni**, **Volontari**, **Mezzi**
 e **Materiali**; poi i filtri e la tabella.
 
 ### Riepilogo {#riepilogo}
 
 La prima scheda dà il colpo d'occhio: quanti volontari, quanti mezzi e quanti materiali
 sono registrati nell'anagrafica, in tre riquadri con il numero in grande. Si apre per
-prima quando entri senza scegliere una scheda; i tre pulsanti *Database volontari*,
-*Database mezzi* e *Database materiali* continuano ad aprire direttamente la loro.
+prima quando entri senza scegliere una scheda; i pulsanti *Database volontari*,
+*Database mezzi*, *Database materiali* e *Database organizzazioni* continuano ad aprire direttamente la loro.
 
 - **Organizzazione**: la tendina e la lente sono le stesse delle altre schede. Scegliendo
   un'organizzazione i numeri sono i suoi, e sotto ciascuno vedi *su N in totale*. Se il
@@ -38,9 +38,11 @@ prima quando entri senza scegliere una scheda; i tre pulsanti *Database volontar
 - Il nome di una categoria o di una tipologia è un collegamento: apre la scheda Mezzi o
   Materiali già filtrata su quella voce, con **Categoria** e **Tipologia** impostate e la
   stessa organizzazione (la sola categoria, se premi la categoria). Il filtro per colonna
-  viene azzerato, così l'elenco ha esattamente le risorse contate. *(tipologia non
-  indicata)* e **Fuori elenco** non hanno il collegamento: i menu non possono mostrare un
-  valore che la scheda non definisce. Segue la stessa organizzazione dei riquadri. I volontari non hanno
+  viene azzerato, così l'elenco ha esattamente le risorse contate. Anche *(tipologia non
+  indicata)* e le voci di **Fuori elenco** sono collegamenti: nella scheda aperta il menu
+  mostra il valore come *(fuori elenco)*, oppure *(categoria vuota)* o *(tipologia vuota)*
+  quando manca. L'unica voce senza collegamento è quella con categoria **e** tipologia vuote,
+  perché l'elenco non può chiedere due vuoti insieme. Segue la stessa organizzazione dei riquadri. I volontari non hanno
   categorie, quindi non compaiono. Se non si carica vedi **Ripartizione non disponibile:** con
   il motivo, e i riquadri restano.
 - Se un conteggio non si carica vedi **—** al posto del numero e il messaggio **Non
@@ -60,7 +62,10 @@ mezzi, arancio i materiali, viola entrambi.
 
 - **Mostra**: scegli se contare i **Mezzi**, i **Materiali** o entrambi.
 - **Categoria** e **Tipologia**: restringono ciò che si conta; la tipologia dipende dalla
-  categoria scelta. Cambiare un filtro ridisegna subito la mappa, senza spostarla.
+  categoria scelta. Accanto a ciascuna c'è la lente, come nelle altre schede (vedi *Filtri*): cerchi
+  per nome, anche passando dall'altro livello, e scegli dall'elenco; una tipologia che appartiene a
+  una sola categoria imposta anche la categoria. Cambiare un filtro ridisegna subito la mappa, senza
+  spostarla.
 - **Raggruppa per**: **Organizzazione** (un cerchio per sede), **Comune** o **Provincia**. Un
   gruppo di organizzazioni sta nel punto medio delle loro sedi.
 - Un clic sul cerchio apre una finestra con il dettaglio per categoria e tipologia. Se
@@ -81,6 +86,41 @@ riga avverte che lo sfondo non si carica. Se manca la libreria stessa vedi **La 
 disponibile** e i numeri restano nell'**Elenco numerico**. Se non tutti i dati si caricano vedi **Non
 tutti i dati si sono caricati:** con **Riprova**; con la sessione scaduta il riquadro giallo con
 **Esci e rientra**. Nella scheda Mappa non c'è il pulsante per aggiungere.
+
+### Organizzazioni {#organizzazioni}
+
+La terza scheda è l'anagrafica delle organizzazioni (`db-organizzazioni`): quella da cui prendono
+nome e codice le tendine *Organizzazione* di tutte le altre schede e la sede usata dalla
+Mappa. Per ogni organizzazione vedi codice, denominazione, comune, provincia, se ha le coordinate e
+quante risorse ha registrate. Se il tuo gruppo in Camila è il codice di un'organizzazione, la sua
+riga è evidenziata e porta il marchio **La tua**.
+
+- **Cerca** trova per denominazione, codice o comune, senza distinguere maiuscole e accenti;
+  **Provincia** restringe a una provincia; **Solo senza coordinate** mostra le organizzazioni
+  che non hanno una posizione valida (e le cui risorse, quindi, non compaiono sulla Mappa).
+- I numeri di volontari, mezzi e materiali sono collegamenti: aprono la scheda corrispondente già
+  filtrata su quell'organizzazione. Se è zero, non c'è nulla da aprire.
+- **Nuova organizzazione** apre una finestra con i dati dell'anagrafica. *Denominazione* e *Codice*
+  sono obbligatori e il codice non può ripetersi. **Scegli sulla mappa** imposta latitudine e
+  longitudine con un clic e, se li trova, compila anche indirizzo, comune e provincia senza
+  toccare quel che hai già scritto. **Salva** scrive e mostra *Organizzazione salvata*;
+  **Annulla** chiude senza scrivere.
+- La matita di una riga apre la stessa finestra sul record. Il codice non si cambia (è la chiave
+  con cui le altre schede la richiamano). **Salva** si attiva solo quando qualcosa è cambiato.
+- Se cambi la *Denominazione*, la finestra ti avvisa: le risorse già registrate conservano il nome
+  che avevano, perché è copiato come testo, e dice quante sono.
+- Dopo il salvataggio, le tendine, il Riepilogo e la Mappa rileggono l'anagrafica: la modifica si vede subito, senza
+  ricaricare la pagina.
+
+*Chi può scrivere.* Vale il permesso che hai su questa tabella: senza quello di inserimento al
+posto di **Nuova organizzazione** vedi **Sola lettura**, senza quello di modifica le matite sono grigie. Se i
+permessi non si riescono a leggere la scheda resta in sola lettura e lo dice, perché nel dubbio non si scrive. È
+un aiuto dell'interfaccia: a decidere davvero è il server. Qui non c'è una restrizione «solo la
+tua organizzazione» e non c'è l'eliminazione.
+
+Se l'anagrafica non si carica vedi **Elenco non disponibile:** con **Riprova**; se non si caricano solo i
+numeri delle risorse, l'elenco resta e una riga lo dice. Con la sessione scaduta vedi il riquadro giallo con
+**Esci e rientra**.
 
 ### Ricerca rapida {#ricerca}
 
@@ -113,7 +153,17 @@ Sotto le schede:
   resto. È solo il punto di partenza; per non far vedere le altre organizzazioni serve la
   visibilità per gruppo di Camila, che imposta chi gestisce il sistema.
 - **Categoria** e **Tipologia**: solo nelle schede Mezzi e Materiali. La tipologia
-  dipende dalla categoria scelta.
+  dipende dalla categoria scelta. Accanto a ciascuna c'è la lente (*Cerca la categoria*,
+  *Cerca la tipologia*): apre una finestra dove scrivi parte del nome e scegli dall'elenco.
+  La ricerca non distingue maiuscole e accenti e trova anche per l'altro livello: scrivendo
+  una tipologia trovi la sua categoria, scrivendo una categoria trovi le sue tipologie (ogni
+  tipologia compare una volta, con le categorie che la usano). **Tutte le categorie** e
+  **Tutte le tipologie**, in cima, tolgono il filtro; **Annulla** chiude senza cambiare nulla.
+  Scegliere una categoria azzera la tipologia; scegliere una tipologia, dalla lente o dalla
+  tendina, imposta anche la sua categoria quando è una sola (se più categorie hanno la stessa
+  tipologia, come *FURGONE*, la categoria resta su **Tutte**); una categoria che hai già scelto non
+  viene cambiata. Per le voci *(categoria vuota)*, *(tipologia vuota)* e *(fuori elenco)* si passa dai
+  collegamenti del Riepilogo.
 - **Filtro per colonna**: scegli una colonna e scrivi un testo (*contiene…*).
 - **Per pagina**: quante righe mostrare (20, 25, 50, 100, 200).
 
@@ -260,6 +310,15 @@ browser (*Eliminare definitivamente…*). L'eliminazione è definitiva.
 
 Se non hai il permesso di scrivere, al posto del pulsante per aggiungere vedi **Sola
 lettura**, e matita, cestino e correzione sul posto non ci sono o sono disattivati.
+
+Anche con il permesso di scrivere, se il tuo gruppo in Camila è il codice di un'organizzazione
+(e non sei amministratore) i *mezzi e i materiali di un'altra organizzazione* sono di sola
+lettura: matita, cestino, trasferimento e correzione sul posto sono disattivati, con il
+suggerimento *Sola lettura: appartiene a un'altra organizzazione*, e la scheda completa, se la apri
+dalla ricerca, mostra **Sola lettura**. Lo stesso vale per una risorsa senza organizzazione. I
+volontari non sono toccati, e chi non è amministratore ma ha un gruppo che non è un'organizzazione
+(per esempio la segreteria) modifica tutto come prima. È un controllo della pagina: non
+impedisce di scrivere a chi usa l'API direttamente.
 Se il programma non riesce a verificare i permessi vedi un avviso (**Permessi non
 verificati su questa scheda: le azioni sono nascoste.**) con **Riprova**.
 

@@ -55,6 +55,10 @@ export async function Step1(props) {
   // showSummary / showMap is true; both false means a data tab.
   if (state.step1.showMap === undefined) state.step1.showMap = _urlTab === "mappa";
   state.step1.mapPanel ||= null;
+  // And the "Organizzazioni" tab (the registry db-organizzazioni, with a form if the user may write
+  // to it): views/resource-manager/orgs.js, loaded the first time it is opened. Same exclusivity.
+  if (state.step1.showOrgs === undefined) state.step1.showOrgs = _urlTab === "organizzazioni";
+  state.step1.orgsPanel ||= null;
   state.step1.summaryOrg ||= "all";                    // "all" or an organisation code
   state.step1.summary ||= { key: null, data: null };   // counts, read once per organisation
 
@@ -102,6 +106,8 @@ export async function Step1(props) {
   // same organisations: null, or { tab, q, focus }. `focus` asks refresh() to put
   // the cursor in the search box once, right after the popup is drawn.
   state.step1.orgFilterPicker ||= null;
+  // The categoria / tipologia magnifier popup: { tab, kind: "cat" | "tip", q, focus } or null.
+  state.step1.clsFilterPicker ||= null;
 
   // The picker reads the registry `db-organizzazioni` (state.step1.orgCatalog), like
   // every other organisation list in this view. It used to read the distinct
@@ -177,6 +183,11 @@ export async function Step1(props) {
   state.step1.skipFetch ||= false;
 
   // -------------------- CONFIG --------------------
+  // Value of the Categoria / Tipologia filter that means "empty" (NULL or ""), as opposed to ""
+  // that means "all". Set by the links of the summary for what the worktable does not define;
+  // the menus show it as "(categoria vuota)" / "(tipologia vuota)" and never offer it by themselves.
+  const FILTER_EMPTY = "\u0001";
+
   const TAB_LABELS = {
     volontari: "Volontari",
     mezzi: "Mezzi",
@@ -694,7 +705,7 @@ export async function Step1(props) {
       const table = client.table(TAB_TABLE[tab]);
       const rows = [];
       for (let page = 1; page <= EXPORT_MAX_PAGES; page++) {
-        const res = await table.list({ filters: buildFilters(tab), order, page: [page, EXPORT_PAGE] });
+        const res = await table.list({ filters: buildFilters(tab), orFilters: buildOrFilters(tab), order, page: [page, EXPORT_PAGE] });
         const batch = normalizeListResponse(res);
         rows.push(...batch);
         const total = Number(res?.results ?? rows.length);
@@ -788,6 +799,7 @@ export async function Step1(props) {
 
   async function openTransfer(tab, row) {
     if (!getEffectivePermissions(tab).canUpdate) return;
+    if (isForeignRow(tab, row)) return;
     // the icon is already disabled without create permission on the register;
     // this is the same guard for any other way in
     if (!(await ensureTransferLog())) return;
@@ -862,6 +874,7 @@ export async function Step1(props) {
     if (!getEffectivePermissions(tr.tab).canUpdate) return;
 
     const { tab, row, dest } = tr;
+    if (isForeignRow(tab, row)) return;
     const table = client.table(TAB_TABLE[tab]);
     const motivo = safe(tr.motivo).trim().slice(0, TRANSFER_REASON_MAX);
     const before = {
@@ -989,6 +1002,18 @@ export async function Step1(props) {
     refresh();
   }
 
+  // "Empty" is NULL or "" in the table (the importer and the REST create do not agree), so it is an
+  // OR of two conditions on one column: the API ANDs the OR group with the filters above
+  // (`and AND (filter1 OR filter2)`). One empty column at a time: if both asked for it (the summary
+  // never links that case) only the categoria counts.
+  function buildOrFilters(tab) {
+    const catEmpty = state.step1.catFilterByTab?.[tab] === FILTER_EMPTY;
+    const tipEmpty = state.step1.tipFilterByTab?.[tab] === FILTER_EMPTY;
+    const col = catEmpty ? "categoria" : tipEmpty ? "tipologia" : null;
+    if (!col) return undefined;
+    return { filter1: client.filter(col, "is", "null"), filter2: client.filter(col, "eq", "") };
+  }
+
   function buildFilters(tab) {
     const out = [];
 
@@ -998,10 +1023,10 @@ export async function Step1(props) {
     }
 
     const catSel = state.step1.catFilterByTab?.[tab] || "";
-    if (catSel) out.push(client.filter("categoria", "eq", catSel));
+    if (catSel && catSel !== FILTER_EMPTY) out.push(client.filter("categoria", "eq", catSel));
 
     const tipSel = state.step1.tipFilterByTab?.[tab] || "";
-    if (tipSel) out.push(client.filter("tipologia", "eq", tipSel));
+    if (tipSel && tipSel !== FILTER_EMPTY) out.push(client.filter("tipologia", "eq", tipSel));
 
     const f = state.step1.columnFilterByTab?.[tab];
     const col = f?.col;
@@ -1061,22 +1086,62 @@ export async function Step1(props) {
   // -------------------- RENDER LOOP --------------------
   let renderSeq = 0;
 
+  // A refresh that reads from the server (a tab, a filter, a page, a sort) leaves the old list on
+  // screen until the new one arrives, and nothing says the click was taken. After 150 ms
+  // (a quick answer must not flash) the class `rm-loading` goes on the root: the CSS below dims
+  // the zones marked `rm-dim` (the table, the cards, the map) and shows a small spinner, while the
+  // filter bar stays usable. It is a class on the root, not part of the template, because the
+  // template is exactly what is not ready. Overlapping refreshes: the last one turns it off.
+  let listBusyTimer = null;
+  function listBusyOn() {
+    if (listBusyTimer) return;
+    listBusyTimer = setTimeout(() => {
+      listBusyTimer = null;
+      root?.classList?.add("rm-loading");
+    }, 150);
+  }
+  function listBusyOff() {
+    clearTimeout(listBusyTimer);
+    listBusyTimer = null;
+    root?.classList?.remove("rm-loading");
+  }
+  listBusyOff();   // a new invocation of the step never starts dimmed
+
   async function refresh() {
     // a late refresh must not draw the list over step 2 (the pencil has already moved on)
     if (Number(state.step) !== 1) return;
     const seq = ++renderSeq;
-    const tpl = await view();
-    if (seq !== renderSeq || Number(state.step) !== 1) return;   // superseded, or the step changed meanwhile
+    listBusyOn();
+    let tpl;
+    try {
+      tpl = await view();
+    } catch (e) {
+      if (seq === renderSeq) listBusyOff();
+      throw e;
+    }
+    if (seq !== renderSeq) return;   // superseded: the newer refresh turns the indicator off
+    if (Number(state.step) !== 1) { listBusyOff(); return; }   // the step changed meanwhile
     render(tpl, root);
+    listBusyOff();
     // the map is mounted in the node the template has just left
     if (state.step1.showMap && !state.step1.showSummary && state.step1.mapPanel) {
       Promise.resolve(state.step1.mapPanel.afterRender(root)).catch(() => {});
+    }
+    // the position picker of the organisations form mounts its map in the node just rendered
+    if (state.step1.showOrgs && !state.step1.showSummary && !state.step1.showMap && state.step1.orgsPanel) {
+      state.step1.orgsPanel.afterRender();
     }
     // the organisation search box takes the cursor once, when its popup opens
     const ofp = state.step1.orgFilterPicker;
     if (ofp?.focus) {
       ofp.focus = false;
       root.querySelector("[data-orgfilter-focus]")?.focus();
+    }
+    // same for the categoria / tipologia search box
+    const cfp = state.step1.clsFilterPicker;
+    if (cfp?.focus) {
+      cfp.focus = false;
+      root.querySelector("[data-clsfilter-focus]")?.focus();
     }
     // focus inline edit input/select after render
     if (state.step1.inlineEdit && !state.step1.inlineEdit.saving) {
@@ -1140,6 +1205,7 @@ export async function Step1(props) {
 
     const res = await table.list({
       filters: buildFilters(tab),
+      orFilters: buildOrFilters(tab),
       order: getOrder(tab),
       page: [page, size],
     });
@@ -1174,6 +1240,7 @@ export async function Step1(props) {
     state.step1.notice = null;
     state.step1.showSummary = false;
     state.step1.showMap = false;
+    state.step1.showOrgs = false;
     state.step1.skipFetch = false;
     state.step1.activeTab = tab;
     state.activeTab = tab;
@@ -1204,6 +1271,7 @@ export async function Step1(props) {
     state.step1.notice = null;
     state.step1.showSummary = true;
     state.step1.showMap = false;
+    state.step1.showOrgs = false;
     state.step1.summary.key = null;   // counts are read again each time the tab is opened
     state.step1.skipFetch = false;
     refresh();
@@ -1215,9 +1283,56 @@ export async function Step1(props) {
     state.step1.notice = null;
     state.step1.showMap = true;
     state.step1.showSummary = false;
+    state.step1.showOrgs = false;
     state.step1.skipFetch = false;
     state.step1.mapPanel?.reset();   // the data may have changed since the last visit
     refresh();
+  }
+
+  // ---- organisations tab ------------------------------------------------------
+  function setOrgsTab(e) {
+    if (e?.preventDefault) e.preventDefault();
+    state.step1.notice = null;
+    state.step1.showOrgs = true;
+    state.step1.showSummary = false;
+    state.step1.showMap = false;
+    state.step1.skipFetch = false;
+    state.step1.orgsPanel?.reset();   // the registry may have changed since the last visit
+    refresh();
+  }
+
+  // What orgs.js needs from this view; handed over again with bind() on every invocation of Step1.
+  function orgsDeps() {
+    return {
+      client,
+      html,
+      rerender: () => { state.step1.skipFetch = false; refresh(); },
+      onOpen: (tab, sel) => openList(tab, sel),
+      // after a save: whatever was read from the registry is read again, here and in step 2
+      onSaved: (notice) => {
+        state.step1.notice = notice;
+        state.step1.orgCatalogLoaded = false;
+        state.step1.provinceCatalogLoaded = false;
+        state.step1.orgProvinceByCodeLoaded = false;
+        state.step1.summary.key = null;
+        state.step1.mapPanel?.reset();
+        state.step1.skipFetch = false;
+        refresh();
+      },
+      groupOrgCode: () => groupOrg()?.code || "",
+      errorText,
+      sessionMessage: SESSIONE_NON_VALIDA,
+    };
+  }
+
+  async function ensureOrgsPanel() {
+    if (!state.step1.orgsPanel) {
+      const mod = await import(`./orgs.js?v=${VERSION}`);
+      state.step1.orgsPanel = mod.createOrgsPanel(orgsDeps());
+    } else {
+      state.step1.orgsPanel.bind(orgsDeps());
+    }
+    return state.step1.orgsPanel;
   }
 
   // What map.js needs from this view. Rebuilt on every render of the view and handed over
@@ -1265,6 +1380,7 @@ export async function Step1(props) {
     resetPage(tab);
     state.step1.showSummary = false;
     state.step1.showMap = false;
+    state.step1.showOrgs = false;
     state.step1.activeTab = tab;
     state.activeTab = tab;
     state.step1.skipFetch = false;
@@ -1346,8 +1462,16 @@ export async function Step1(props) {
     refresh();
   }
 
+  // Picking a tipologia while no categoria is chosen also sets the categoria, when the tipologia belongs
+  // to exactly one (the result is the same rows, and the two menus agree). One that several categorie
+  // share (e.g. FURGONE) is ambiguous, so the categoria stays on "Tutte". Same for the dropdown and the lens.
   function onTipFilterChange(tab, val) {
     state.step1.tipFilterByTab[tab] = val;
+    if (val && val !== FILTER_EMPTY && !state.step1.catFilterByTab[tab]) {
+      const byCat = tab === "mezzi" ? MEZZI_TIP_OPT : tab === "materiali" ? MAT_TIP_OPT : {};
+      const owners = Object.keys(byCat).filter((c) => (byCat[c] || []).includes(val));
+      if (owners.length === 1) state.step1.catFilterByTab[tab] = owners[0];
+    }
     resetPage(tab);
     refresh();
   }
@@ -1480,6 +1604,17 @@ export async function Step1(props) {
     return (state.step1.orgCatalog || []).find((o) => safe(o.code).trim().toLowerCase() === g) || null;
   }
 
+  // A mezzo or materiale of another organisation than the user's group: read only. Only for a user
+  // whose group is an organisation (groupOrg()), only on Mezzi and Materiali, and only a guard of
+  // this page - the API does not enforce it. A row with no organisation is not the user's either.
+  const FOREIGN_TITLE = "Sola lettura: appartiene a un'altra organizzazione";
+  function isForeignRow(tab, row) {
+    if (tab === "volontari") return false;
+    const mine = groupOrg();
+    if (!mine) return false;
+    return safe(row?.["codice-organizzazione"]).trim().toLowerCase() !== safe(mine.code).trim().toLowerCase();
+  }
+
   // Filter default, applied once per page: every tab still on "Tutte" starts on the
   // organisation of the user's group.
   function applyGroupDefault() {
@@ -1534,6 +1669,34 @@ export async function Step1(props) {
     onOrgChange(tab, code);
   }
 
+  // ---- categoria / tipologia filter popup (magnifier) ----------------------
+  // Same shape as the organisation one: only the popup is redrawn while typing (skipFetch).
+  function openClsFilter(tab, kind) {
+    state.step1.clsFilterPicker = { tab, kind, q: "", focus: true };
+    state.step1.skipFetch = true;
+    refresh();
+  }
+
+  function closeClsFilter() {
+    state.step1.clsFilterPicker = null;
+    state.step1.skipFetch = true;
+    refresh();
+  }
+
+  function setClsFilterQuery(v) {
+    if (!state.step1.clsFilterPicker) return;
+    state.step1.clsFilterPicker.q = v || "";
+    state.step1.skipFetch = true;
+    refresh();
+  }
+
+  // "" (Tutte) or a value of the column goes through the same handler as the dropdown
+  function pickClsFilter(tab, kind, value) {
+    state.step1.clsFilterPicker = null;
+    if (kind === "cat") onCatFilterChange(tab, value);
+    else onTipFilterChange(tab, value);
+  }
+
   function startEdit(tab, id) {
     // No permission gate here: step 2 opens read only when the tab does not
     // allow writing, which beats a click that silently does nothing. The
@@ -1545,6 +1708,7 @@ export async function Step1(props) {
     state.step1.notice = null;
     state.step1.showSummary = false;   // coming back lands on the record's tab
     state.step1.showMap = false;
+    state.step1.showOrgs = false;
     forgetStep2Draft();
     state.step1.activeTab = tab;
     state.activeTab = tab;
@@ -1557,6 +1721,7 @@ export async function Step1(props) {
   async function doDelete(tab, row) {
     const perms = getEffectivePermissions(tab);
     if (!perms.canDelete) return;
+    if (isForeignRow(tab, row)) return;
 
     const id = row?.id;
     if (!id) return;
@@ -1589,6 +1754,7 @@ export async function Step1(props) {
     const perms = getEffectivePermissions(tab);
     if (inlineBlocked(tab, col)) return;
     if (!perms.canUpdate) return;
+    if (isForeignRow(tab, r)) return;
 
     // categoria o tipologia: overlay unico con le due tendine dipendenti
     if ((col === "categoria" || col === "tipologia") && (tab === "mezzi" || tab === "materiali")) {
@@ -1696,9 +1862,14 @@ export async function Step1(props) {
     applyGroupDefault();   // before the list is read: the first page is already filtered
     const summaryMode = !!state.step1.showSummary;
     const mapMode = !summaryMode && !!state.step1.showMap;
+    const orgsMode = !summaryMode && !mapMode && !!state.step1.showOrgs;
     if (mapMode) {
       state.step1.skipFetch = false;
       const panel = await ensureMapPanel();
+      await panel.load();
+    } else if (orgsMode) {
+      state.step1.skipFetch = false;
+      const panel = await ensureOrgsPanel();
       await panel.load();
     } else if (summaryMode) {
       // no list to read; a skipFetch left over from a popup must not outlive this tab
@@ -2104,7 +2275,7 @@ export async function Step1(props) {
                  </div>`
           : ""}
 
-        <div class="columns is-multiline">
+        <div class="rm-dim columns is-multiline">
           ${cards.map((c) => {
             const d = s.data?.[c.tab] || {};
             const n = d.n;
@@ -2125,7 +2296,7 @@ export async function Step1(props) {
 
         ${s.data
           ? html`
-              <div class="box" data-summary-classes>
+              <div class="rm-dim box" data-summary-classes>
                 <h2 class="title is-5 mb-4">Per categoria e tipologia</h2>
                 ${s.classError
                   ? html`<p class="help ${s.classError === SESSIONE_NON_VALIDA ? "is-warning" : "is-danger"}">Ripartizione non disponibile: ${s.classError}${
@@ -2137,6 +2308,105 @@ export async function Step1(props) {
                 </div>
               </div>`
           : ""}`;
+    }
+
+    // The categoria / tipologia search. The list is the one the dropdown would offer (the tipologie of the
+    // chosen categoria, or all of them), filtered by what is typed: a categoria matches by its own name or by
+    // one of its tipologie, a tipologia by its own name or by its categoria. Picking sets only that filter, as
+    // the dropdown does; the values the dropdown shows as "(vuota)" or "(fuori elenco)" are not offered here.
+    function renderClsFilterPopup() {
+      const pk = state.step1.clsFilterPicker;
+      if (!pk) return "";
+      const tab = pk.tab;
+      const cats = tab === "mezzi" ? MEZZI_CAT_OPT : tab === "materiali" ? MAT_CAT_OPT : [];
+      const byCat = tab === "mezzi" ? MEZZI_TIP_OPT : tab === "materiali" ? MAT_TIP_OPT : {};
+      const q = searchNorm(pk.q);
+      const hit = (s) => !q || searchNorm(s).includes(q);
+      const isCat = pk.kind === "cat";
+      const current = isCat ? (state.step1.catFilterByTab?.[tab] || "") : (state.step1.tipFilterByTab?.[tab] || "");
+
+      let entries;   // { value, cats: [], hints: [] }
+      if (isCat) {
+        entries = cats
+          .map((c) => ({ value: c, hints: (byCat[c] || []).filter((t) => q && !hit(c) && hit(t)) }))
+          .filter((e) => hit(e.value) || e.hints.length);
+      } else {
+        const catSel = state.step1.catFilterByTab?.[tab] || "";
+        const owners = new Map();   // tipologia -> categorie che la hanno
+        for (const c of (catSel && catSel !== FILTER_EMPTY ? [catSel] : cats)) {
+          for (const t of (byCat[c] || [])) {
+            if (!owners.has(t)) owners.set(t, []);
+            owners.get(t).push(c);
+          }
+        }
+        entries = [...owners.entries()]
+          .map(([value, cs]) => ({ value, cats: cs }))
+          .filter((e) => hit(e.value) || e.cats.some(hit))
+          .sort((a, b) => a.value.localeCompare(b.value, undefined, { sensitivity: "base" }));
+      }
+
+      const label = isCat ? "categoria" : "tipologia";
+      return html`
+        <div class="modal is-active" data-cls-popup=${pk.kind}>
+          <div class="modal-background" @click=${closeClsFilter}></div>
+          <div class="modal-card" style="max-width:40rem">
+            <header class="modal-card-head">
+              <p class="modal-card-title is-size-6">Filtra per ${label} — ${TAB_LABELS[tab]}</p>
+              <button class="delete" aria-label="close" @click=${closeClsFilter}></button>
+            </header>
+
+            <section class="modal-card-body">
+              <div class="control has-icons-left mb-3">
+                <input
+                  class="input rm-search"
+                  type="search"
+                  data-clsfilter-focus
+                  placeholder=${isCat ? "Cerca per categoria o tipologia…" : "Cerca per tipologia o categoria…"}
+                  .value=${safe(pk.q)}
+                  @input=${(e) => setClsFilterQuery(e.target.value)}
+                />
+                <span class="icon is-left has-text-link"><i class="ri-search-line"></i></span>
+              </div>
+
+              <div style="max-height:22rem;overflow-y:auto">
+                ${!q
+                  ? html`<button
+                      type="button"
+                      class="button is-fullwidth ${current === "" ? "is-link is-light" : "is-white"}"
+                      style="justify-content:flex-start;text-align:left"
+                      data-cls-pick=""
+                      @click=${() => pickClsFilter(tab, pk.kind, "")}
+                    ><strong>${isCat ? "Tutte le categorie" : "Tutte le tipologie"}</strong></button>`
+                  : ""}
+                ${entries.length === 0
+                  ? html`<p class="has-text-grey is-size-7 p-3 has-text-centered">Nessun risultato.</p>`
+                  : entries.map(
+                      (e) => html`
+                        <button
+                          type="button"
+                          class="button is-fullwidth ${current === e.value ? "is-link is-light" : "is-white"}"
+                          style="justify-content:flex-start;text-align:left;white-space:normal;height:auto;padding-top:.35rem;padding-bottom:.35rem"
+                          data-cls-pick=${e.value}
+                          @click=${() => pickClsFilter(tab, pk.kind, e.value)}
+                        >
+                          <strong>${e.value}</strong>
+                          ${isCat
+                            ? e.hints.length
+                              ? html`<span class="has-text-grey is-size-7 ml-2">${e.hints.slice(0, 3).join(" · ")}${e.hints.length > 3 ? " …" : ""}</span>`
+                              : ""
+                            : e.cats.map((c) => html`<span class="tag is-light ml-2">${c}</span>`)}
+                        </button>
+                      `
+                    )}
+              </div>
+            </section>
+
+            <footer class="modal-card-foot">
+              <button class="button" @click=${closeClsFilter}>Annulla</button>
+            </footer>
+          </div>
+        </div>
+      `;
     }
 
     function renderOrgFilterPopup() {
@@ -2318,9 +2588,10 @@ export async function Step1(props) {
       const n = (cat, tip) => (pairs ? pairs.get(JSON.stringify([cat, tip])) || 0 : null);
       const sumCat = (cat) => (pairs ? [...pairs].reduce((a, [k, v]) => a + (JSON.parse(k)[0] === cat ? v : 0), 0) : null);
       const badge = (v) => (v === null ? "" : html`<span class="tag ${v ? "is-info is-light" : "is-light has-text-grey-light"} ml-2">${v}</span>`);
-      // Summary: a categoria or tipologia that the worktable defines links to the list of its
-      // rows (opts.onPick). What it does not define (Fuori elenco, tipologia non indicata) has
-      // no link: the filter dropdowns could not show it, and it would look like "all".
+      // Summary: every entry links to the list of its rows (opts.onPick). What the worktable does
+      // not define (Fuori elenco) and "tipologia non indicata" link too: the menus of the list show
+      // the value as "(fuori elenco)" / "(... vuota)" - an empty one is FILTER_EMPTY, and the
+      // case with BOTH empty has no link, the list cannot ask for two empty columns.
       const link = (text, cat, tip) =>
         opts.onPick
           ? html`<a class="rm-classlink" href="#" title="Mostra l'elenco" @click=${(e) => { e.preventDefault(); opts.onPick(cat, tip); }}>${text}</a>`
@@ -2337,7 +2608,7 @@ export async function Step1(props) {
       if (onlyUsed) for (const cat of cats) known.add(JSON.stringify([cat, ""]));
       const tipRows = (cat) => {
         const rows = tipsOf(cat).filter((tip) => !onlyUsed || n(cat, tip)).map((tip) => [tip, n(cat, tip), (byCat[cat] || []).includes(tip)]);
-        if (onlyUsed && n(cat, "")) rows.push(["(tipologia non indicata)", n(cat, ""), false]);
+        if (onlyUsed && n(cat, "")) rows.push(["(tipologia non indicata)", n(cat, ""), "empty"]);
         return rows;
       };
       // what the registry holds that the list does not define
@@ -2351,7 +2622,7 @@ export async function Step1(props) {
           ${cats.map((cat) => (onlyUsed && !sumCat(cat) ? "" : html`
             <p class="has-text-weight-semibold mt-3 mb-1">${link(cat, cat, "")}${badge(sumCat(cat))}</p>
             <ul class="mt-0 mb-0" style="list-style:none;margin-left:.25rem">
-              ${tipRows(cat).map(([tip, v, linkable]) => html`<li class="is-size-7">${linkable ? link(tip, cat, tip) : tip}${badge(v)}</li>`)}
+              ${tipRows(cat).map(([tip, v, linkable]) => html`<li class="is-size-7">${linkable === "empty" ? link(tip, cat, FILTER_EMPTY) : linkable ? link(tip, cat, tip) : tip}${badge(v)}</li>`)}
             </ul>
           `))}
           ${outside.length ? html`
@@ -2360,7 +2631,9 @@ export async function Step1(props) {
             <ul style="list-style:none;margin-left:.25rem">
               ${outside.map(([k, v]) => {
                 const [cat, tip] = JSON.parse(k);
-                return html`<li class="is-size-7">${cat || "(categoria vuota)"} / ${tip || "(tipologia vuota)"}${badge(v)}</li>`;
+                const text = `${cat || "(categoria vuota)"} / ${tip || "(tipologia vuota)"}`;
+                // both empty: nothing to filter on
+                return html`<li class="is-size-7">${cat || tip ? link(text, cat || FILTER_EMPTY, tip || FILTER_EMPTY) : text}${badge(v)}</li>`;
               })}
             </ul>` : ""}
         </div>`;
@@ -2569,6 +2842,13 @@ export async function Step1(props) {
 
     return html`
       <style>
+        /* in-page loading: see listBusyOn() */
+        .rm-dim{transition:opacity .15s}
+        #app.rm-loading .rm-dim{opacity:.4;pointer-events:none}
+        #app.rm-loading::after{content:"";position:fixed;left:50%;top:62%;width:30px;height:30px;margin:-15px 0 0 -15px;
+          border:3px solid #dbdbdb;border-top-color:#3273dc;border-radius:50%;animation:rm-spin .8s linear infinite;
+          z-index:50;pointer-events:none}
+        @media (prefers-reduced-motion:reduce){#app.rm-loading::after{animation-duration:3s}}
         .rm-spin{animation:rm-spin 1s linear infinite}
         @keyframes rm-spin{to{transform:rotate(360deg)}}
         /* The quick search is the entry point of the page: it was the same
@@ -2592,6 +2872,7 @@ export async function Step1(props) {
       ${renderCatTipOverlay()}
       ${renderCreatePicker()}
       ${renderOrgFilterPopup()}
+      ${renderClsFilterPopup()}
       ${renderClassPopup()}
       ${renderTransferPopup()}
       <div style="padding:1rem 1.25rem">
@@ -2603,7 +2884,7 @@ export async function Step1(props) {
             </div>
             <div class="level-right">
               <div class="level-item">
-                ${summaryMode || mapMode
+                ${summaryMode || mapMode || orgsMode
                   ? ""
                   : perms.canCreate
                   ? html`
@@ -2642,9 +2923,12 @@ export async function Step1(props) {
               <li class=${mapMode ? "is-active" : ""}>
                 <a href="#" @click=${setMapTab}>Mappa</a>
               </li>
+              <li class=${orgsMode ? "is-active" : ""}>
+                <a href="#" @click=${setOrgsTab}>Organizzazioni</a>
+              </li>
               ${Object.keys(TAB_LABELS).map(
                 (k) => html`
-                  <li class=${!summaryMode && !mapMode && k === tab ? "is-active" : ""}>
+                  <li class=${!summaryMode && !mapMode && !orgsMode && k === tab ? "is-active" : ""}>
                     <a href="#" @click=${(e) => setTab(k, e)}>${TAB_LABELS[k]}</a>
                   </li>
                 `
@@ -2652,7 +2936,7 @@ export async function Step1(props) {
             </ul>
           </div>
 
-          ${summaryMode ? renderSummary() : mapMode ? state.step1.mapPanel.template() : html`
+          ${summaryMode ? renderSummary() : mapMode ? state.step1.mapPanel.template() : orgsMode ? state.step1.orgsPanel.template() : html`
           <div class="box spa-title-box p-3">
             <div class="is-flex rm-filtri" style="gap:.75rem;flex-wrap:wrap">
 
@@ -2661,29 +2945,63 @@ export async function Step1(props) {
               ${hasCatTip ? html`
                 <div style="flex:0 1 230px;min-width:170px;max-width:340px;">
                   <label class="label is-small mb-1">Categoria</label>
-                  <div class="select is-small is-fullwidth">
-                    <select
-                      .value=${catFilter}
-                      title=${catFilter}
-                      @change=${(e) => onCatFilterChange(tab, e.target.value)}
+                  <div class="is-flex" style="gap:.25rem">
+                    <div class="select is-small" style="flex:1;min-width:0">
+                      <select
+                        style="width:100%"
+                        .value=${catFilter}
+                        title=${catFilter}
+                        @change=${(e) => onCatFilterChange(tab, e.target.value)}
+                      >
+                        <option value="">Tutte</option>
+                        ${catFilter === FILTER_EMPTY ? html`<option value=${FILTER_EMPTY} selected>(categoria vuota)</option>` : ""}
+                        ${catOptsForFilter.map((o) => html`<option value=${o} ?selected=${o === catFilter}>${o}</option>`)}
+                        ${catFilter && catFilter !== FILTER_EMPTY && !catOptsForFilter.includes(catFilter)
+                          ? html`<option value=${catFilter} selected>${catFilter} (fuori elenco)</option>` : ""}
+                      </select>
+                    </div>
+                    <button
+                      type="button"
+                      class="button is-small"
+                      style="flex-shrink:0"
+                      title="Cerca la categoria"
+                      aria-label="Cerca la categoria"
+                      data-cls-lens="cat"
+                      @click=${() => openClsFilter(tab, "cat")}
                     >
-                      <option value="">Tutte</option>
-                      ${catOptsForFilter.map((o) => html`<option value=${o} ?selected=${o === catFilter}>${o}</option>`)}
-                    </select>
+                      <span class="icon is-small"><i class="ri-search-line"></i></span>
+                    </button>
                   </div>
                 </div>
 
                 <div style="flex:0 1 260px;min-width:190px;max-width:460px;">
                   <label class="label is-small mb-1">Tipologia</label>
-                  <div class="select is-small is-fullwidth">
-                    <select
-                      .value=${tipFilter}
-                      title=${tipFilter}
-                      @change=${(e) => onTipFilterChange(tab, e.target.value)}
+                  <div class="is-flex" style="gap:.25rem">
+                    <div class="select is-small" style="flex:1;min-width:0">
+                      <select
+                        style="width:100%"
+                        .value=${tipFilter}
+                        title=${tipFilter}
+                        @change=${(e) => onTipFilterChange(tab, e.target.value)}
+                      >
+                        <option value="">Tutte</option>
+                        ${tipFilter === FILTER_EMPTY ? html`<option value=${FILTER_EMPTY} selected>(tipologia vuota)</option>` : ""}
+                        ${tipOptsForFilter.map((o) => html`<option value=${o} ?selected=${o === tipFilter}>${o}</option>`)}
+                        ${tipFilter && tipFilter !== FILTER_EMPTY && !tipOptsForFilter.includes(tipFilter)
+                          ? html`<option value=${tipFilter} selected>${tipFilter} (fuori elenco)</option>` : ""}
+                      </select>
+                    </div>
+                    <button
+                      type="button"
+                      class="button is-small"
+                      style="flex-shrink:0"
+                      title="Cerca la tipologia"
+                      aria-label="Cerca la tipologia"
+                      data-cls-lens="tip"
+                      @click=${() => openClsFilter(tab, "tip")}
                     >
-                      <option value="">Tutte</option>
-                      ${tipOptsForFilter.map((o) => html`<option value=${o} ?selected=${o === tipFilter}>${o}</option>`)}
-                    </select>
+                      <span class="icon is-small"><i class="ri-search-line"></i></span>
+                    </button>
                   </div>
                 </div>
               ` : null}
@@ -2748,7 +3066,7 @@ export async function Step1(props) {
 
           ${renderColPanel()}
 
-          <div class="is-flex is-justify-content-space-between is-align-items-center mb-2" style="gap:.75rem;">
+          <div class="rm-dim is-flex is-justify-content-space-between is-align-items-center mb-2" style="gap:.75rem;">
             <div class="is-size-7 has-text-grey">
               ${total === 0
                 ? html`Nessun risultato.`
@@ -2759,7 +3077,7 @@ export async function Step1(props) {
             </div>
           </div>
 
-          <div class="table-container">
+          <div class="rm-dim table-container">
             <table
               class="table is-small is-narrow is-fullwidth is-hoverable is-striped"
               style=${`font-size:${fontSizeCss()}`}
@@ -2807,16 +3125,16 @@ export async function Step1(props) {
                                     <button
                                       class="button is-small is-info is-light"
                                       @click=${() => startEdit(tab, r.id)}
-                                      ?disabled=${!perms.canUpdate}
-                                      title=${perms.canUpdate ? "Modifica" : "Sola lettura"}
+                                      ?disabled=${!perms.canUpdate || isForeignRow(tab, r)}
+                                      title=${isForeignRow(tab, r) ? FOREIGN_TITLE : perms.canUpdate ? "Modifica" : "Sola lettura"}
                                     >
                                       <span class="icon is-small"><i class="ri-pencil-line"></i></span>
                                     </button>
                                     <button
                                       class="button is-small is-danger is-light"
                                       @click=${() => doDelete(tab, r)}
-                                      ?disabled=${!perms.canDelete}
-                                      title=${perms.canDelete ? "Elimina" : "Sola lettura"}
+                                      ?disabled=${!perms.canDelete || isForeignRow(tab, r)}
+                                      title=${isForeignRow(tab, r) ? FOREIGN_TITLE : perms.canDelete ? "Elimina" : "Sola lettura"}
                                     >
                                       <span class="icon is-small"><i class="ri-delete-bin-6-line"></i></span>
                                     </button>
@@ -2824,8 +3142,8 @@ export async function Step1(props) {
                                     <button
                                       class="button is-small is-warning is-light"
                                       @click=${() => openTransfer(tab, r)}
-                                      ?disabled=${!canTransfer(perms)}
-                                      title=${transferTitle(perms)}
+                                      ?disabled=${!canTransfer(perms) || isForeignRow(tab, r)}
+                                      title=${isForeignRow(tab, r) ? FOREIGN_TITLE : transferTitle(perms)}
                                     >
                                       <span class="icon is-small"><i class="ri-arrow-left-right-line"></i></span>
                                     </button>`}
@@ -2842,9 +3160,9 @@ export async function Step1(props) {
                               return html`<td style="vertical-align:middle;white-space:normal;min-width:12rem;">${renderInlineCell(r, c, ie)}</td>`;
                             }
                             return html`<td
-                              style="max-width:28rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${perms.canUpdate && !isSkip ? "cursor:text" : ""}"
+                              style="max-width:28rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${perms.canUpdate && !isSkip && !isForeignRow(tab, r) ? "cursor:text" : ""}"
                               title=${safe(r?.[c] ?? "")}
-                              @dblclick=${(e) => { if (perms.canUpdate && !isSkip) startInlineEdit(r, c, e); }}
+                              @dblclick=${(e) => { if (perms.canUpdate && !isSkip && !isForeignRow(tab, r)) startInlineEdit(r, c, e); }}
                             >${safe(r?.[c] ?? "")}</td>`;
                           })}
                         </tr>
@@ -2859,6 +3177,7 @@ export async function Step1(props) {
   }
 
   state.step1.mapPanel?.bind(mapDeps());
+  state.step1.orgsPanel?.bind(orgsDeps());
 
   return view();
 }

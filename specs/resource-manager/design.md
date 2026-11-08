@@ -45,6 +45,7 @@ Se `editMode === "create"`, il form è vuoto (con prefill `id-materiale` via `.s
 | Mezzi | `db-mezzi` |
 | Materiali | `db-materiali` |
 | Registro dei trasferimenti di organizzazione (solo scrittura, da §7f) | `trasferimenti-risorse` |
+| Scheda Organizzazioni (lettura e, con i permessi, scrittura; conteggi in sola lettura da `db-volontari`/`db-mezzi`/`db-materiali`) | `db-organizzazioni` |
 
 ## 5. Colonne
 
@@ -185,6 +186,18 @@ chiude la finestra e passa per `onOrgChange()`, cioe' lo stesso gestore della te
 e chiudere usano `skipFetch`: la tabella dietro non si rilegge finche' non si sceglie. La tendina
 usa `?selected` sulle opzioni, non `.value` (AGENTS.md), perche' la scelta puo' arrivare dalla finestra.
 Stato: `state.step1.orgFilterPicker = null | { tab, q, focus }`.
+
+**Le lenti di Categoria e Tipologia** (`title` «Cerca la categoria» / «Cerca la tipologia», `data-cls-lens="cat|tip"`) stanno a destra delle due tendine,
+nello stesso schema: il blocco della tendina diventa `is-flex` con il `select` a `flex:1;min-width:0` e il pulsante a `flex-shrink:0`
+(le larghezze della tabella sopra non cambiano). Aprono `renderClsFilterPopup()`, stato `state.step1.clsFilterPicker = null | { tab, kind: "cat" | "tip", q, focus }`
+(`openClsFilter`, `closeClsFilter`, `setClsFilterQuery`, `pickClsFilter`; il cursore va nel campo grazie a `data-clsfilter-focus`, letto una volta in `refresh()`).
+L'elenco e' quello della tendina, non una seconda sorgente: `MEZZI_CAT_OPT`/`MEZZI_TIP_OPT` (o i `MAT_*`) letti dai vocabolari; per la tipologia, quelle della categoria
+filtrata o, senza, l'unione deduplicata con le categorie che la contengono (`Map` tipologia → categorie, mostrate come tag). Il confronto usa `searchNorm()` (senza
+maiuscole e accenti) e guarda **entrambi** i livelli: una categoria corrisponde per il suo nome o per una sua tipologia (le prime tre sono mostrate come indizio), una tipologia
+per il suo nome o per una sua categoria. La scelta passa per `onCatFilterChange()` / `onTipFilterChange()`, gli stessi gestori delle tendine (la categoria azzera la tipologia;
+`resetPage`, nuova lettura). `onTipFilterChange()` deriva anche la categoria: solo se la categoria e' vuota (non `FILTER_EMPTY`, non una scelta dell'operatore), la tipologia
+non e' vuota ne' `FILTER_EMPTY`, e **una sola** categoria di `*_TIP_OPT` la contiene; con piu' proprietarie («FURGONE») la categoria resta com'e'. Poiche' sta nel gestore,
+vale per lente e tendina insieme; aprire, scrivere e chiudere usano `skipFetch`. Non si offrono `FILTER_EMPTY` ne' i valori fuori elenco: nascono dai collegamenti del Riepilogo.
 
 ### Filtri server-side
 
@@ -733,6 +746,21 @@ da `ensureLoaded()` dello step 2 quando costruisce la bozza di un nuovo record.
 Viene azzerato sia dall'annullamento sia dopo il salvataggio: vale per quella
 creazione e non deve sopravviverle.
 
+### Caricamento dentro la pagina
+
+Un `refresh()` che legge dal server (scheda, filtro, pagina, ordinamento, apertura di Riepilogo o Mappa) lascia sullo schermo la lista
+di prima finche' quella nuova non arriva, e nulla dice che il clic e' stato preso. `refresh()` accende `listBusyOn()`: dopo **150 ms**
+(una risposta rapida non deve lampeggiare) mette la classe `rm-loading` sulla **radice** (`#app`). Il CSS nello `<style>` della vista attenua a
+`opacity:.4` e rende non cliccabili (`pointer-events:none`) le zone marcate `rm-dim` — la tabella e la riga «Mostrati X–Y», le carte e il box
+della ripartizione del Riepilogo, la mappa, la riga dei totali e la mappa della scheda Mappa — e mostra un piccolo spinner (`#app.rm-loading::after`,
+fisso al 62% dell'altezza). **La barra dei filtri non e' marcata**: resta usabile, e cambiare idea durante l'attesa e' possibile.
+
+E' una classe sulla radice e non parte del template perche' il template e' proprio cio' che non e' ancora pronto. Casi: piu' `refresh()`
+sovrapposti — lo spegne solo l'ultimo (`seq === renderSeq`); il passo cambia mentre si aspetta (`state.step !== 1`) — lo spegne comunque, senza
+disegnare sopra il passo nuovo; la lettura fallisce — lo spegne e rilancia l'errore come prima; una nuova invocazione di `Step1()` parte sempre
+da zero (`listBusyOff()` all'ingresso). Il primo disegno e il cambio di passo non passano di qui: hanno lo spinner a tutta pagina di `app-boot.js`.
+Rispetta `prefers-reduced-motion`.
+
 ### La scheda Riepilogo
 
 Non e' una scheda dati: e' `state.step1.showSummary` (booleano), e `activeTab` continua a nominare l'ultima
@@ -741,7 +769,7 @@ mette «Riepilogo» davanti alle tre schede dati; `setTab()` e `startEdit()` spe
 
 **Apertura.** Il flag nasce una volta sola (`=== undefined`, non `||=`, altrimenti tornando dallo step 2 si
 finirebbe sul riepilogo): vero se l'indirizzo non ha `?tab=` o ha `?tab=riepilogo`, falso se nomina una
-scheda dati, come fanno i tre pulsanti della home.
+scheda dati, come fanno i pulsanti della home (volontari, mezzi, materiali e, per `?tab=organizzazioni`, il quarto: *Database organizzazioni*).
 
 **Dati.** `ensureSummary()` condivide una `promise` (`state.step1.summary.promise`) fra i render che arrivano
 insieme: senza, il secondo render disegnerebbe la pagina prima dei conteggi e nessuno la ridisegnerebbe. Per
@@ -776,8 +804,17 @@ il totale di colonna va al singolare con una sola risorsa. Le letture stanno nel
 tipologie che la scheda definisce (`byCat[cat].includes(tip)`), e `openFromSummary(tab, { cat, tip })` imposta
 `selectedOrgByTab`, `catFilterByTab`, `tipFilterByTab` e azzera il filtro per colonna della scheda di arrivo: nessun filtro
 rimasto la restringerebbe oltre cio' che il riepilogo ha contato (il clic su un riquadro azzera categoria e tipologia
-per lo stesso motivo). Senza collegamento «(tipologia non indicata)» e «Fuori elenco»: `tipFilter === ""` significa «tutte» e un
-valore fuori lista non sarebbe fra le opzioni del menu, che cadrebbe sulla prima. I collegamenti hanno la classe `rm-classlink`: colore del testo, e blu con sottolineatura solo al passaggio del
+per lo stesso motivo). **Valori non definiti.** «(tipologia non indicata)» e le voci di «Fuori elenco» collegano anch'esse, ma `tipFilter === ""` significa
+«tutte» e un valore fuori lista non sarebbe fra le opzioni del menu (che cadrebbe sulla prima, con la lista filtrata): per questo i menu
+**Categoria** e **Tipologia** della scheda dati aggiungono, se il filtro vale un valore che non e' fra le opzioni, `<option selected>valore (fuori elenco)</option>`
+(la regola generale di AGENTS.md: un valore non piu' in catalogo si mostra come fuori elenco, non si scarta). Un valore **vuoto** non ha
+un testo da mostrare: e' la costante `FILTER_EMPTY` (`"\u0001"`), che non arriva mai all'API; i menu la mostrano come «(categoria vuota)» /
+«(tipologia vuota)» solo quando e' il valore corrente. `buildFilters()` la salta e `buildOrFilters()` la traduce in un gruppo OR
+`{ filter1: [col, "is", "null"], filter2: [col, "eq", ""] }` (vuoto = NULL o stringa vuota: l'importer e il create REST non concordano). Il
+filtro del client e' `list({ filters, orFilters })`; `FilterInfo` dell'API calcola `AND(filter) AND (filter1 OR filter2)`, quindi il gruppo OR
+si combina con organizzazione, categoria o tipologia `eq`. Passa anche all'esportazione. Una sola colonna vuota alla volta (il gruppo OR e'
+uno): con entrambe vale la categoria, ed e' il caso senza collegamento nel riepilogo. Non verificato contro l'API vera: se `eq ""` non
+fosse accettato, resterebbe `is null` e le righe con stringa vuota non comparirebbero. I collegamenti hanno la classe `rm-classlink`: colore del testo, e blu con sottolineatura solo al passaggio del
 mouse o con il focus da tastiera; una colonna di nomi tutta blu annegava la gerarchia fra categorie, tipologie e
 conteggi. La finestra **Classificazioni** non passa `onPick` e resta senza collegamenti. Costo:
 2 letture in piu' per apertura o cambio di organizzazione, di una pagina ciascuna fino a 1000 righe (circa 940 mezzi negli esempi).
@@ -817,6 +854,16 @@ deve far saltare la vista. Un token (`drawToken`) scarta i disegni scavalcati da
 e `tip` passano solo se la scheda di arrivo li ha fra le opzioni (altrimenti il menu mostrerebbe «Tutte» con la lista filtrata).
 Per Comune e Provincia non ci sono collegamenti: non sono un solo filtro dell'elenco.
 
+**Le lenti di Categoria e Tipologia sulla mappa.** Stesso disegno di §7 (lente a destra della tendina, `data-map-lens="cat|tip"`, popup `data-map-popup`),
+ma dentro `map.js` perche' la finestra della lista e' una funzione di `step1.js` e i filtri della mappa sono altri (`st.cat`, `st.tip`, `st.types`). Stato
+`st.picker = null | { kind, q, focus }`; `openPicker`/`closePicker`/`setPickerQuery`/`pick`, e `pickerEntries()` costruisce l'elenco con la stessa ricerca (`fold()`: senza
+maiuscole e accenti, anche per l'altro livello). L'elenco e' quello delle tendine, non un'altra sorgente: `catOptions()`, e per le tipologie `tipOwners()` — tipologia → categorie,
+sui soli tipi attivi e, se c'e' una categoria scelta, solo su quella. `setTip()` deriva la categoria con `tipOwners()` se la categoria e' vuota e la tipologia ne ha una sola, quindi
+vale per lente e tendina. Ogni digitazione e' un `rerender()` del pannello; la mappa non si ricrea (`draw()` ricostruisce solo il `layerGroup`, `fitBounds` solo la prima volta) e il campo
+di ricerca prende il cursore in `afterRender(root)` una volta sola (`data-maplens-focus`). Il popup e' l'ultimo figlio del template, cosi' il nodo `#rm-map` non si sposta. **`#rm-map` ha `isolation:isolate`**: i livelli di Leaflet
+arrivano a `z-index` 1000 e un modale di Bulma ha 40, quindi senza un contesto di sovrapposizione proprio la mappa si disegnava *sopra* la finestra e ne tagliava il fondo
+(lo stesso schema di `comms-feed` e `map-center`).
+
 **Larghezze dei filtri.** Categoria e Tipologia non hanno una larghezza fissa: `flex: 1 1 230px` (min 200, max 340) e `flex: 1 1 260px` (min 220, max 460),
 con la riga che va a capo (`flex-wrap`) sugli schermi stretti. Con 200 px fissi «MATERIALE IDROGEOLOGICO» veniva tagliata; la tipologia piu' lunga
 («MATERIALE LOGISTICO PER TENDE (CESTELLI / CASSE)») nel menu chiuso si legge fino a meta' e per intero nell'elenco aperto e nel `title` del menu.
@@ -826,6 +873,41 @@ la prima volta, imposta `st.tilesError` e ridisegna: il template mostra una riga
 **Senza libreria.** Se i file locali mancano (`st.leaflet === "error"`) il template toglie `#rm-map`, dice perche' e apre l'**Elenco numerico**; il ridisegno
 chiesto per mostrarlo avviene **una volta sola** (`before !== "error"`), altrimenti si ripeterebbe a ogni render: nel test
 con un finto DOM che restituiva sempre il nodo, era un ciclo infinito. Il codice sta fuori da `step1.js` anche perche' e' un file gia' molto lungo.
+
+### La scheda Organizzazioni (`views/resource-manager/orgs.js`)
+
+Stesso schema della Mappa: `state.step1.showOrgs` (esclusivo con `showSummary` e `showMap`; ogni altro setter lo azzera; `?tab=organizzazioni`
+la apre), fabbrica `createOrgsPanel(deps)` → `{ template, load, reset, afterRender, bind, state }`, importata dinamicamente con la versione da
+`ensureOrgsPanel()`, `bind(orgsDeps())` a ogni `Step1()`. Callback dell'ospite: `rerender`, `onOpen` (= `openList()`), `onSaved(notice)`,
+`groupOrgCode`, `errorText`, `sessionMessage`. Nell'intestazione il pulsante «Aggiungi nuova risorsa» non c'e' (come in Riepilogo e Mappa).
+
+**Dati.** `Promise.allSettled` di sei letture: `db-organizzazioni` (fino a 5000), `permissions()` **della stessa tabella**, `describe()` (via
+`loadColumns`) e i codici di `db-volontari`, `db-mezzi`, `db-materiali` (solo `codice-organizzazione`, a pagine di 1000, per i conteggi; chiave in minuscolo).
+Un errore sulle organizzazioni e' bloccante (`st.error`, Riprova); sui conteggi no (`st.countsError`, l'elenco resta); sui permessi porta a sola
+lettura con `st.permsNote`; sul describe si usano tutti i campi di `FIELDS`.
+
+**Permessi.** `st.perms = { create, update }` da `can.create`/`can.update`. Il pulsante «Nuova organizzazione» e le matite si disegnano attivi
+solo se il permesso c'e', **e** `openNew()`/`openEdit()`/`save()` rifanno il controllo: un handler chiamato lo stesso non apre ne' scrive (testato).
+Non c'e' `remove()` e non c'e' nessuna restrizione sull'organizzazione dell'utente: la guardia dei mezzi e materiali di altre organizzazioni
+(§«Mezzi e materiali di altre organizzazioni») non si applica a questa tabella, per scelta. E' UX: l'autorizzazione resta all'API.
+
+**Campi.** `FIELDS` e' esplicito (denominazione, codice, denominazione-dbvol, sezione, tipologia-sezione, codice-fiscale, partita-iva, indirizzo, comune,
+provincia, latitudine, longitudine, note) e si interseca con le colonne del describe quando risponde (una colonna che la tabella non ha non e' nel
+modulo; le etichette sono quelle della tabella). Il `codice` e' `readonly` in modifica ed e' la chiave funzionale per nome (vedi AGENTS.md §Chiavi funzionali):
+rinominare la denominazione **non** si propaga, e il modulo lo dice contando le risorse che usano il codice (`data-org-rename-note`).
+
+**Validazione e payload.** `validate()` (denominazione; in creazione codice obbligatorio e univoco senza distinguere maiuscole sull'elenco caricato;
+latitudine/longitudine insieme, numeri — la virgola decimale e' accettata —, entro i limiti, non 0/0). `payloadOf()`: vuoto → `null`; `codice` solo in creazione;
+provincia in maiuscolo; coordinate arrotondate a 6 decimali. `save()` e' protetto da `f.busy` (un doppio clic scrive una volta), non scrive se il draft non e' cambiato
+(`isDirty`), e a successo chiude il modulo, azzera `st.loaded` e chiama `onSaved`, che invalida i cataloghi di step1 (`orgCatalogLoaded`,
+`provinceCatalogLoaded`, `orgProvinceByCodeLoaded`), il Riepilogo (`summary.key`) e la Mappa (`reset()`), e rilegge. A errore il modulo resta aperto con
+il messaggio; per la sessione scaduta (`sessionMessage`) c'e' anche «Esci e rientra».
+
+**Posizione.** «Scegli sulla mappa» usa `createMapPicker` di `views/shared/map-picker.js`; la conferma riempie latitudine e longitudine e, se il
+reverse geocoding le trova, indirizzo, comune e provincia — un valore trovato vuoto non sovrascrive quello digitato. Leaflet e' locale, Nominatim online.
+
+**Test.** Verificato con un harness Node (client finto): permessi create/update/nessuno/errore, ricerca e filtri, conteggi e collegamenti, creazione e modifica con
+payload, validazioni, doppio clic, errore e sessione scaduta, picker, colonne del describe. **Non** provato contro il server vero ne' con una sessione reale.
 
 ### Il gruppo dell'utente come predefinito
 
@@ -854,6 +936,23 @@ Non e' un controllo di accesso: il browser non puo' impedire nulla e un amminist
 chiami l'API vede il resto. La visibilita' per gruppo la fa il framework (opzione **VG** sulla colonna e
 `visibility_type = group` sull'utente: `_list()` filtra la REST API) e in quel caso questa SPA riceve gia'
 liste ristrette; il predefinito qui evita solo di partire da una lista piu' larga del necessario.
+
+### Mezzi e materiali di altre organizzazioni
+
+`isForeignRow(tab, row)` (step 1) e `isForeignBase(tab)` (step 2) dicono «questa riga non e' della mia organizzazione»: vero solo su Mezzi e
+Materiali, solo se `groupOrg()` (step 1) / `myGroupOrgCode()` (step 2: stessa regola, letta da `state.step1.whoami` e `orgCatalog`) trova
+un'organizzazione di gruppo, e se il `codice-organizzazione` della riga (senza spazi, senza distinguere maiuscole) e' diverso o manca. In quel caso:
+matita, cestino e Trasferisci sono `disabled` con `FOREIGN_TITLE`; il doppio clic e il cursore di correzione sul posto sono spenti; le funzioni
+`startInlineEdit`, `doDelete`, `openTransfer` e `confirmTransfer` ricontrollano (un gestore chiamato per un'altra via non scrive);
+`isReadOnly()` di step 2 ritorna vero per una scheda in modifica il cui `baseRow` e' di un'altra organizzazione, quindi il form si apre in sola
+lettura, **Salva** resta disattivato e `doSave()` esce (`readOnly`). Il `baseRow` c'e' solo a scheda caricata: finche' non c'e' non e' «altrui».
+
+**E' solo l'interfaccia.** L'API non applica nulla di tutto questo, come per gli altri permessi della SPA (AGENTS.md §Security): chi chiama
+l'API puo' modificare tutto. Il blocco vero sta nel framework e non e' configurato: `authorization.recordHandler` in `cf_api_controller.inc.php` (condizione
+`codice-organizzazione = <gruppo>` su update/delete/increment, applicata da `updateSingle`, `deleteSingle` e `incrementSingle` in `api.include.php`)
+e `multiTenancy.handler` per forzare l'organizzazione alla creazione. Tenerne conto se si passa dalla guardia al controllo:
+`multiTenancy` toglie la colonna dai dati di un `update`, il che spezzerebbe un trasferimento (cambierebbe `organizzazione` e non il codice), e una regola
+«tutti i non admin» bloccherebbe il personale di segreteria, che non ha un gruppo-organizzazione.
 
 ### L'ultima organizzazione scelta
 
@@ -1150,6 +1249,8 @@ Campi gestiti con logica speciale in step 2:
 | `app-resource-manager.js` | Entry point: spinner di caricamento, routing step 1/2, showError |
 | `views/resource-manager/step1.js` | Lista con filtri, paginazione, editing inline |
 | `views/resource-manager/step2.js` | Form creazione/modifica |
+| `views/resource-manager/orgs.js` | Scheda Organizzazioni: elenco, conteggi, modulo di creazione/modifica nei limiti dei permessi |
+| `views/resource-manager/map.js` | Scheda Mappa |
 | `views/resource-manager/assets/mezzi-marche.txt` | Lista marche mezzi per autocomplete |
 | `resource-manager.inc.php` | Mount SPA (`mountMiniApp`) |
 | `dashboard_resource-manager.inc.php` | Alias per dashboard (`require resource-manager.inc.php`) |

@@ -8,7 +8,7 @@ UC-RM1 — Consultare, correggere, completare ed esportare l'anagrafica permanen
 
 ## Contesto di sistema
 
-Pagina del riquadro **Anagrafiche** della pagina iniziale, con tre pulsanti — *Database volontari*, *Database mezzi*, *Database materiali* — che aprono la stessa SPA sulla scheda corrispondente (`?tab=volontari|mezzi|materiali`). Senza `?tab=` (o con `?tab=riepilogo`) la SPA si apre sulla prima scheda, **Riepilogo**; con `?tab=mappa`, sulla **Mappa**.
+Pagina del riquadro **Anagrafiche** della pagina iniziale, con quattro pulsanti — *Database volontari*, *Database mezzi*, *Database materiali*, *Database organizzazioni* — che aprono la stessa SPA sulla scheda corrispondente (`?tab=volontari|mezzi|materiali|organizzazioni`). Senza `?tab=` (o con `?tab=riepilogo`) la SPA si apre sulla prima scheda, **Riepilogo**; con `?tab=mappa`, sulla **Mappa**; con `?tab=organizzazioni`, su **Organizzazioni**.
 
 Lavora sulle tabelle dell'anagrafica **permanente** `db-volontari`, `db-mezzi` e `db-materiali`: esistono prima dell'evento e sopravvivono dopo. Non sono l'elenco di chi e' presente a campo: quello lo scrive il [Check-in massivo](../massive-check-in/use-case.md) sulle tabelle di evento `volontari`, `mezzi` e `materiali`, che questa SPA non tocca.
 
@@ -42,6 +42,7 @@ Operatore di segreteria (per la sola consultazione, anche senza permesso di scri
 - L'utente ha la sessione aperta.
 - Le tabelle `db-volontari`, `db-mezzi`, `db-materiali` esistono; `db-organizzazioni` e' l'anagrafica delle organizzazioni.
 - Per scrivere: i permessi `create`/`update`/`delete` della scheda (`permissions()`); senza, la SPA e' in sola lettura.
+- Per la scheda **Organizzazioni**: i permessi `create` e `update` di `db-organizzazioni`, letti da `permissions()` di *quella* tabella (non di `db-volontari`/`db-mezzi`/`db-materiali`); senza, la scheda e' di sola consultazione.
 
 ---
 
@@ -71,16 +72,25 @@ Operatore di segreteria (per la sola consultazione, anche senza permesso di scri
 ### Passo 0b — La mappa
 
 1. L'operatore preme la scheda **Mappa** (o apre la pagina con `?tab=mappa`): il sistema legge le organizzazioni con le loro coordinate e le righe di `db-mezzi` e `db-materiali` (organizzazione, categoria, tipologia) e disegna sulla mappa un cerchio per luogo con il numero di risorse che rispettano i filtri.
-2. L'operatore sceglie cosa contare con **Mostra** (mezzi, materiali o entrambi), **Categoria** e **Tipologia** (a cascata): la mappa si ridisegna subito, senza spostare la vista. Il cerchio e' blu per i mezzi, arancio per i materiali, viola per entrambi, e piu' grande quanto piu' alto e' il numero.
+2. L'operatore sceglie cosa contare con **Mostra** (mezzi, materiali o entrambi), **Categoria** e **Tipologia** (a cascata, con la tendina o con la lente accanto, vedi 3c): la mappa si ridisegna subito, senza spostare la vista. Il cerchio e' blu per i mezzi, arancio per i materiali, viola per entrambi, e piu' grande quanto piu' alto e' il numero.
 3. L'operatore sceglie con **Raggruppa per** il livello: **Organizzazione** (un cerchio per sede), **Comune** o **Provincia** (un cerchio per gruppo, nel punto medio delle sedi che ne fanno parte).
 4. L'operatore preme un cerchio: il sistema mostra il totale, i mezzi e i materiali, e il dettaglio per categoria e tipologia. Raggruppando per organizzazione, la finestra ha i collegamenti ad aprire l'elenco mezzi o materiali di quell'organizzazione, filtrato anche per categoria e tipologia dove la scheda di arrivo le sa mostrare.
 5. Sotto la mappa, **Elenco numerico** riporta gli stessi numeri in tabella.
+
+### Passo 0c — Le organizzazioni
+
+1. L'operatore preme la scheda **Organizzazioni** (o apre la pagina con `?tab=organizzazioni`): il sistema legge l'anagrafica `db-organizzazioni` e mostra una riga per organizzazione — codice, denominazione, comune, provincia, se ha le coordinate per la mappa — e, per ciascuna, quanti volontari, mezzi e materiali ha in `db-volontari`, `db-mezzi` e `db-materiali`. Se il gruppo Camila dell'utente e' il codice di un'organizzazione (vedi 3b), la sua riga e' evidenziata e marcata «La tua».
+2. L'operatore restringe l'elenco con la ricerca (denominazione, codice o comune, senza distinguere maiuscole e accenti), con la **Provincia** e con **Solo senza coordinate**, che mostra le organizzazioni le cui risorse non possono stare sulla mappa.
+3. L'operatore preme un numero (volontari, mezzi o materiali): il sistema apre la scheda corrispondente filtrata su quell'organizzazione. Un conteggio a zero non e' un collegamento.
+4. Con il permesso `create` su `db-organizzazioni`, l'operatore preme **Nuova organizzazione**: una finestra chiede denominazione e codice (obbligatori), gli altri dati dell'anagrafica e la posizione, che si puo' scegliere sulla mappa con **Scegli sulla mappa**. Con **Salva** il sistema scrive il record, richiude la finestra, rilegge l'anagrafica e mostra «Organizzazione salvata: NOME (CODICE).».
+5. Con il permesso `update`, l'operatore preme la matita di una riga: la stessa finestra si apre sul record, con il **Codice** in sola lettura. **Salva** e' attivo solo se qualcosa e' cambiato.
+6. Dopo un salvataggio, le tendine e le lenti delle altre schede, il Riepilogo e la Mappa rileggono l'anagrafica: la nuova organizzazione vi compare senza ricaricare la pagina.
 
 ### Passo 1 — L'elenco
 
 1. L'operatore apre il database di una scheda; il sistema mostra la lista paginata (50 righe) ordinata sulla colonna predefinita della scheda.
 2. L'operatore cerca nel campo di ricerca rapida (almeno due caratteri): il sistema cerca in tutte e tre le schede insieme, senza distinguere maiuscole e accenti, e mostra i primi dodici risultati; un clic apre la scheda della risorsa.
-3. L'operatore restringe la lista con i filtri: organizzazione, categoria e tipologia (solo mezzi e materiali) e filtro per colonna; cambiare filtro, ordine o scheda riporta alla prima pagina. L'organizzazione si sceglie dalla tendina oppure con la lente accanto, che apre una finestra con la ricerca per denominazione o codice.
+3. L'operatore restringe la lista con i filtri: organizzazione, categoria e tipologia (solo mezzi e materiali) e filtro per colonna; cambiare filtro, ordine o scheda riporta alla prima pagina. L'organizzazione si sceglie dalla tendina oppure con la lente accanto, che apre una finestra con la ricerca per denominazione o codice; categoria e tipologia, anche con la loro lente (vedi 3c).
 4. L'operatore ordina cliccando l'intestazione di una colonna, e con **Colonne** riordina o nasconde le colonne e sceglie la dimensione del carattere; queste scelte restano nel suo browser.
 5. L'operatore corregge una cella con un doppio clic: *Invio* salva, *Esc* annulla.
 6. L'operatore preme **Esporta in Excel** o **Esporta in ODS**: il sistema rilegge tutte le righe della lista, con gli stessi filtri e lo stesso ordine, e salva `database-<scheda>_<AAAA-MM-GG>.xlsx` (o `.ods`) con le colonne visibili nell'ordine in cui le vede, intestate con le etichette della scheda.
@@ -98,6 +108,28 @@ Operatore di segreteria (per la sola consultazione, anche senza permesso di scri
 
 ## Extensions
 
+### 1c. Mezzi e materiali di un'altra organizzazione
+- Se il gruppo Camila dell'utente e' il codice di un'organizzazione dell'anagrafica e l'utente non e' amministratore (vedi 3b), i mezzi e i materiali con un `codice-organizzazione` diverso dal suo, o senza, sono di **sola lettura**: matita, cestino e **Trasferisci** sono disattivati con il suggerimento «Sola lettura: appartiene a un'altra organizzazione», il doppio clic non apre la correzione sul posto, e la scheda completa (anche da ricerca rapida) si apre in sola lettura, con «Appartiene a un'altra organizzazione: la puoi consultare, non modificare». Le righe della sua organizzazione restano modificabili, entro i permessi della scheda.
+- Non vale per i volontari, ne' per l'amministratore, ne' per un gruppo che non e' un codice di organizzazione, ne' se il gruppo non si riesce a leggere. E' una guardia dell'interfaccia: l'API non la applica (vedi design §«Mezzi e materiali di altre organizzazioni»).
+
+### 7a. Permessi di `db-organizzazioni`
+- Senza `create`, al posto di **Nuova organizzazione** c'e' il pulsante disattivato **Sola lettura**; senza `update`, le matite sono disattivate («Sola lettura»). I due permessi sono indipendenti: con solo `create` si aggiunge ma non si modifica, con solo `update` il contrario. Non c'e' nessuna eliminazione.
+- Se `permissions()` della tabella non risponde, il sistema tratta la scheda come di sola lettura e lo scrive («Permessi non verificati su questa scheda: solo consultazione.»): nel dubbio non si scrive.
+- E' una guardia dell'interfaccia: l'autorizzazione vera resta all'API. In particolare **non** c'e' una restrizione «solo la propria organizzazione»: chi ha il permesso sulla tabella puo' modificare qualunque riga.
+
+### 7b. Dati non validi
+- Il sistema non scrive e dice cosa correggere sotto il campo: denominazione e codice obbligatori; codice gia' esistente (senza distinguere maiuscole); latitudine e longitudine vanno insieme, devono essere numeri (la virgola decimale e' accettata) entro -90/90 e -180/180, e 0/0 non e' un luogo. Una provincia scritta in minuscolo viene salvata in maiuscolo.
+- Un campo svuotato si scrive come vuoto (`null`); in modifica il codice non viene riscritto.
+
+### 7c. Cambiare la denominazione
+- Le risorse gia' registrate conservano il nome dell'organizzazione come testo: il sistema avverte, nella finestra, che il cambio non le aggiorna e quante risorse usano quel codice.
+
+### 7d. Salvataggio non riuscito
+- La finestra resta aperta con i dati dell'operatore e «Salvataggio non riuscito:» con il motivo; con la sessione non valida compare il riquadro giallo con **Esci e rientra**. Un doppio clic su **Salva** scrive una volta sola.
+
+### 7e. Elenco o conteggi non disponibili
+- Se l'anagrafica non si legge: «Elenco non disponibile:» con **Riprova**. Se si leggono le organizzazioni ma non le risorse, l'elenco resta e una riga avverte che i numeri non sono disponibili. Le colonne del modulo seguono la tabella: un campo che la tabella non ha non compare.
+
 ### 1a. Permessi non verificabili o assenti
 - Il sistema mostra l'avviso con **Riprova**, nasconde le azioni di scrittura e lascia consultazione ed esportazione.
 
@@ -110,8 +142,9 @@ Operatore di segreteria (per la sola consultazione, anche senza permesso di scri
 ### 0a. Conteggi non disponibili
 - Se la lettura di una tabella fallisce, il suo riquadro mostra «—» e il sistema scrive «Non tutti i conteggi si sono caricati:» con il motivo e **Riprova**; gli altri riquadri restano leggibili. Con la sessione non valida compare il riquadro giallo con **Esci e rientra**.
 
-### 5a. Voci senza collegamento
-- «(tipologia non indicata)» e le voci di «Fuori elenco» non sono collegamenti: i menu **Categoria** e **Tipologia** non possono mostrare un valore che la scheda non definisce, e sembrerebbe «tutte». Si cercano dalla scheda dati con il filtro per colonna.
+### 5a. Voci non definite sulla scheda
+- «(tipologia non indicata)» e le voci di «Fuori elenco» sono collegamenti come le altre. Nella scheda di arrivo il menu **Categoria** o **Tipologia** mostra il valore anche se la scheda non lo definisce, come «… (fuori elenco)»; un valore mancante e' «(categoria vuota)» o «(tipologia vuota)» e filtra le risorse in cui quella colonna e' vuota (NULL o testo vuoto). Riportando il menu su «Tutte» l'opzione in piu' sparisce.
+- Fa eccezione la voce con categoria **e** tipologia vuote: non ha collegamento, perche' l'elenco non sa chiedere due colonne vuote insieme.
 
 ### 0d. Risorse non posizionabili
 - Una risorsa la cui organizzazione non ha coordinate valide (vuote, fuori scala, o 0/0) o non e' in `db-organizzazioni` non e' sulla mappa: il sistema la conta a parte («non posizionabili») e la elenca per organizzazione sotto la mappa. Non e' mai scartata in silenzio.
@@ -130,6 +163,13 @@ Operatore di segreteria (per la sola consultazione, anche senza permesso di scri
 
 ### 0b. Sola consultazione
 - La scheda non permette di aggiungere o modificare: nel riepilogo il pulsante «Aggiungi nuova risorsa» non c'e'.
+
+### 3c. Le lenti per categoria e tipologia
+- Le stesse lenti ci sono nella scheda **Mappa**, accanto a **Categoria** e **Tipologia**, con la stessa ricerca e la stessa regola; l'elenco e' quello delle tendine della mappa, cioe' le categorie e le tipologie dei tipi mostrati (**Mostra**). Scegliere dalla lente o dalla tendina una tipologia che appartiene a una sola categoria imposta anche la categoria. La mappa non viene ricreata ne' spostata.
+- Accanto alle tendine **Categoria** e **Tipologia** (Mezzi e Materiali) c'e' una lente che apre una finestra con la ricerca libera, sullo stesso elenco della tendina: per la categoria, tutte quelle definite dalla scheda; per la tipologia, quelle della categoria scelta, oppure tutte (ciascuna una volta sola, con accanto le categorie che la hanno).
+- La ricerca non distingue maiuscole e accenti e trova anche per l'altro livello: una categoria si trova scrivendo una sua tipologia (la finestra mostra quale), una tipologia scrivendo la sua categoria. A ricerca vuota, in cima, **Tutte le categorie** / **Tutte le tipologie** tolgono il filtro; la voce attualmente filtrata e' evidenziata.
+- Un clic su una voce chiude la finestra e imposta quel filtro, come la tendina: scegliere una categoria azzera la tipologia; scegliere una tipologia, quando la categoria e' su «Tutte», imposta anche la categoria se la tipologia appartiene a una sola (se piu' categorie la condividono, come «FURGONE», la categoria resta su «Tutte»), mentre una categoria gia' scelta non viene mai cambiata. Vale per la lente e per la tendina; si torna alla prima pagina e la lista si rilegge. **Annulla**, la ✕ o un clic fuori chiudono senza cambiare nulla. Senza risultati: «Nessun risultato.».
+- Non offre i valori che la tendina mostra solo come «(categoria vuota)», «(tipologia vuota)» o «(fuori elenco)»: arrivano dai collegamenti del Riepilogo.
 
 ### 3a. La lente per scegliere l'organizzazione
 - La finestra elenca tutta l'anagrafica `db-organizzazioni` in ordine di denominazione; scrivendo, l'elenco si restringe (denominazione o codice, senza distinguere maiuscole e accenti) e **Tutte le organizzazioni** scompare. Un clic su una voce applica il filtro, chiude la finestra e riporta alla prima pagina; **Annulla**, la ✕ o un clic fuori la chiudono senza cambiare nulla. Senza risultati la finestra dice «Nessun risultato.»; se l'anagrafica non si carica lo dice, e la lista della scheda resta consultabile.

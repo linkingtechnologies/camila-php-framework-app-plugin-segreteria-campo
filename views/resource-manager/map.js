@@ -26,6 +26,8 @@ const MAX_PAGES = 200;
 const COLOR = { mezzi: "#3273dc", materiali: "#e8590c", both: "#7048e8" };
 
 const safe = (v) => (v == null ? "" : String(v));
+// case- and accent-insensitive, for the search of the categoria / tipologia popup
+const fold = (v) => safe(v).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 const records = (res) =>
   Array.isArray(res) ? res : Array.isArray(res?.records) ? res.records : Array.isArray(res?.data?.records) ? res.data.records : [];
 
@@ -53,6 +55,7 @@ export function createResourceMap(initialDeps) {
     cat: "",
     tip: "",
     by: "org",                         // "org" | "comune" | "provincia"
+    picker: null,                      // the categoria / tipologia search popup: { kind: "cat" | "tip", q, focus } | null
     leaflet: "idle",                   // "idle" | "ready" | "error"
     leafletError: null,
     tilesError: false,                 // the background tiles (internet) did not load
@@ -160,8 +163,61 @@ export function createResourceMap(initialDeps) {
     sanitize();
     deps.rerender();
   }
+  // tipologia -> the categorie that have it, over the types being shown (only st.cat, when one is chosen)
+  function tipOwners() {
+    const owners = new Map();
+    for (const t of activeTabs()) {
+      const v = vocab()[t];
+      for (const c of (st.cat ? [st.cat] : Object.keys(v.byCat))) {
+        for (const tip of v.byCat[c] || []) {
+          if (!owners.has(tip)) owners.set(tip, []);
+          if (!owners.get(tip).includes(c)) owners.get(tip).push(c);
+        }
+      }
+    }
+    return owners;
+  }
+
   function setCat(v) { st.cat = v || ""; st.tip = ""; deps.rerender(); }
-  function setTip(v) { st.tip = v || ""; deps.rerender(); }
+  // As in the list: a tipologia picked while the categoria is on "Tutte" also sets it, when only one categoria has it
+  function setTip(v) {
+    st.tip = v || "";
+    if (st.tip && !st.cat) {
+      const own = tipOwners().get(st.tip) || [];
+      if (own.length === 1) st.cat = own[0];
+    }
+    deps.rerender();
+  }
+
+  // ---- the search popup (magnifier) of Categoria and Tipologia ---------------------------
+  function openPicker(kind) { st.picker = { kind, q: "", focus: true }; deps.rerender(); }
+  function closePicker() { st.picker = null; deps.rerender(); }
+  function setPickerQuery(v) { if (st.picker) { st.picker.q = v || ""; deps.rerender(); } }
+  function pick(value) {
+    const kind = st.picker?.kind;
+    st.picker = null;
+    if (kind === "cat") setCat(value); else setTip(value);
+  }
+
+  // The same list as the menu, filtered by what is typed; a categoria also matches through one of its
+  // tipologie, a tipologia through its categoria.
+  function pickerEntries() {
+    const q = fold(st.picker.q);
+    const hit = (s) => !q || fold(s).includes(q);
+    if (st.picker.kind === "cat") {
+      const byCat = {};
+      for (const t of activeTabs()) {
+        for (const [c, tips] of Object.entries(vocab()[t].byCat)) byCat[c] = [...new Set([...(byCat[c] || []), ...tips])];
+      }
+      return catOptions()
+        .map((value) => ({ value, hints: (byCat[value] || []).filter((tip) => q && !hit(value) && hit(tip)) }))
+        .filter((e) => hit(e.value) || e.hints.length);
+    }
+    return [...tipOwners().entries()]
+      .map(([value, cats]) => ({ value, cats }))
+      .filter((e) => hit(e.value) || e.cats.some(hit))
+      .sort((a, b) => a.value.localeCompare(b.value, undefined, { sensitivity: "base" }));
+  }
   function setBy(v) { st.by = ["org", "comune", "provincia"].includes(v) ? v : "org"; deps.rerender(); }
 
   // ---- numbers ----------------------------------------------------------------------
@@ -341,6 +397,11 @@ export function createResourceMap(initialDeps) {
   }
 
   function afterRender(root) {
+    // the search box of the popup takes the cursor once, when it opens
+    if (st.picker?.focus) {
+      st.picker.focus = false;
+      root?.querySelector?.("[data-maplens-focus]")?.focus();
+    }
     return draw(root).catch(() => {});
   }
 
@@ -371,20 +432,32 @@ export function createResourceMap(initialDeps) {
           </div>
           <div style="flex:1 1 230px;min-width:200px;max-width:340px">
             <label class="label is-small mb-1">Categoria</label>
-            <div class="select is-small is-fullwidth">
-              <select @change=${(e) => setCat(e.target.value)} title=${st.cat}>
-                <option value="" ?selected=${!st.cat}>Tutte</option>
-                ${cats.map((x) => html`<option value=${x} ?selected=${x === st.cat}>${x}</option>`)}
-              </select>
+            <div class="is-flex" style="gap:.25rem">
+              <div class="select is-small" style="flex:1;min-width:0">
+                <select style="width:100%" @change=${(e) => setCat(e.target.value)} title=${st.cat}>
+                  <option value="" ?selected=${!st.cat}>Tutte</option>
+                  ${cats.map((x) => html`<option value=${x} ?selected=${x === st.cat}>${x}</option>`)}
+                </select>
+              </div>
+              <button type="button" class="button is-small" style="flex-shrink:0" title="Cerca la categoria"
+                aria-label="Cerca la categoria" data-map-lens="cat" @click=${() => openPicker("cat")}>
+                <span class="icon is-small"><i class="ri-search-line"></i></span>
+              </button>
             </div>
           </div>
           <div style="flex:1 1 260px;min-width:220px;max-width:460px">
             <label class="label is-small mb-1">Tipologia</label>
-            <div class="select is-small is-fullwidth">
-              <select @change=${(e) => setTip(e.target.value)} title=${st.tip}>
-                <option value="" ?selected=${!st.tip}>Tutte</option>
-                ${tips.map((x) => html`<option value=${x} ?selected=${x === st.tip}>${x}</option>`)}
-              </select>
+            <div class="is-flex" style="gap:.25rem">
+              <div class="select is-small" style="flex:1;min-width:0">
+                <select style="width:100%" @change=${(e) => setTip(e.target.value)} title=${st.tip}>
+                  <option value="" ?selected=${!st.tip}>Tutte</option>
+                  ${tips.map((x) => html`<option value=${x} ?selected=${x === st.tip}>${x}</option>`)}
+                </select>
+              </div>
+              <button type="button" class="button is-small" style="flex-shrink:0" title="Cerca la tipologia"
+                aria-label="Cerca la tipologia" data-map-lens="tip" @click=${() => openPicker("tip")}>
+                <span class="icon is-small"><i class="ri-search-line"></i></span>
+              </button>
             </div>
           </div>
           <div style="flex:0 0 190px">
@@ -408,7 +481,7 @@ export function createResourceMap(initialDeps) {
                </div>`
         : ""}
 
-      <p class="is-size-7 mb-2" data-map-total>
+      <p class="rm-dim is-size-7 mb-2" data-map-total>
         Sulla mappa <strong>${c.placed}</strong> ${c.placed === 1 ? "risorsa" : "risorse"}
         (${c.byType.mezzi} mezzi, ${c.byType.materiali} materiali${c.unplaced ? `, di cui ${c.unplaced} non posizionabili` : ""})
         in ${c.list.length} ${c.list.length === 1 ? "punto" : "punti"}.
@@ -432,7 +505,7 @@ export function createResourceMap(initialDeps) {
 
       ${st.leaflet === "error"
         ? ""
-        : html`<div id="rm-map" style="height:62vh;min-height:320px;border-radius:6px;border:1px solid #dbdbdb"></div>`}
+        : html`<div id="rm-map" class="rm-dim" style="height:62vh;min-height:320px;border-radius:6px;border:1px solid #dbdbdb;isolation:isolate"></div>`}
 
       <details class="mt-3" ?open=${st.leaflet === "error"}>
         <summary class="is-size-7" style="cursor:pointer">Elenco numerico</summary>
@@ -463,7 +536,58 @@ export function createResourceMap(initialDeps) {
                  </ul>
                </details>`
         : ""}
+
+      ${st.picker ? pickerTemplate() : ""}
     `;
+  }
+
+  function pickerTemplate() {
+    const { html } = deps;
+    const isCat = st.picker.kind === "cat";
+    const entries = pickerEntries();
+    const q = fold(st.picker.q);
+    const current = isCat ? st.cat : st.tip;
+    return html`
+      <div class="modal is-active" data-map-popup=${st.picker.kind}>
+        <div class="modal-background" @click=${closePicker}></div>
+        <div class="modal-card" style="max-width:40rem">
+          <header class="modal-card-head">
+            <p class="modal-card-title is-size-6">Filtra per ${isCat ? "categoria" : "tipologia"} — Mappa</p>
+            <button class="delete" aria-label="close" @click=${closePicker}></button>
+          </header>
+          <section class="modal-card-body">
+            <div class="control has-icons-left mb-3">
+              <input class="input rm-search" type="search" data-maplens-focus
+                placeholder=${isCat ? "Cerca per categoria o tipologia…" : "Cerca per tipologia o categoria…"}
+                .value=${safe(st.picker.q)} @input=${(e) => setPickerQuery(e.target.value)} />
+              <span class="icon is-left has-text-link"><i class="ri-search-line"></i></span>
+            </div>
+            <div style="max-height:22rem;overflow-y:auto">
+              ${!q
+                ? html`<button type="button" class="button is-fullwidth ${current === "" ? "is-link is-light" : "is-white"}"
+                         style="justify-content:flex-start;text-align:left" data-map-pick="" @click=${() => pick("")}>
+                         <strong>${isCat ? "Tutte le categorie" : "Tutte le tipologie"}</strong></button>`
+                : ""}
+              ${entries.length === 0
+                ? html`<p class="has-text-grey is-size-7 p-3 has-text-centered">Nessun risultato.</p>`
+                : entries.map((e) => html`
+                    <button type="button" class="button is-fullwidth ${current === e.value ? "is-link is-light" : "is-white"}"
+                      style="justify-content:flex-start;text-align:left;white-space:normal;height:auto;padding-top:.35rem;padding-bottom:.35rem"
+                      data-map-pick=${e.value} @click=${() => pick(e.value)}>
+                      <strong>${e.value}</strong>
+                      ${isCat
+                        ? e.hints.length
+                          ? html`<span class="has-text-grey is-size-7 ml-2">${e.hints.slice(0, 3).join(" · ")}${e.hints.length > 3 ? " …" : ""}</span>`
+                          : ""
+                        : e.cats.map((c) => html`<span class="tag is-light ml-2">${c}</span>`)}
+                    </button>`)}
+            </div>
+          </section>
+          <footer class="modal-card-foot">
+            <button class="button" @click=${closePicker}>Annulla</button>
+          </footer>
+        </div>
+      </div>`;
   }
 
   return { template, load, reset, afterRender, bind, state: st };

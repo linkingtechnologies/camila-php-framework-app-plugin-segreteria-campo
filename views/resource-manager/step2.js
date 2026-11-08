@@ -290,7 +290,29 @@ export async function Step2(props) {
     if (state.step1?.readOnlyGlobal) return true;
     const p = state.step1?.permissionsByTab?.[tab];
     if (!p) return true;
+    if (mode !== "create" && isForeignBase(tab)) return true;
     return mode === "create" ? !p.canCreate : !p.canUpdate;
+  }
+
+  // The organisation of the user's group, as step 1 reads it (state.step1.whoami, orgCatalog):
+  // only for a non-administrator whose group is the code of an organisation. "" when there is none.
+  function myGroupOrgCode() {
+    const d = state.step1?.whoami?.data;
+    if (!d || d.isAdmin) return "";
+    const g = safeStr(d.group).trim().toLowerCase();
+    if (!g) return "";
+    const hit = (state.step1.orgCatalog || []).find((o) => safeStr(o.code).trim().toLowerCase() === g);
+    return hit ? safeStr(hit.code).trim().toLowerCase() : "";
+  }
+
+  // The record being edited belongs to another organisation than the user's group (mezzi and
+  // materiali only): the form opens read only. A guard of the interface, not of the API.
+  function isForeignBase(tab) {
+    if (tab === "volontari") return false;
+    const mine = myGroupOrgCode();
+    const base = state.step2.baseRow;
+    if (!mine || !base) return false;
+    return safeStr(base["codice-organizzazione"]).trim().toLowerCase() !== mine;
   }
 
   function getFields(tab, base, draft) {
@@ -881,7 +903,7 @@ export async function Step2(props) {
               ${readOnly
                 ? html`
                     <div class="level-item">
-                      <span class="tag is-light" title="Permessi insufficienti su questa scheda">
+                      <span class="tag is-light" title=${isForeignBase(tab) ? "Appartiene a un'altra organizzazione: la puoi consultare, non modificare" : "Permessi insufficienti su questa scheda"}>
                         <span class="icon is-small"><i class="ri-lock-line"></i></span>
                         <span>Sola lettura</span>
                       </span>

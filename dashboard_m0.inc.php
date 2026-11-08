@@ -97,6 +97,8 @@ $camilaUI->addGridSection(3, function ($colIndex) use ($camilaUI) {
 			$camilaUI->insertSecondaryButton('?dashboard=resource-manager&tab=volontari', 'Database volontari', 'database-2');
 			$camilaUI->insertSecondaryButton('?dashboard=resource-manager&tab=mezzi', 'Database mezzi', 'database-2');
 			$camilaUI->insertSecondaryButton('?dashboard=resource-manager&tab=materiali', 'Database materiali', 'database-2');
+			// l'anagrafica da cui le tre schede prendono nome e codice delle organizzazioni
+			$camilaUI->insertSecondaryButton('?dashboard=resource-manager&tab=organizzazioni', 'Database organizzazioni', 'database-2');
 			break;
 		case 2:
 			$camilaUI->insertButton('?dashboard=service-manager', 'Servizi', 'pushpin');

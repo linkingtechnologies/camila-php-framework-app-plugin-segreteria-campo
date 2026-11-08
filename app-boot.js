@@ -43,6 +43,65 @@ const LOADING_SPINNER = html`
   </div>
 `;
 
+// ---- busy indicator ------------------------------------------------------
+// A wizard step is prepared by a dynamic import plus the step's own reads (the record, the
+// catalogs, the next id): until it renders the page still shows the previous step, and nothing
+// says the click was taken. goTo() puts a spinner over the page for that time. It appears only
+// after `delay` ms, so a step that is ready at once does not flash it, and it covers the page so a
+// second click (the double click on a pencil) cannot start a second navigation. Calls nest: the
+// spinner goes away when the last pending step is drawn. It lives in <body>, outside #app: lit
+// owns the children of #app and would not know about a node put there.
+const BUSY_STYLE_ID = "spa-busy-style";
+
+export function createBusyIndicator({ delay = 150, doc = document } = {}) {
+  let depth = 0;
+  let timer = null;
+  let el = null;
+
+  function ensureStyle() {
+    if (doc.getElementById(BUSY_STYLE_ID)) return;
+    const st = doc.createElement("style");
+    st.id = BUSY_STYLE_ID;
+    st.textContent =
+      ".spa-busy{position:fixed;inset:0;z-index:2000;display:flex;align-items:center;justify-content:center;" +
+      "background:rgba(255,255,255,.6);cursor:progress}" +
+      ".spa-busy .icon{color:#3273dc}" +
+      ".spa-busy-spin{animation:spa-busy-spin 1s linear infinite}" +
+      "@keyframes spa-busy-spin{to{transform:rotate(360deg)}}" +
+      "@media (prefers-reduced-motion:reduce){.spa-busy-spin{animation-duration:3s}}";
+    doc.head.appendChild(st);
+  }
+
+  function show() {
+    ensureStyle();
+    el = doc.createElement("div");
+    el.className = "spa-busy";
+    el.setAttribute("role", "status");
+    el.setAttribute("aria-live", "polite");
+    el.setAttribute("aria-label", "Caricamento");
+    el.innerHTML = '<span class="icon spa-busy-spin"><i class="ri-loader-4-line ri-2x"></i></span>';
+    doc.body.appendChild(el);
+  }
+
+  return {
+    start() {
+      depth++;
+      if (depth === 1 && !timer && !el) {
+        timer = setTimeout(() => { timer = null; show(); }, delay);
+      }
+    },
+    stop() {
+      if (depth === 0) return;
+      depth--;
+      if (depth > 0) return;
+      clearTimeout(timer);
+      timer = null;
+      if (el) { el.remove(); el = null; }
+    },
+    isVisible: () => !!el,
+  };
+}
+
 // php-crud-api error codes (ErrorCode in api.include.php).
 const ERR_AUTH_REQUIRED = 1011;
 const ERR_AUTH_FAILED = 1012;
@@ -252,9 +311,14 @@ export function mountSpa({
     }
   }
 
+  // The first render has its own `loading` option; a later step (the pencil, a new record, back to
+  // the list) gets the busy indicator until it is drawn.
+  const busy = createBusyIndicator();
+
   function goTo(step) {
     state.step = step;
-    mount();
+    if (steps > 0) busy.start();
+    mount().finally(busy.stop);   // mount() catches its own errors: it never rejects
   }
 
   // The guide is optional: a SPA gets the "?" button only if docs/guide/guide.json

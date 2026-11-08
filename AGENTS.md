@@ -508,7 +508,7 @@ quasi sempre nell'operativita', mentre arrivi e partenze arrivano a ondate.
 | 1 | Operatività | cosa si fa ogni giorno | movimentazioni, interventi, richieste |
 | 2 | Monitoraggio | come sta andando | comunicazioni live, mappe, report |
 | 3 | Accreditamento risorse | chi entra e chi esce | check-in, riepilogo preaccreditamenti, stato registrazione, check-out, attestati |
-| 4 | Anagrafiche | dati di riferimento | squadre dichiarate, i tre database risorse, servizi, magazzini |
+| 4 | Anagrafiche | dati di riferimento | squadre dichiarate, i database (volontari, mezzi, materiali, organizzazioni), servizi, magazzini |
 
 **C'era un quinto box**, "Volontari / Mezzi / Materiali", con registrazione,
 movimentazione ed elenco per ciascun tipo. E' stato rimosso: la registrazione la
@@ -540,15 +540,18 @@ riferimento: si impostano a inizio evento e si ritoccano di rado, quindi stanno
 in Anagrafiche.
 
 Dentro Anagrafiche l'ordine delle colonne e': squadre dichiarate a sinistra, i
-tre database al centro, servizi e magazzini a destra.
+quattro database al centro, servizi e magazzini a destra.
 
-Li' stanno anche i tre **Database risorse**, perche' `resource-manager` lavora
+Li' stanno anche i **Database risorse**, perche' `resource-manager` lavora
 su `db-volontari`, `db-mezzi` e `db-materiali` — l'anagrafica permanente, che
-esiste prima dell'evento e sopravvive dopo. Le tabelle di evento `volontari`,
+esiste prima dell'evento e sopravvive dopo — e, con la scheda *Organizzazioni*,
+su `db-organizzazioni`, da cui le altre prendono nome e codice delle organizzazioni
+(quarto pulsante, `?tab=organizzazioni`). Le tabelle di evento `volontari`,
 `mezzi` e `materiali` le toccano check-in e check-out.
 
 Sono gli unici pulsanti di Anagrafiche che **non** seguono la regola del
-sostantivo semplice: "Database volontari", non "Volontari". In un box che
+sostantivo semplice: "Database volontari", non "Volontari" (e "Database organizzazioni",
+per coerenza con gli altri tre). In un box che
 contiene anche "Squadre dichiarate", il solo "Volontari" si leggerebbe come i
 volontari in campo — cioe' l'ambiguita' che lo spostamento serve a togliere.
 
@@ -777,6 +780,17 @@ mountSpa({
 **Le guardie si valutano a ogni render**, non solo nella transizione che porta
 al passo: uno stato stantio o un reload non devono atterrare su un passo le cui
 precondizioni non ci sono piu'.
+
+**Lo spinner dei passi.** `goTo(step)` di un wizard accende, finche' il passo non e' disegnato, un
+indicatore di caricamento (`createBusyIndicator()` in `app-boot.js`): un velo bianco semitrasparente a
+tutta pagina con l'icona che gira, nel `<body>` e non in `#app` (lit possiede i figli di `#app`). Compare
+solo dopo 150 ms, cosi' un passo gia' pronto non lampeggia; copre la pagina, quindi un secondo clic (il doppio
+clic sulla matita) non puo' avviare una seconda navigazione; le chiamate si annidano e si spegne all'ultima. Vale
+per tutti i wizard (check-in, check-out, stato registrazione, database risorse) senza che i passi facciano nulla.
+**Non** copre il primo disegno, che ha la sua opzione `loading`, ne' i caricamenti dentro un passo (filtri,
+cambio pagina, cambio scheda): quelli restano a carico della vista. Il `resource-manager` li ha: classe
+`rm-loading` sulla radice durante un `refresh()` che aspetta il server (vedi `specs/resource-manager/design.md`
+§Caricamento dentro la pagina); le altre viste no.
 
 ### Perche' l'import di `app-boot.js` e' dinamico
 
