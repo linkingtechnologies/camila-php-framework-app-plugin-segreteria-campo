@@ -134,11 +134,15 @@ Overlay fisso `.sm-map-overlay` con layout a due colonne:
 - **Sidebar** (260px): campo di ricerca Nominatim + lista risultati + pannello coordinate (lat/lon/comune/provincia/indirizzo) + footer con Annulla/Conferma
 - **Canvas mappa** (flex:1): istanza Leaflet con marker draggabile
 
-Leaflet viene caricato lazy da CDN al primo utilizzo. L'istanza viene distrutta alla chiusura della modale (`_map.remove()`).
+Leaflet (copia locale in `camila/js/leaflet/`) viene caricato lazy al primo utilizzo, dal `loadLeaflet()` di `views/shared/map-picker.js`. L'istanza viene distrutta alla chiusura della modale (`_map.remove()`).
 
 Geocoding:
 - **Forward** (search): `https://nominatim.openstreetmap.org/search?q=...&format=json&limit=6&addressdetails=1&accept-language=it`
 - **Reverse**: `https://nominatim.openstreetmap.org/reverse?lat=&lon=&format=json&addressdetails=1&accept-language=it`
+
+`nominatimSearch`/`nominatimReverse` (in `views/shared/map-picker.js`, usate anche dal magazzino) lanciano un errore se `res.ok` e' falso o il corpo non e'
+la lista attesa; il selettore lo mostra con `NOMINATIM_MESSAGES` (`searchDown`, `reverseDown`, `none(q)`) invece di una lista vuota. Un punto senza indirizzo
+(`{"error": "Unable to geocode"}`, HTTP 200) NON e' un errore: la risposta passa com'e' e `extractAddress` rende `{}`.
 
 Estrazione indirizzo da risposta Nominatim (`extractAddress`):
 - `comune`: `address.city || address.town || address.village || address.municipality || address.city_district || address.suburb || address.hamlet || address.quarter`

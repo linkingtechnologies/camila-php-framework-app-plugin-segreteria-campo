@@ -1,5 +1,7 @@
 ﻿// views/warehouse-manager/index.js — Gestione Magazzini
 
+const VERSION = window.APP_CONFIG?.version || Date.now();
+
 // ---- costanti ---------------------------------------------------------------
 
 const COLORI = ["rosso","nero","blu","verde","grigio","arancione","viola","bianco","giallo"];
@@ -102,36 +104,25 @@ function formToPayload(f) {
 
 // ---- Leaflet lazy load ------------------------------------------------------
 
-let _leafletReady = false;
-
 async function loadLeaflet() {
-  if (_leafletReady || window.L) { _leafletReady = true; return; }
-  await new Promise((resolve, reject) => {
-    const link = document.createElement("link");
-    link.rel  = "stylesheet";
-    link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-    document.head.appendChild(link);
-    const script = document.createElement("script");
-    script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
-    script.onload = resolve;
-    script.onerror = reject;
-    document.head.appendChild(script);
-  });
-  _leafletReady = true;
+  // one loader for every map, in the shared module (Leaflet is a local copy: camila/js/leaflet)
+  const { loadLeaflet: load } = await import(`../shared/map-picker.js?v=${VERSION}`);
+  await load();
 }
 
 // ---- Nominatim geocoding ----------------------------------------------------
 
+// The address service lives in the shared module, with its error handling and its messages.
 async function nominatimSearch(query) {
-  const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=6&addressdetails=1&accept-language=it`;
-  const res = await fetch(url, { headers: { "Accept-Language": "it" } });
-  return res.json();
+  return (await import(`../shared/map-picker.js?v=${VERSION}`)).nominatimSearch(query);
 }
 
 async function nominatimReverse(lat, lon) {
-  const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1&accept-language=it`;
-  const res = await fetch(url);
-  return res.json();
+  return (await import(`../shared/map-picker.js?v=${VERSION}`)).nominatimReverse(lat, lon);
+}
+
+async function nominatimMessages() {
+  return (await import(`../shared/map-picker.js?v=${VERSION}`)).NOMINATIM_MESSAGES;
 }
 
 function extractAddress(data) {
@@ -195,6 +186,8 @@ export async function WarehouseManager({ state, client, html, render, root }) {
   let mapLat       = null;
   let mapLon       = null;
   let mapAddress   = {};
+  let mapNote      = null;   // { kind: "error" | "empty", text } for the address search
+  let mapReverseNote = null; // text, when the address of the point could not be found
   let _map         = null;
   let _marker      = null;
   let _mapInited   = false;
@@ -247,11 +240,14 @@ export async function WarehouseManager({ state, client, html, render, root }) {
   }
 
   async function reverseAndUpdate(lat, lon) {
-    mapReversing = true; rerender();
+    mapReversing = true; mapReverseNote = null; rerender();
     try {
       const data = await nominatimReverse(lat, lon);
       mapAddress = extractAddress(data);
-    } catch (_) { mapAddress = {}; }
+    } catch (_) {
+      mapAddress = {};
+      mapReverseNote = (await nominatimMessages()).reverseDown;
+    }
     mapReversing = false; rerender();
   }
 
@@ -262,6 +258,8 @@ export async function WarehouseManager({ state, client, html, render, root }) {
     mapResults  = [];
     mapSearching= false;
     mapAddress  = {};
+    mapNote     = null;
+    mapReverseNote = null;
     showMap     = true;
     _mapInited  = false;
     _map        = null;
@@ -292,10 +290,14 @@ export async function WarehouseManager({ state, client, html, render, root }) {
 
   async function doGeoSearch() {
     if (!mapSearch.trim()) return;
-    mapSearching = true; mapResults = []; rerender();
+    mapSearching = true; mapResults = []; mapNote = null; rerender();
     try {
       mapResults = await nominatimSearch(mapSearch);
-    } catch (_) { mapResults = []; }
+      if (mapResults.length === 0) mapNote = { kind: "empty", text: (await nominatimMessages()).none(mapSearch.trim()) };
+    } catch (_) {
+      mapResults = [];
+      mapNote = { kind: "error", text: (await nominatimMessages()).searchDown };
+    }
     mapSearching = false; rerender();
   }
 
@@ -304,6 +306,8 @@ export async function WarehouseManager({ state, client, html, render, root }) {
     mapLon = parseFloat(r.lon);
     mapAddress = extractAddress(r);
     mapResults = [];
+    mapNote = null;
+    mapReverseNote = null;
     if (_map) {
       _map.setView([mapLat, mapLon], 15);
       if (_marker) { _marker.setLatLng([mapLat, mapLon]); }
@@ -943,6 +947,7 @@ export async function WarehouseManager({ state, client, html, render, root }) {
                       `)}
                     </ul>
                   ` : ""}
+                  ${mapNote ? html`<p class="is-size-7 mb-1 ${mapNote.kind === "error" ? "has-text-danger" : "has-text-grey"}" data-wm-note>${mapNote.text}</p>` : ""}
                 </div>
                 <hr style="margin:.25rem 0">
                 <p class="is-size-7 has-text-grey">
@@ -956,6 +961,7 @@ export async function WarehouseManager({ state, client, html, render, root }) {
                       ${mapAddress.comune ? html`<div><strong>Comune:</strong> ${mapAddress.comune}</div>` : ""}
                       ${mapAddress.provincia ? html`<div><strong>Prov.:</strong> ${mapAddress.provincia}</div>` : ""}
                       ${mapAddress.indirizzo ? html`<div><strong>Indirizzo:</strong> ${mapAddress.indirizzo}</div>` : ""}
+                      ${mapReverseNote ? html`<div class="has-text-danger mt-1" data-wm-reverse-note>${mapReverseNote}</div>` : ""}
                     `}
                   </div>
                 ` : html`

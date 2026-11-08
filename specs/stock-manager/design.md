@@ -205,7 +205,7 @@ Solo le movimentazioni con campo `servizio` valorizzato contribuiscono.
 
 ## 10. Tab Mappa
 
-- **Leaflet 1.9.3** caricato lazy da CDN (script + CSS iniettati una sola volta).
+- **Leaflet 1.9.4**, copia locale (`camila/js/leaflet/`), caricato lazy (script + CSS iniettati una sola volta) dall'unico `loadLeaflet()` di `views/shared/map-picker.js`. Le tessere restano su internet.
 - **Due layer**: OpenStreetMap (default) + Esri Satellite, con `L.control.layers`.
 - **Marker**: icone PNG dal sistema esistente (`plugins/segreteria-campo/templates/images/`), colore e lettera letti dal record. Helper `markerIconUrl(colore, lettera)` e `traduciColore(it→en)` inline.
 - **Popup**: nome + badge tipo + tabella giacenze calcolata da `giacenzePerLocation(nome, tipo)`.

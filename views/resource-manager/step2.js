@@ -325,9 +325,14 @@ export async function Step2(props) {
 
   async function refresh() {
     if (typeof render !== "function" || !root) return;
+    // Only while this step is the current one. After a save doSave() has already
+    // moved to step 1 and cleared editId/editMode, so a late refresh() would read
+    // the context as "create", fetch a new id-materiale from the sequence and paint
+    // an empty "new record" form over the list - which, saved, creates a duplicate.
+    if (Number(state.step) !== 2) return;
     const seq = ++renderSeq;
     const tpl = await view();
-    if (seq !== renderSeq) return;
+    if (seq !== renderSeq || Number(state.step) !== 2) return;   // superseded, or the step changed meanwhile
     render(tpl, root);
   }
 
@@ -634,12 +639,26 @@ export async function Step2(props) {
   }
 
   async function doSave() {
+    // A second click must not become a second write: while a save is running, and
+    // in the moment after it succeeded (the form is still on screen until step 1
+    // is drawn, but editId/editMode are already cleared, so the context would now
+    // read "create" and the same data would be inserted as a new record).
+    if (state.step2.saving || Number(state.step) !== 2) return;
+
     const { tab, mode, id, readOnly } = getContext();
     const cfg = RM_CONFIG[tab];
     if (!cfg) return;
     // Second guard: the disabled button is UX, this is what actually stops a
     // write the backend would refuse anyway.
     if (readOnly) return;
+
+    // Editing a record that has no id must stop here: the write below would fall
+    // through to create() and add a copy instead of changing the record.
+    if (mode === "edit" && !id) {
+      state.step2.saveError = { message: "Risorsa senza identificativo: salvataggio annullato, nessun dato scritto." };
+      await refresh();
+      return;
+    }
 
     // Required columns, as the worktable declares them. Checked here and not
     // only in the markup: the backend refuses the write anyway, and a refusal
@@ -705,6 +724,10 @@ export async function Step2(props) {
       state.master ||= { volontari: null, mezzi: null, materiali: null };
       state.master[tab] = null;
 
+      // step 1 shows this once, above the list, until it is dismissed or the
+      // operator starts something else
+      state.step1.notice = savedNotice(tab, payload);
+
       state.editId = null;
       state.editMode = null;
       state.createOrg = null;
@@ -724,6 +747,27 @@ export async function Step2(props) {
     state.editMode = null;
     state.createOrg = null;   // chosen per creation, never reused
     goTo(1);
+  }
+
+  // The line step 1 shows after a save: what was saved, and for whom.
+  const SAVED_LABEL = { volontari: "Volontario", mezzi: "Mezzo", materiali: "Materiale" };
+  function savedNotice(tab, payload) {
+    const p = payload || {};
+    const v = (k) => safeStr(p[k] || "").trim();
+    const ident =
+      tab === "volontari"
+        ? [v("cognome"), v("nome")].filter(Boolean).join(" ") || v("codice-fiscale")
+        : tab === "mezzi"
+        ? v("targa") || v("codice-inventario") || [v("marca"), v("modello")].filter(Boolean).join(" ")
+        : v("id-materiale") || [v("categoria"), v("tipologia")].filter(Boolean).join(" / ");
+    const org = v("organizzazione");
+    return {
+      text:
+        `${SAVED_LABEL[tab] || "Risorsa"} salvato` +
+        (ident ? `: ${ident}` : "") +
+        (org ? ` (${org})` : "") +
+        ".",
+    };
   }
 
   async function view() {

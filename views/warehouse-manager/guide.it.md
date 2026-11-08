@@ -63,6 +63,12 @@ La **Posizione** si compila a mano (**Indirizzo**, **Comune**, **Provincia**,
 3. **Conferma posizione** copia i valori nella scheda, **Annulla** chiude senza
    salvare.
 
+La ricerca degli indirizzi e il riconoscimento di comune, provincia e indirizzo del punto usano il
+servizio pubblico di OpenStreetMap, quindi servono internet. Se il servizio non risponde vedi
+**Ricerca indirizzi non disponibile** (oppure **Indirizzo non ricavabile**) e puoi comunque cliccare sulla mappa
+e scrivere comune e indirizzo a mano nella scheda: la posizione si imposta lo stesso. Se la ricerca va a
+buon fine ma non trova nulla vedi **Nessun indirizzo trovato per** il testo cercato.
+
 Per dare a un magazzino la posizione di un altro, apri **Copia coordinate** e
 scegli **Solo coordinate** oppure **Coordinate + indirizzo**; poi apri l'altro
 magazzino e premi **Incolla**.

@@ -1,5 +1,7 @@
 ﻿// views/map-center/index.js — Centro Mappe
 
+const VERSION = window.APP_CONFIG?.version || Date.now();
+
 const WAITING         = "IN ATTESA DI SERVIZIO";
 const SERVIZI_FITTIZI = ["IN ATTESA DI SERVIZIO", "USCITA DEFINITIVA"];
 const COLORI_SERVIZI  = ["rosso","blu","verde","arancione","viola","giallo","grigio","nero","bianco"];
@@ -349,16 +351,9 @@ export async function MapCenter({ state, client, html, render, root }) {
 
   async function loadLeaflet() {
     if (window.L) return;
-    await new Promise((resolve, reject) => {
-      const link = document.createElement("link");
-      link.rel = "stylesheet";
-      link.href = "https://unpkg.com/leaflet@1.9.3/dist/leaflet.css";
-      document.head.appendChild(link);
-      const script = document.createElement("script");
-      script.src = "https://unpkg.com/leaflet@1.9.3/dist/leaflet.js";
-      script.onload = resolve; script.onerror = reject;
-      document.head.appendChild(script);
-    });
+    // one loader for every map, in the shared module (Leaflet is a local copy: camila/js/leaflet)
+    const { loadLeaflet: load } = await import(`../shared/map-picker.js?v=${VERSION}`);
+    await load();
   }
 
   function fitMapHeight() {

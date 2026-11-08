@@ -276,7 +276,7 @@ Link `<a href="?dashboard=service-manager">` con icona `ri-settings-3-line`, aff
 ## 10. Gestione mappa (Leaflet)
 
 - **Singola istanza** `leafletMap` distrutta e ricreata ad ogni `switchTab()` e `togglePosEditMode()`
-- **Leaflet 1.9.3** caricato lazy da CDN (script + CSS iniettati una sola volta)
+- **Leaflet 1.9.4**, copia locale (`camila/js/leaflet/`), caricato lazy (script + CSS iniettati una sola volta) dall'unico `loadLeaflet()` di `views/shared/map-picker.js`. Le tessere restano su internet
 - **Due layer**: OpenStreetMap (default) + Esri Satellite con `L.control.layers`
 - **Marker**: icone PNG dal sistema esistente, helper `markerIconUrl(colore, lettera)` + `traduciColore(it→en)`
 - **`markersByName`**: `Map<nome, { marker, lat, lon }>` — popolata in ogni `addMarkers*()`, usata da `flyToLocation()`

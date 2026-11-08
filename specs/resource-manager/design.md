@@ -102,6 +102,7 @@ interno. Vengono tolte anche dal payload del salvataggio.
 
     inlineEdit:  InlineEditState | null,
     skipFetch:   Boolean,   // true = ensureLoaded usa cache, non chiama server
+    notice:      { text: String } | null,   // conferma dell'ultimo salvataggio (scritta da step 2)
   },
 
   step2: {
@@ -159,15 +160,19 @@ table.list({
 
 ### Layout box filtri
 
-Flex fisso senza wrap (`is-flex`, no `is-flex-wrap-wrap`). Larghezze fisse per ogni controllo; solo il campo "Filtro per colonna" cresce (`flex:1`):
+La riga e' un flex che **va a capo** (`flex-wrap:wrap`): su uno schermo stretto il filtro per colonna passa da solo su una seconda riga invece di
+restare schiacciato. Prima era senza wrap, con larghezze fisse (Categoria 160px, Tipologia 200px) che tagliavano «MATERIALE IDROGEOLOGICO»
+e le tipologie piu' lunghe; ora Categoria e Tipologia hanno una base ma possono crescere e ridursi:
 
 | Controllo | Larghezza |
 |---|---|
-| Organizzazione (tendina + lente) | 236px |
-| Categoria *(solo Mezzi e Materiali)* | 160px |
-| Tipologia *(solo Mezzi e Materiali)* | 200px |
-| Filtro per colonna | `flex:1` |
-| Per pagina | 90px |
+| Organizzazione (tendina + lente) | 236px fissi |
+| Categoria *(solo Mezzi e Materiali)* | `flex: 0 1 230px`, min 170, max 340 |
+| Tipologia *(solo Mezzi e Materiali)* | `flex: 0 1 260px`, min 190, max 460 |
+| Filtro per colonna | `flex: 1 1 280px`, min 280 |
+| Per pagina | 90px fissi |
+
+I due menu portano il valore scelto nel `title`, cosi' una tipologia lunga si legge per intero al passaggio del mouse (aperto, l'elenco la mostra gia' intera).
 
 **La lente** (`ri-search-line`, `title` «Cerca l'organizzazione») sta a destra della tendina
 Organizzazione e apre `renderOrgFilterPopup()`, una finestra con la ricerca per denominazione o
@@ -728,6 +733,141 @@ da `ensureLoaded()` dello step 2 quando costruisce la bozza di un nuovo record.
 Viene azzerato sia dall'annullamento sia dopo il salvataggio: vale per quella
 creazione e non deve sopravviverle.
 
+### La scheda Riepilogo
+
+Non e' una scheda dati: e' `state.step1.showSummary` (booleano), e `activeTab` continua a nominare l'ultima
+scheda dati, perche' lo step 2, l'esportazione e le chiamate `getContext()` si appoggiano a quella. La barra
+mette «Riepilogo» davanti alle tre schede dati; `setTab()` e `startEdit()` spengono il flag.
+
+**Apertura.** Il flag nasce una volta sola (`=== undefined`, non `||=`, altrimenti tornando dallo step 2 si
+finirebbe sul riepilogo): vero se l'indirizzo non ha `?tab=` o ha `?tab=riepilogo`, falso se nomina una
+scheda dati, come fanno i tre pulsanti della home.
+
+**Dati.** `ensureSummary()` condivide una `promise` (`state.step1.summary.promise`) fra i render che arrivano
+insieme: senza, il secondo render disegnerebbe la pagina prima dei conteggi e nessuno la ridisegnerebbe. Per
+ogni tabella un `list({ filters, include: ["id"], page: [1, 1] })`: una riga, e il totale e' nel campo
+`results` della risposta; con un'organizzazione scelta si legge anche il totale generale, per «su N in
+totale» (6 chiamate invece di 3). `Promise.allSettled`: una tabella che fallisce mostra «—» e non toglie
+le altre. Il conteggio e' per `summaryOrg`: cambiare organizzazione ricarica, un ridisegno con la stessa no;
+riaprire la scheda (`setSummaryTab()`) azzera la chiave e rilegge, perche' i dati possono essere cambiati.
+`results` mancante o non numerico e' un errore («Conteggio non disponibile»), non uno zero.
+
+**Filtro.** Ha il proprio valore, `state.step1.summaryOrg` ("all" o un codice), non quello di una scheda
+dati; `renderOrgFilterControl(key)` disegna tendina e lente per entrambi, con la chiave `"riepilogo"` per
+questa scheda, e `onOrgChange()`/`orgFilterValue()` la smistano. `applyGroupDefault()` imposta anche
+`summaryOrg`. Un riquadro (`openFromSummary()`) copia l'organizzazione nel filtro della scheda scelta e vi
+passa.
+
+**Nel view().** In modalita' riepilogo non si leggono permessi, lista, colonne ne' registro dei
+trasferimenti, e `skipFetch` viene azzerato (uno rimasto da una finestra aperta sul riepilogo farebbe saltare
+la prima lettura della scheda dati successiva). Non c'e' il pulsante di creazione.
+
+**Ripartizione per categoria e tipologia.** Sotto i riquadri, per mezzi e materiali, riusa `countClasses(tab, org)`
+(le righe lette a pagine di `EXPORT_PAGE`, con le sole colonne `categoria` e `tipologia`; il parametro `org` e' stato aggiunto
+per il filtro, la finestra **Classificazioni** non lo passa) e `classSection()` con `{ onlyUsed: true }`, che omette
+categorie e tipologie senza risorse invece di elencare tutta la definizione con gli zeri come fa la finestra. L'ordine e' quello
+della scheda (`MEZZI_CAT_OPT`/`MEZZI_TIP_OPT`, `MAT_CAT_OPT`/`MAT_TIP_OPT`); cio' che non e' nella definizione va in
+«Fuori elenco». In modalita' `onlyUsed` la coppia (categoria definita, tipologia vuota) conta come nota (`known`) e si
+mostra sotto la categoria come «(tipologia non indicata)»: altrimenti la stessa risorsa comparirebbe due volte, sotto la
+categoria e in «Fuori elenco» come «cat / (tipologia vuota)», che e' invece ancora il comportamento della finestra
+**Classificazioni**. Il titolo di sezione e' un `title is-5` dentro un `box`, sopra i titoli di colonna (`title is-6`);
+il totale di colonna va al singolare con una sola risorsa. Le letture stanno nella stessa promise dei conteggi (la pagina aspetta entrambi) ma con un
+`Promise.allSettled` a parte: se falliscono, `s.classError` mostra «Ripartizione non disponibile» e i riquadri restano. **Collegamenti.** `classSection()` accetta `opts.onPick(cat, tip)`: con quello disegna come `<a>` il nome della categoria e delle
+tipologie che la scheda definisce (`byCat[cat].includes(tip)`), e `openFromSummary(tab, { cat, tip })` imposta
+`selectedOrgByTab`, `catFilterByTab`, `tipFilterByTab` e azzera il filtro per colonna della scheda di arrivo: nessun filtro
+rimasto la restringerebbe oltre cio' che il riepilogo ha contato (il clic su un riquadro azzera categoria e tipologia
+per lo stesso motivo). Senza collegamento «(tipologia non indicata)» e «Fuori elenco»: `tipFilter === ""` significa «tutte» e un
+valore fuori lista non sarebbe fra le opzioni del menu, che cadrebbe sulla prima. I collegamenti hanno la classe `rm-classlink`: colore del testo, e blu con sottolineatura solo al passaggio del
+mouse o con il focus da tastiera; una colonna di nomi tutta blu annegava la gerarchia fra categorie, tipologie e
+conteggi. La finestra **Classificazioni** non passa `onPick` e resta senza collegamenti. Costo:
+2 letture in piu' per apertura o cambio di organizzazione, di una pagina ciascuna fino a 1000 righe (circa 940 mezzi negli esempi).
+I volontari non hanno categoria: nessuna ripartizione.
+
+### La scheda Mappa (`views/resource-manager/map.js`)
+
+E' un pannello come il Riepilogo (`state.step1.showMap`, esclusivo con `showSummary`; `?tab=mappa` la apre) ma sta in
+un file a parte, seguendo lo schema dei moduli condivisi: non renderizza da se', esporta `createResourceMap(deps)` →
+`{ template, load, reset, afterRender, bind, state }` e step1 lo importa **dinamicamente con la versione**
+(`ensureMapPanel()`, alla prima apertura). `bind(deps)` lo richiama ogni `Step1()`: il pannello vive in
+`state.step1.mapPanel` e sopravvive a una invocazione, quindi i suoi callback (`rerender`, `vocab`, `onOpen`, `errorText`)
+non possono restare quelli della prima. `onOpen` e' `openList()`, la stessa che usa il riepilogo.
+
+**Perche' numeri e non marker.** Le risorse non hanno coordinate, ereditano quelle dell'organizzazione
+(`db-organizzazioni.latitudine/longitudine`): un marker per risorsa ne impilerebbe centinaia sugli stessi punti, e
+anche raggruppandoli (markercluster) non si separano mai zoomando. La mappa disegna un cerchio (`L.divIcon`, nessuna immagine)
+per **luogo**, con il **numero** di risorse che rispettano i filtri; diametro `26 + 38·√(n/max)` px, al massimo 64.
+
+**Dati.** Una lettura sola a ogni apertura (`reset()` la invalida): `db-organizzazioni` (codice, denominazione, comune,
+provincia, coordinate; fino a 5000) e, a pagine di 1000 come l'export, `db-mezzi` e `db-materiali` con le sole colonne
+`codice-organizzazione`, `categoria`, `tipologia`. `Promise.allSettled`: una lettura che fallisce non toglie le altre
+(`st.error`, con Riprova). Le coordinate passano da `parseCoord()`: non numeriche, fuori scala (|lat| > 90, |lon| > 180) o 0/0
+(una cella vuota letta come zero non e' un luogo) valgono «senza posizione». I filtri sono tutti **in memoria**: cambiarli non
+rilegge nulla.
+
+**Il conto** (`compute()`, puro): scorre le righe dei tipi attivi, scarta quelle che non rispettano categoria e tipologia, e le assegna
+a un luogo: l'organizzazione (`org`), il suo comune o la sua provincia (`by`). Un gruppo sta nel **punto medio** delle
+organizzazioni distinte che lo compongono. Una risorsa con organizzazione sconosciuta o senza posizione e' «non posizionabile»: conteggiata
+a parte e nominata, mai scartata. `sanitize()` toglie dalla scelta una categoria o una tipologia che i tipi attivi non offrono piu'.
+
+**Disegno.** `afterRender(root)` (chiamato dal `refresh()` di step1 dopo `render`) cerca `#rm-map`, carica Leaflet con
+`loadLeaflet()` di `views/shared/map-picker.js` (import dinamico con la versione, come tutto il codice condiviso; Leaflet e' una copia locale in `camila/js/leaflet/`), crea la mappa
+**una volta per nodo** e a ogni render ricostruisce solo il `layerGroup`. `fitBounds` solo alla prima volta: filtrare non
+deve far saltare la vista. Un token (`drawToken`) scarta i disegni scavalcati da un render piu' recente mentre Leaflet si caricava. Il popup e' fatto con
+`createElement` e `textContent` (i nomi delle organizzazioni sono dati), e per `by === "org"` ha i collegamenti `onOpen(tab, { org, cat, tip })`; `cat`
+e `tip` passano solo se la scheda di arrivo li ha fra le opzioni (altrimenti il menu mostrerebbe «Tutte» con la lista filtrata).
+Per Comune e Provincia non ci sono collegamenti: non sono un solo filtro dell'elenco.
+
+**Larghezze dei filtri.** Categoria e Tipologia non hanno una larghezza fissa: `flex: 1 1 230px` (min 200, max 340) e `flex: 1 1 260px` (min 220, max 460),
+con la riga che va a capo (`flex-wrap`) sugli schermi stretti. Con 200 px fissi «MATERIALE IDROGEOLOGICO» veniva tagliata; la tipologia piu' lunga
+(«MATERIALE LOGISTICO PER TENDE (CESTELLI / CASSE)») nel menu chiuso si legge fino a meta' e per intero nell'elenco aperto e nel `title` del menu.
+
+**Senza internet.** Leaflet e' locale, le tessere no: i cerchi si disegnano comunque, su sfondo vuoto. Il layer delle tessere ascolta `tileerror` e,
+la prima volta, imposta `st.tilesError` e ridisegna: il template mostra una riga che dice che lo sfondo non si carica (`data-map-tiles`).
+**Senza libreria.** Se i file locali mancano (`st.leaflet === "error"`) il template toglie `#rm-map`, dice perche' e apre l'**Elenco numerico**; il ridisegno
+chiesto per mostrarlo avviene **una volta sola** (`before !== "error"`), altrimenti si ripeterebbe a ogni render: nel test
+con un finto DOM che restituiva sempre il nodo, era un ciclo infinito. Il codice sta fuori da `step1.js` anche perche' e' un file gia' molto lungo.
+
+### Il gruppo dell'utente come predefinito
+
+`ensureWhoami()` chiama una volta `GET /whoami` del framework (`specs/api/whoami/`) e tiene la risposta in
+`state.step1.whoami = { loaded, data }`; senza `client.call`, o con un errore (un framework senza l'endpoint
+risponde 404), `data` resta `null` e non si applica nulla. `groupOrg()` risolve il gruppo contro `state.step1.orgCatalog`
+**solo se l'utente non e' amministratore** e il gruppo (senza distinguere maiuscole) e' il codice di
+un'organizzazione dell'anagrafica; restituisce la voce del catalogo, quindi nome e provincia sono
+quelli dell'anagrafica.
+
+Due usi, entrambi predefiniti e non vincoli:
+
+* **Filtro.** `applyGroupDefault()` gira in `view()` dopo `ensureOrgCatalog()`/`ensureWhoami()` e
+  **prima** di `ensureLoaded()`, cosi' anche la prima lista e' gia' filtrata: ogni scheda che e' ancora
+  su «Tutte» passa a quel codice. `state.step1.groupDefaultApplied` lo rende unico per pagina, per
+  lasciare all'operatore la scelta di tornare a «Tutte». Se il catalogo e' vuoto non marca come
+  applicato e ritenta al render successivo.
+* **Nuova risorsa.** `startCreate()` chiede `groupOrg()`: se c'e' un'organizzazione di gruppo **salta la
+  finestra** e chiama direttamente `startCreateConOrg(tab, org)`, come se l'avesse scelta l'operatore (stesso
+  `state.createOrg`, stessa `lastCreateOrg`). Il passo 2 e' invariato. Senza organizzazione di gruppo
+  (amministratore, gruppo non-organizzazione, gruppo vuoto, `/whoami` non riuscito) si apre la finestra
+  come prima. Conseguenza voluta: chi ha un gruppo-organizzazione non puo' creare per un'altra
+  dalla UI, come il campo di gruppo del framework, non modificabile per i non amministratori.
+
+Non e' un controllo di accesso: il browser non puo' impedire nulla e un amministratore o chiunque
+chiami l'API vede il resto. La visibilita' per gruppo la fa il framework (opzione **VG** sulla colonna e
+`visibility_type = group` sull'utente: `_list()` filtra la REST API) e in quel caso questa SPA riceve gia'
+liste ristrette; il predefinito qui evita solo di partire da una lista piu' larga del necessario.
+
+### L'ultima organizzazione scelta
+
+`startCreateConOrg()` salva la scelta in `state.step1.lastCreateOrg = { code, name, province }`.
+La finestra la propone in cima (`createPickerOffers()`) solo a ricerca vuota, con la
+voce «Ultima organizzazione usata», e la toglie dall'elenco sotto per non ripeterla. Si
+risolve contro `state.step1.orgCatalog` (valgono nome e provincia dell'anagrafica, e se il
+codice non c'e' piu' non si offre nulla). E' una **proposta**: nessuna preselezione e nessun
+salto della finestra, perche' un'organizzazione presa per abitudine sarebbe sbagliata in
+silenzio, e `organizzazione`, `codice-organizzazione` e `provincia` non si correggono poi dal
+form. Vive solo in `state`: niente `localStorage`, quindi dura quanto la pagina; una
+persistenza fra sessioni e' possibile ma non richiesta. Lo registra la scelta, non il
+salvataggio: chi apre la scheda e poi annulla ritrova comunque quella organizzazione.
+
 ### Una sola sorgente: `db-organizzazioni`
 
 La finestra di creazione, il filtro dell'elenco e la destinazione del
@@ -799,6 +939,55 @@ vuole AGENTS.md §Derived fields.
 essendo il campo modificabile, è l'unico modo di risolverlo.
 
 ## 12. Step 2 — form completo
+
+### La bozza riparte da zero a ogni apertura
+
+`ensureLoaded()` rilegge la bozza solo se cambia `state.step2.loadedKey`, che e'
+`tab||mode||id`. In **creazione** l'id e' vuoto, quindi la chiave e' sempre la stessa
+(`materiali||create||`): dopo un salvataggio, un secondo «Aggiungi nuova risorsa»
+trovava la chiave uguale, saltava la lettura e riapriva la bozza di prima, con
+l'organizzazione scelta prima e il suo `id-materiale` — che quindi non chiedeva la
+`sequence()` e poteva duplicare l'id appena salvato. Lo stesso valeva in modifica:
+dopo **Annulla** le modifiche abbandonate tornavano alla riapertura.
+
+La correzione sta in step 1, non in step 2: `forgetStep2Draft()` azzera `loadedKey`
+in tutti i modi di entrare nello step 2 (`startCreateConOrg()`, `startEdit()`). Non
+si azzera in uscita (`doSave()`/`doCancel()`) perche' `doSave()` chiama `refresh()`
+anche dopo `goTo(1)`: con la chiave vuota rileggerebbe il record, e in creazione di
+materiali consumerebbe un numero della sequenza per niente.
+
+### Un salvataggio non puo' diventare una creazione
+
+`doSave()` sceglie fra `update(id, …)` e `create(…)` da `getContext()`, che legge
+`state.editMode` e `state.editId`. Entrambi vengono azzerati **subito dopo** una scrittura
+riuscita, prima che lo step 1 sia disegnato (`goTo(1)` monta in modo asincrono). In quella
+finestra il form e' ancora a schermo e un secondo clic su **Salva** leggeva il contesto come
+«creazione» e inseriva gli stessi dati come record nuovo; lo stesso faceva il `refresh()` nel
+`finally` di `doSave()`, che ridisegnava lo step 2 come nuova risorsa (chiamando anche la
+`sequence()` per un `id-materiale` mai usato). Tre difese, tutte in `step2.js`:
+
+* `doSave()` esce subito se `state.step2.saving` o se `state.step` non e' 2;
+* `refresh()` non fa nulla, e non disegna dopo l'`await`, se `state.step` non e' 2 (lo stesso
+  controllo, con 1, e' in `refresh()` dello step 1: un ridisegno tardivo non copre lo step 2);
+* se il contesto e' «modifica» ma manca l'id, `doSave()` non scrive nulla e mostra
+  «Risorsa senza identificativo: salvataggio annullato, nessun dato scritto.» invece di
+  ricadere su `create()`.
+
+`state.step` lo imposta `goTo()` in `app-boot.js` in modo sincrono, quindi vale gia'
+dalla riga dopo la chiamata.
+
+### Conferma del salvataggio
+
+Dopo una scrittura riuscita `doSave()` scrive `state.step1.notice = { text }` con
+`savedNotice(tab, payload)`: «<Volontario|Mezzo|Materiale> salvato: <identificativo>
+(<organizzazione>).». L'identificativo e' cognome e nome (o codice fiscale) per i
+volontari, targa (o codice inventario, o marca e modello) per i mezzi, `id-materiale`
+(o categoria e tipologia) per i materiali. Step 1 la mostra in un riquadro
+`notification is-success is-light` sopra la ricerca rapida, con la ✕
+(`dismissNotice()`); la azzerano anche `startCreate()`, `startCreateConOrg()`,
+`startEdit()` e `setTab()`. Non ha scadenza: un timer richiederebbe un `refresh()` fuori
+da ogni azione dell'operatore. Un salvataggio fallito non la scrive: resta l'errore
+nella scheda.
 
 ### Sola lettura
 

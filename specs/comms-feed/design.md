@@ -208,7 +208,7 @@ Identica al tab "risorse" del `map-center`:
 - Icona marker: `marker_<colore><lettera>.png` da `templates/images/en/` (o `it/` se senza lettera)
 - Popup: lista risorse attive per servizio, raggruppate per organizzazione, con dettagli espandibili
 - Tile layers: OpenStreetMap (default) + Satellite (Esri), con control layer switcher
-- Leaflet caricato lazy da CDN (`unpkg.com/leaflet@1.9.3`) al primo `initMap()`
+- Leaflet caricato lazy al primo `initMap()`: Leaflet 1.9.4 e' una **copia locale** (`camila/js/leaflet/`, con le immagini dei marker e la licenza), non piu' una CDN; lo carica l'**unico** `loadLeaflet()` di `views/shared/map-picker.js` (import dinamico con la versione). Le tessere (OpenStreetMap, Esri) e Nominatim restano su internet
 - `refreshMarkers()`: rimuove i marker esistenti (tracciati in `markersByName`) e li riaggiunge con dati aggiornati
 
 `flyToCoords(lat, lon, label)`: centra la mappa su coordinate specifiche (da messaggi con posizione), aggiunge un `L.circleMarker` rosso temporaneo rimosso dopo 8s. Un solo marker temporaneo alla volta (`_tempMarker`).

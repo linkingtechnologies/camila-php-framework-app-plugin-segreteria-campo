@@ -42,6 +42,22 @@ export async function Step1(props) {
   state.step1.activeTab ||= (_validTabs.includes(_urlTab) ? _urlTab : null) || state.activeTab || "volontari";
   state.activeTab = state.step1.activeTab;
 
+  // The first tab is a summary (counts of volunteers, vehicles and materials), not a data tab:
+  // `activeTab` keeps naming the last data tab, which step 2 and the export rely on. The
+  // page opens on the summary unless the link names a data tab, as the three Database
+  // buttons of the home do (?tab=volontari|mezzi|materiali). Decided once: coming back from
+  // step 2 must not jump to the summary.
+  if (state.step1.showSummary === undefined) {
+    state.step1.showSummary = _urlTab === "riepilogo" || !_urlTab;
+  }
+  // The "Mappa" tab (numbers of mezzi and materiali on a map) is the same kind of pane, in
+  // views/resource-manager/map.js, loaded the first time it is opened. At most one of
+  // showSummary / showMap is true; both false means a data tab.
+  if (state.step1.showMap === undefined) state.step1.showMap = _urlTab === "mappa";
+  state.step1.mapPanel ||= null;
+  state.step1.summaryOrg ||= "all";                    // "all" or an organisation code
+  state.step1.summary ||= { key: null, data: null };   // counts, read once per organisation
+
   state.step1.sortByTab ||= {
     volontari: { key: "cognome", dir: "asc" },
     mezzi: { key: "targa", dir: "asc" },
@@ -65,6 +81,22 @@ export async function Step1(props) {
   // it, so asking first avoids a form where three fields are already wrong.
   // Same idea as massive check-in, which opens on the organisation too.
   state.step1.createPicker ||= null;   // null = chiuso, altrimenti { tab, q }
+
+  // The Camila user as the server knows them: { loaded, data: { group, isAdmin, ... } | null }.
+  // When the user's group is the code of an organisation, that organisation is the default
+  // of the filter and of the new-record picker (see groupOrg()). `groupDefaultApplied`
+  // makes the filter default happen once, so the operator can still choose "Tutte".
+  state.step1.whoami ||= { loaded: false, data: null };
+  state.step1.groupDefaultApplied ||= false;
+
+  // The organisation picked for the last new record: { code, name, province } | null.
+  // The "new resource" picker offers it first, because entries come in runs of one
+  // organisation. Kept for the page session only, and never used without a click.
+  state.step1.lastCreateOrg ||= null;
+
+  // Confirmation of the last save, written by step 2: null, or { text }. Shown above
+  // the list until dismissed or until the operator starts something else.
+  state.step1.notice ||= null;
 
   // The magnifier next to the organisation filter opens a searchable list of the
   // same organisations: null, or { tab, q, focus }. `focus` asks refresh() to put
@@ -908,12 +940,14 @@ export async function Step1(props) {
   // in memory; the counts are read when the popup opens, so they are never stale.
   // Only the two columns are asked for, in pages like the export, so the request
   // stays small however many resources there are.
-  async function countClasses(tab) {
+  // `org` ("all" or a code) restricts the count to one organisation; the popup passes none.
+  async function countClasses(tab, org = "all") {
     const table = client.table(TAB_TABLE[tab]);
+    const filters = org !== "all" ? [client.filter("codice-organizzazione", "eq", org)] : [];
     const pairs = new Map();
     let total = 0;
     for (let page = 1; page <= EXPORT_MAX_PAGES; page++) {
-      const res = await table.list({ include: ["categoria", "tipologia"], order: [["id", "asc"]], page: [page, EXPORT_PAGE] });
+      const res = await table.list({ filters, include: ["categoria", "tipologia"], order: [["id", "asc"]], page: [page, EXPORT_PAGE] });
       const batch = normalizeListResponse(res);
       for (const r of batch) {
         const key = JSON.stringify([safe(r?.categoria).trim(), safe(r?.tipologia).trim()]);
@@ -1028,10 +1062,16 @@ export async function Step1(props) {
   let renderSeq = 0;
 
   async function refresh() {
+    // a late refresh must not draw the list over step 2 (the pencil has already moved on)
+    if (Number(state.step) !== 1) return;
     const seq = ++renderSeq;
     const tpl = await view();
-    if (seq !== renderSeq) return;
+    if (seq !== renderSeq || Number(state.step) !== 1) return;   // superseded, or the step changed meanwhile
     render(tpl, root);
+    // the map is mounted in the node the template has just left
+    if (state.step1.showMap && !state.step1.showSummary && state.step1.mapPanel) {
+      Promise.resolve(state.step1.mapPanel.afterRender(root)).catch(() => {});
+    }
     // the organisation search box takes the cursor once, when its popup opens
     const ofp = state.step1.orgFilterPicker;
     if (ofp?.focus) {
@@ -1131,15 +1171,160 @@ export async function Step1(props) {
   // -------------------- UI HANDLERS --------------------
   function setTab(tab, e) {
     if (e?.preventDefault) e.preventDefault();
+    state.step1.notice = null;
+    state.step1.showSummary = false;
+    state.step1.showMap = false;
+    state.step1.skipFetch = false;
     state.step1.activeTab = tab;
     state.activeTab = tab;
     refresh();
   }
 
   function onOrgChange(tab, v) {
+    if (tab === "riepilogo") {   // the summary has its own organisation, and no pages
+      state.step1.summaryOrg = v || "all";
+      refresh();
+      return;
+    }
     state.selectedOrgByTab[tab] = v || "all";
     resetPage(tab);
     refresh();
+  }
+
+  // ---- summary tab ----------------------------------------------------------
+  // The organisation filter value of a tab, or of the summary (key "riepilogo").
+  function orgFilterValue(key) {
+    return key === "riepilogo"
+      ? state.step1.summaryOrg || "all"
+      : state.selectedOrgByTab?.[key] || "all";
+  }
+
+  function setSummaryTab(e) {
+    if (e?.preventDefault) e.preventDefault();
+    state.step1.notice = null;
+    state.step1.showSummary = true;
+    state.step1.showMap = false;
+    state.step1.summary.key = null;   // counts are read again each time the tab is opened
+    state.step1.skipFetch = false;
+    refresh();
+  }
+
+  // ---- map tab ----------------------------------------------------------------
+  function setMapTab(e) {
+    if (e?.preventDefault) e.preventDefault();
+    state.step1.notice = null;
+    state.step1.showMap = true;
+    state.step1.showSummary = false;
+    state.step1.skipFetch = false;
+    state.step1.mapPanel?.reset();   // the data may have changed since the last visit
+    refresh();
+  }
+
+  // What map.js needs from this view. Rebuilt on every render of the view and handed over
+  // with bind(): the panel outlives one invocation of Step1, its callbacks must not.
+  function mapDeps() {
+    return {
+      client,
+      html,
+      rerender: () => { state.step1.skipFetch = false; refresh(); },
+      vocab: () => ({
+        mezzi: { cats: MEZZI_CAT_OPT, byCat: MEZZI_TIP_OPT },
+        materiali: { cats: MAT_CAT_OPT, byCat: MAT_TIP_OPT },
+      }),
+      onOpen: (tab, sel) => openList(tab, sel),
+      errorText,
+      sessionMessage: SESSIONE_NON_VALIDA,
+    };
+  }
+
+  async function ensureMapPanel() {
+    if (!state.step1.mapPanel) {
+      const mod = await import(`./map.js?v=${VERSION}`);
+      state.step1.mapPanel = mod.createResourceMap(mapDeps());
+    } else {
+      state.step1.mapPanel.bind(mapDeps());
+    }
+    return state.step1.mapPanel;
+  }
+
+  // Click on a card: the data tab, filtered like the summary was.
+  // `cls` ({ cat, tip }, both optional) comes from a categoria or tipologia link of the
+  // breakdown. Every filter of the data tab is set to what the summary counted, so the list
+  // has exactly those rows: a leftover filter on a column would hide some of them.
+  function openFromSummary(tab, cls = {}) {
+    openList(tab, { org: state.step1.summaryOrg || "all", ...cls });
+  }
+
+  // The data tab, filtered by organisation / categoria / tipologia (all optional) and with the
+  // filter by column cleared. Used by the summary and by the map.
+  function openList(tab, { org = "all", cat = "", tip = "" } = {}) {
+    state.selectedOrgByTab[tab] = org || "all";
+    state.step1.catFilterByTab[tab] = cat || "";
+    state.step1.tipFilterByTab[tab] = tip || "";
+    if (state.step1.columnFilterByTab[tab]) state.step1.columnFilterByTab[tab].val = "";
+    resetPage(tab);
+    state.step1.showSummary = false;
+    state.step1.showMap = false;
+    state.step1.activeTab = tab;
+    state.activeTab = tab;
+    state.step1.skipFetch = false;
+    refresh();
+  }
+
+  // One count per table: a page of one row, whose answer carries the total (`results`).
+  // With an organisation chosen the overall total is read too, to show "of N". A failure
+  // on one table leaves the others readable.
+  // Two renders can ask at once: they share one promise, otherwise the later one would
+  // draw the page before the counts are there and nothing would draw it again.
+  async function ensureSummary() {
+    const s = state.step1.summary;
+    const org = state.step1.summaryOrg || "all";
+    if (s.key !== org) {
+      s.key = org;
+      s.data = null;
+      s.promise = loadSummary(org);
+    }
+    await s.promise;
+  }
+
+  async function loadSummary(org) {
+    const s = state.step1.summary;
+    const tabs = Object.keys(TAB_LABELS);
+    const count = async (t, filtered) => {
+      const filters = filtered && org !== "all" ? [client.filter("codice-organizzazione", "eq", org)] : [];
+      const res = await client.table(TAB_TABLE[t]).list({ filters, include: ["id"], page: [1, 1] });
+      const n = Number(res?.results);
+      if (!Number.isFinite(n)) throw new Error("Conteggio non disponibile");
+      return n;
+    };
+    const jobs = tabs.flatMap((t) => (org === "all" ? [count(t, true)] : [count(t, true), count(t, false)]));
+    const settled = await Promise.allSettled(jobs);
+    if (s.key !== org) return;   // the organisation changed while counting: that load fills it
+    const data = {};
+    tabs.forEach((t, i) => {
+      const k = org === "all" ? i : i * 2;
+      const a = settled[k];
+      const b = org === "all" ? a : settled[k + 1];
+      data[t] = {
+        n: a.status === "fulfilled" ? a.value : null,
+        total: b.status === "fulfilled" ? b.value : null,
+        error: a.status === "rejected" ? errorText(a.reason) : null,
+      };
+    });
+    s.data = data;
+
+    // Mezzi and materiali by categoria and tipologia, same organisation. Read after the counts
+    // and settled apart: a failure here must not take the cards down with it.
+    s.classes = null;
+    s.classError = null;
+    const [m, mt] = await Promise.allSettled([countClasses("mezzi", org), countClasses("materiali", org)]);
+    if (s.key !== org) return;
+    s.classes = {
+      mezzi: m.status === "fulfilled" ? m.value : null,
+      materiali: mt.status === "fulfilled" ? mt.value : null,
+    };
+    const bad = [m, mt].find((r) => r.status === "rejected");
+    s.classError = bad ? errorText(bad.reason) : null;
   }
 
   function onFilterColChange(tab, col) {
@@ -1187,9 +1372,32 @@ export async function Step1(props) {
     refresh();
   }
 
+  // Step 2 keeps its draft under a key that is the same for every new record of a
+  // tab, so without this a second "new" would reopen the record just saved - with
+  // its id-materiale, which then never gets a fresh one from the sequence. Every way
+  // into step 2 starts from here, so it is forgotten here.
+  function forgetStep2Draft() {
+    if (state.step2) state.step2.loadedKey = null;
+  }
+
+  function dismissNotice() {
+    state.step1.notice = null;
+    state.step1.skipFetch = true;
+    refresh();
+  }
+
   function startCreate(tab) {
     const perms = getEffectivePermissions(tab);
     if (!perms.canCreate) return;
+    // A user whose Camila group is an organisation creates for that organisation: the
+    // record opens already on it, without the picker (an administrator, or a group that
+    // is not an organisation code, still gets the picker).
+    const mine = groupOrg();
+    if (mine) {
+      startCreateConOrg(tab, mine);
+      return;
+    }
+    state.step1.notice = null;
     state.step1.createPicker = { tab, q: "" };
     refresh();
   }
@@ -1212,7 +1420,10 @@ export async function Step1(props) {
       name: org.name,
       province: org.province || (state.step1.orgProvinceByCode || {})[org.code] || "",
     };
+    state.step1.lastCreateOrg = { ...state.createOrg };
     state.step1.createPicker = null;
+    state.step1.notice = null;
+    forgetStep2Draft();
     state.step1.activeTab = tab;
     state.activeTab = tab;
     state.editTab = tab;
@@ -1237,6 +1448,62 @@ export async function Step1(props) {
   function createPickerRisultati() {
     const pk = state.step1.createPicker;
     return pk ? searchOrgs(pk.q) : [];
+  }
+
+  // ---- the user's Camila group --------------------------------------------------
+  // The API serves the users table to nobody and APP_CONFIG carries no user data, so
+  // the group comes from the framework's GET /whoami. Asked once; a failure (a
+  // framework without the endpoint answers 404) just means "no default" - the page
+  // works exactly as before.
+  async function ensureWhoami() {
+    const w = state.step1.whoami;
+    if (w.loaded) return;
+    try {
+      if (typeof client.call === "function") {
+        const res = await client.call("GET", "/whoami");
+        if (res && typeof res === "object" && "group" in res) w.data = res;
+      }
+    } catch (_) {
+      w.data = null;
+    }
+    w.loaded = true;
+  }
+
+  // The organisation the user's group stands for: only for a non-administrator whose
+  // group is the code of an organisation of the registry (the catalog's own entry is
+  // returned, so name and province are the registry's). Anything else: null.
+  function groupOrg() {
+    const d = state.step1.whoami?.data;
+    if (!d || d.isAdmin) return null;
+    const g = safe(d.group).trim().toLowerCase();
+    if (!g) return null;
+    return (state.step1.orgCatalog || []).find((o) => safe(o.code).trim().toLowerCase() === g) || null;
+  }
+
+  // Filter default, applied once per page: every tab still on "Tutte" starts on the
+  // organisation of the user's group.
+  function applyGroupDefault() {
+    if (state.step1.groupDefaultApplied || !state.step1.whoami.loaded) return;
+    if (!(state.step1.orgCatalog || []).length) return;   // catalog not there: try again next time
+    state.step1.groupDefaultApplied = true;
+    const org = groupOrg();
+    if (!org) return;
+    for (const t of Object.keys(TAB_LABELS)) {
+      if ((state.selectedOrgByTab[t] || "all") === "all") state.selectedOrgByTab[t] = org.code;
+    }
+    if ((state.step1.summaryOrg || "all") === "all") state.step1.summaryOrg = org.code;   // the summary too
+  }
+
+  // Organisation offered on top of the new-record picker, only while the search is
+  // empty: the one used last. It is looked up in the registry (its own name and
+  // province win); one that is gone is dropped. (A user whose group is an organisation
+  // never sees the picker: startCreate() skips it.)
+  function createPickerOffers() {
+    const pk = state.step1.createPicker;
+    if (!pk || searchNorm(pk.q)) return [];
+    const last = state.step1.lastCreateOrg;
+    const lastOrg = last && (state.step1.orgCatalog || []).find((o) => o.code === last.code);
+    return lastOrg ? [{ label: "Ultima organizzazione usata", org: lastOrg }] : [];
   }
 
   // ---- organisation filter popup (magnifier) -------------------------------
@@ -1275,6 +1542,10 @@ export async function Step1(props) {
     // than the active one, and step 2 goes back with goTo(1) without touching
     // it: without this, saving a mezzo found while on Volontari would drop you
     // back on the volunteers list.
+    state.step1.notice = null;
+    state.step1.showSummary = false;   // coming back lands on the record's tab
+    state.step1.showMap = false;
+    forgetStep2Draft();
     state.step1.activeTab = tab;
     state.activeTab = tab;
     state.editTab = tab;
@@ -1421,11 +1692,25 @@ export async function Step1(props) {
     const tab = state.step1.activeTab;
 
     await ensureOrgCatalog();
-    await ensurePermissions(tab);
-    await ensureLoaded(tab);
-    await ensureColumnsMeta(tab);
-    // transfers need create permission on the register: known before the row icon is drawn
-    if (tab !== "volontari") await ensureTransferLog();
+    await ensureWhoami();
+    applyGroupDefault();   // before the list is read: the first page is already filtered
+    const summaryMode = !!state.step1.showSummary;
+    const mapMode = !summaryMode && !!state.step1.showMap;
+    if (mapMode) {
+      state.step1.skipFetch = false;
+      const panel = await ensureMapPanel();
+      await panel.load();
+    } else if (summaryMode) {
+      // no list to read; a skipFetch left over from a popup must not outlive this tab
+      state.step1.skipFetch = false;
+      await ensureSummary();
+    } else {
+      await ensurePermissions(tab);
+      await ensureLoaded(tab);
+      await ensureColumnsMeta(tab);
+      // transfers need create permission on the register: known before the row icon is drawn
+      if (tab !== "volontari") await ensureTransferLog();
+    }
 
     const rows = state.master?.[tab] || [];
     const pag = state.step1.paginationByTab[tab];
@@ -1667,7 +1952,9 @@ export async function Step1(props) {
     function renderCreatePicker() {
       const pk = state.step1.createPicker;
       if (!pk) return "";
-      const risultati = createPickerRisultati();
+      const offerte = createPickerOffers();
+      // the offered organisations are shown on top, not a second time in the list
+      const risultati = createPickerRisultati().filter((o) => !offerte.some((x) => x.org.code === o.code));
       const provByCode = state.step1.orgProvinceByCode || {};
 
       return html`
@@ -1700,7 +1987,23 @@ export async function Step1(props) {
                 : ""}
 
               <div style="max-height:22rem;overflow-y:auto">
-                ${risultati.length === 0
+                ${offerte.map(
+                  ({ label, org: ultima }) => html`
+                      <p class="help mb-1">${label}</p>
+                      <button
+                        type="button"
+                        class="button is-link is-light is-fullwidth mb-3"
+                        style="justify-content:flex-start;text-align:left;white-space:normal"
+                        @click=${() => startCreateConOrg(pk.tab, ultima)}
+                      >
+                        <strong>${ultima.name || "(senza denominazione)"}</strong>
+                        ${ultima.code ? html`<span class="tag ml-2">${ultima.code}</span>` : ""}
+                        ${ultima.province || provByCode[ultima.code]
+                          ? html`<span class="tag is-light ml-2">${ultima.province || provByCode[ultima.code]}</span>`
+                          : ""}
+                      </button>`
+                )}
+                ${risultati.length === 0 && offerte.length === 0
                   ? html`<p class="has-text-grey is-size-7 p-3 has-text-centered">
                            ${(state.step1.orgCatalog || []).length === 0
                              ? "Nessuna organizzazione trovata."
@@ -1735,11 +2038,112 @@ export async function Step1(props) {
       `;
     }
 
+    // The Organizzazione dropdown with its magnifier, for a data tab or for the summary
+    // (key "riepilogo"); both go through onOrgChange().
+    function renderOrgFilterControl(key) {
+      const cur = orgFilterValue(key);
+      return html`
+              <div style="width:236px;flex-shrink:0;">
+                <label class="label is-small mb-1">Organizzazione</label>
+                <div class="is-flex" style="gap:.25rem">
+                  <div class="select is-small" style="flex:1;min-width:0">
+                    <select
+                      style="width:100%"
+                      @change=${(e) => onOrgChange(key, e.target.value)}
+                    >
+                      <option value="all" ?selected=${cur === "all"}>Tutte</option>
+                      ${(state.step1.orgCatalog || []).map((o) => html`<option value=${o.code} ?selected=${cur === o.code}>${o.name}</option>`)}
+                    </select>
+                  </div>
+                  <button
+                    type="button"
+                    class="button is-small"
+                    style="flex-shrink:0"
+                    title="Cerca l'organizzazione"
+                    aria-label="Cerca l'organizzazione"
+                    @click=${() => openOrgFilter(key)}
+                  >
+                    <span class="icon is-small"><i class="ri-search-line"></i></span>
+                  </button>
+                </div>
+              </div>`;
+    }
+
+    // The summary pane: the organisation filter and one card per table.
+    function renderSummary() {
+      const s = state.step1.summary;
+      const org = state.step1.summaryOrg || "all";
+      const orgName = (state.step1.orgCatalog || []).find((o) => o.code === org)?.name || org;
+      const cards = [
+        { tab: "volontari", icon: "ri-team-line", one: "volontario registrato", many: "volontari registrati" },
+        { tab: "mezzi", icon: "ri-truck-line", one: "mezzo registrato", many: "mezzi registrati" },
+        { tab: "materiali", icon: "ri-tools-line", one: "materiale registrato", many: "materiali registrati" },
+      ];
+      const failed = cards.filter((c) => s.data?.[c.tab]?.error);
+      const sessionDown = failed.some((c) => s.data[c.tab].error === SESSIONE_NON_VALIDA);
+
+      return html`
+        <div class="box spa-title-box p-3">
+          <div class="is-flex rm-filtri" style="gap:.75rem">
+            ${renderOrgFilterControl("riepilogo")}
+            <div class="is-flex is-align-items-flex-end">
+              <p class="help">
+                ${org === "all"
+                  ? "Tutte le organizzazioni."
+                  : html`Solo <strong>${orgName}</strong> (${org}).`}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        ${failed.length
+          ? html`<div class="notification ${sessionDown ? "is-warning" : "is-danger"} is-light py-2 mb-3">
+                   ${sessionDown ? SESSIONE_NON_VALIDA : "Non tutti i conteggi si sono caricati: " + s.data[failed[0].tab].error}
+                   ${sessionDown ? html` <a href="cf_logout.php">Esci e rientra</a>` : ""}
+                   <button class="button is-small ml-2" @click=${() => { s.key = null; refresh(); }}>Riprova</button>
+                 </div>`
+          : ""}
+
+        <div class="columns is-multiline">
+          ${cards.map((c) => {
+            const d = s.data?.[c.tab] || {};
+            const n = d.n;
+            const showOf = org !== "all" && d.total !== null && d.total !== undefined && n !== null;
+            return html`
+              <div class="column is-12-mobile is-4-tablet">
+                <a class="box has-text-centered" style="display:block;color:inherit" href="#"
+                   title="Apri ${TAB_LABELS[c.tab]}"
+                   @click=${(e) => { e.preventDefault(); openFromSummary(c.tab); }}>
+                  <span class="icon is-large has-text-link"><i class="${c.icon} ri-2x"></i></span>
+                  <p class="title is-3 mb-1">${n === null || n === undefined ? "—" : n}</p>
+                  <p class="subtitle is-6 mb-1">${n === 1 ? c.one : c.many}</p>
+                  ${showOf ? html`<p class="help">su ${d.total} in totale</p>` : ""}
+                </a>
+              </div>`;
+          })}
+        </div>
+
+        ${s.data
+          ? html`
+              <div class="box" data-summary-classes>
+                <h2 class="title is-5 mb-4">Per categoria e tipologia</h2>
+                ${s.classError
+                  ? html`<p class="help ${s.classError === SESSIONE_NON_VALIDA ? "is-warning" : "is-danger"}">Ripartizione non disponibile: ${s.classError}${
+                      s.classError === SESSIONE_NON_VALIDA ? html` <a href="cf_logout.php">Esci e rientra</a>` : ""}</p>`
+                  : ""}
+                <div class="columns mb-0">
+                  ${s.classes?.mezzi ? classSection("Mezzi", MEZZI_CAT_OPT, MEZZI_TIP_OPT, s.classes.mezzi, { onlyUsed: true, onPick: (cat, tip) => openFromSummary("mezzi", { cat, tip }) }) : ""}
+                  ${s.classes?.materiali ? classSection("Materiali", MAT_CAT_OPT, MAT_TIP_OPT, s.classes.materiali, { onlyUsed: true, onPick: (cat, tip) => openFromSummary("materiali", { cat, tip }) }) : ""}
+                </div>
+              </div>`
+          : ""}`;
+    }
+
     function renderOrgFilterPopup() {
       const pk = state.step1.orgFilterPicker;
       if (!pk) return "";
       const risultati = searchOrgs(pk.q);
-      const current = state.selectedOrgByTab?.[pk.tab] || "all";
+      const current = orgFilterValue(pk.tab);
       const provByCode = state.step1.orgProvinceByCode || {};
       const showAll = !searchNorm(pk.q);
 
@@ -1748,7 +2152,7 @@ export async function Step1(props) {
           <div class="modal-background" @click=${closeOrgFilter}></div>
           <div class="modal-card" style="max-width:40rem">
             <header class="modal-card-head">
-              <p class="modal-card-title is-size-6">Filtra per organizzazione — ${TAB_LABELS[pk.tab]}</p>
+              <p class="modal-card-title is-size-6">Filtra per organizzazione — ${pk.tab === "riepilogo" ? "Riepilogo" : TAB_LABELS[pk.tab]}</p>
               <button class="delete" aria-label="close" @click=${closeOrgFilter}></button>
             </header>
 
@@ -1906,11 +2310,21 @@ export async function Step1(props) {
     }
 
     // One column of the popup: the categories of a table with their tipologie and counts.
-    function classSection(label, cats, byCat, data) {
+    // `opts.onlyUsed` (the summary): leave out the categories and tipologie nobody uses,
+    // instead of listing the whole definition with zeros (the popup does that).
+    function classSection(label, cats, byCat, data, opts = {}) {
+      const onlyUsed = !!opts.onlyUsed;
       const pairs = data?.pairs || null;
       const n = (cat, tip) => (pairs ? pairs.get(JSON.stringify([cat, tip])) || 0 : null);
       const sumCat = (cat) => (pairs ? [...pairs].reduce((a, [k, v]) => a + (JSON.parse(k)[0] === cat ? v : 0), 0) : null);
       const badge = (v) => (v === null ? "" : html`<span class="tag ${v ? "is-info is-light" : "is-light has-text-grey-light"} ml-2">${v}</span>`);
+      // Summary: a categoria or tipologia that the worktable defines links to the list of its
+      // rows (opts.onPick). What it does not define (Fuori elenco, tipologia non indicata) has
+      // no link: the filter dropdowns could not show it, and it would look like "all".
+      const link = (text, cat, tip) =>
+        opts.onPick
+          ? html`<a class="rm-classlink" href="#" title="Mostra l'elenco" @click=${(e) => { e.preventDefault(); opts.onPick(cat, tip); }}>${text}</a>`
+          : text;
 
       // "Non assegnata" has no tipologie of its own in the list: the tipologia that goes
       // with it is "Non assegnata" too (the rule of the inline editor).
@@ -1918,22 +2332,31 @@ export async function Step1(props) {
 
       const known = new Set();
       for (const cat of cats) for (const tip of tipsOf(cat)) known.add(JSON.stringify([cat, tip]));
+      // Summary: a resource whose categoria is defined but has no tipologia belongs under that
+      // categoria (as "(tipologia non indicata)"), not in "Fuori elenco" a second time.
+      if (onlyUsed) for (const cat of cats) known.add(JSON.stringify([cat, ""]));
+      const tipRows = (cat) => {
+        const rows = tipsOf(cat).filter((tip) => !onlyUsed || n(cat, tip)).map((tip) => [tip, n(cat, tip), (byCat[cat] || []).includes(tip)]);
+        if (onlyUsed && n(cat, "")) rows.push(["(tipologia non indicata)", n(cat, ""), false]);
+        return rows;
+      };
       // what the registry holds that the list does not define
       const outside = pairs ? [...pairs].filter(([k]) => !known.has(k)) : [];
 
       return html`
         <div class="column is-6">
-          <h4 class="title is-6 mb-2">${label}${data ? html`<span class="has-text-weight-normal has-text-grey"> — ${data.total} risorse</span>` : ""}</h4>
+          <h4 class="title is-6 mb-2">${label}${data ? html`<span class="has-text-weight-normal has-text-grey"> — ${data.total} ${data.total === 1 ? "risorsa" : "risorse"}</span>` : ""}</h4>
           ${cats.length === 0 ? html`<p class="has-text-grey">Nessuna classificazione definita.</p>` : ""}
-          ${cats.map((cat) => html`
-            <p class="has-text-weight-semibold mt-3 mb-1">${cat}${badge(sumCat(cat))}</p>
+          ${onlyUsed && data && data.total === 0 ? html`<p class="has-text-grey is-size-7">Nessuna risorsa.</p>` : ""}
+          ${cats.map((cat) => (onlyUsed && !sumCat(cat) ? "" : html`
+            <p class="has-text-weight-semibold mt-3 mb-1">${link(cat, cat, "")}${badge(sumCat(cat))}</p>
             <ul class="mt-0 mb-0" style="list-style:none;margin-left:.25rem">
-              ${tipsOf(cat).map((tip) => html`<li class="is-size-7">${tip}${badge(n(cat, tip))}</li>`)}
+              ${tipRows(cat).map(([tip, v, linkable]) => html`<li class="is-size-7">${linkable ? link(tip, cat, tip) : tip}${badge(v)}</li>`)}
             </ul>
-          `)}
+          `))}
           ${outside.length ? html`
             <p class="has-text-weight-semibold has-text-warning-dark mt-4 mb-1">Fuori elenco</p>
-            <p class="is-size-7 has-text-grey mb-1">Valori presenti nelle risorse ma non definiti sulla scheda.</p>
+            <p class="is-size-7 has-text-grey mb-1">${onlyUsed ? "Non definiti sulla scheda." : "Valori presenti nelle risorse ma non definiti sulla scheda."}</p>
             <ul style="list-style:none;margin-left:.25rem">
               ${outside.map(([k, v]) => {
                 const [cat, tip] = JSON.parse(k);
@@ -2152,6 +2575,10 @@ export async function Step1(props) {
            washed-out grey as the filters below it and went unnoticed. */
         .rm-search{border-color:#3273dc;box-shadow:0 1px 2px rgba(50,115,220,.12)}
         .rm-search::placeholder{color:#5b6b84;opacity:1}
+        /* Names in the summary's breakdown link to the filtered list. They keep the colour of
+           the text, so a column of blue does not drown the hierarchy; the link shows on hover. */
+        .rm-classlink{color:inherit}
+        .rm-classlink:hover,.rm-classlink:focus-visible{color:#3273dc;text-decoration:underline}
         .rm-search:focus{box-shadow:0 0 0 .125em rgba(50,115,220,.25)}
         /* Filter row: the columns are not the same height - a .field.has-addons
            is taller than a bare .select - so bottom-aligning them pushed the
@@ -2176,7 +2603,9 @@ export async function Step1(props) {
             </div>
             <div class="level-right">
               <div class="level-item">
-                ${perms.canCreate
+                ${summaryMode || mapMode
+                  ? ""
+                  : perms.canCreate
                   ? html`
                       <button class="button is-small is-primary" @click=${() => startCreate(tab)}>
                         <span class="icon is-small"><i class="ri-add-line"></i></span>
@@ -2193,13 +2622,29 @@ export async function Step1(props) {
             </div>
           </div>
 
+          ${state.step1.notice
+            ? html`<div class="notification is-success is-light py-2 pl-4 pr-6 mb-3" role="status">
+                     <button class="delete" aria-label="Chiudi il messaggio" @click=${dismissNotice}></button>
+                     <span class="icon-text">
+                       <span class="icon"><i class="ri-checkbox-circle-line"></i></span>
+                       <span>${state.step1.notice.text}</span>
+                     </span>
+                   </div>`
+            : ""}
+
           ${renderQuickSearch()}
 
           <div class="tabs is-boxed is-small mb-0">
             <ul>
+              <li class=${summaryMode ? "is-active" : ""}>
+                <a href="#" @click=${setSummaryTab}>Riepilogo</a>
+              </li>
+              <li class=${mapMode ? "is-active" : ""}>
+                <a href="#" @click=${setMapTab}>Mappa</a>
+              </li>
               ${Object.keys(TAB_LABELS).map(
                 (k) => html`
-                  <li class=${k === tab ? "is-active" : ""}>
+                  <li class=${!summaryMode && !mapMode && k === tab ? "is-active" : ""}>
                     <a href="#" @click=${(e) => setTab(k, e)}>${TAB_LABELS[k]}</a>
                   </li>
                 `
@@ -2207,40 +2652,19 @@ export async function Step1(props) {
             </ul>
           </div>
 
+          ${summaryMode ? renderSummary() : mapMode ? state.step1.mapPanel.template() : html`
           <div class="box spa-title-box p-3">
-            <div class="is-flex rm-filtri" style="gap:.75rem">
+            <div class="is-flex rm-filtri" style="gap:.75rem;flex-wrap:wrap">
 
-              <div style="width:236px;flex-shrink:0;">
-                <label class="label is-small mb-1">Organizzazione</label>
-                <div class="is-flex" style="gap:.25rem">
-                  <div class="select is-small" style="flex:1;min-width:0">
-                    <select
-                      style="width:100%"
-                      @change=${(e) => onOrgChange(tab, e.target.value)}
-                    >
-                      <option value="all" ?selected=${(state.selectedOrgByTab?.[tab] || "all") === "all"}>Tutte</option>
-                      ${(state.step1.orgCatalog || []).map((o) => html`<option value=${o.code} ?selected=${(state.selectedOrgByTab?.[tab] || "all") === o.code}>${o.name}</option>`)}
-                    </select>
-                  </div>
-                  <button
-                    type="button"
-                    class="button is-small"
-                    style="flex-shrink:0"
-                    title="Cerca l'organizzazione"
-                    aria-label="Cerca l'organizzazione"
-                    @click=${() => openOrgFilter(tab)}
-                  >
-                    <span class="icon is-small"><i class="ri-search-line"></i></span>
-                  </button>
-                </div>
-              </div>
+              ${renderOrgFilterControl(tab)}
 
               ${hasCatTip ? html`
-                <div style="width:160px;flex-shrink:0;">
+                <div style="flex:0 1 230px;min-width:170px;max-width:340px;">
                   <label class="label is-small mb-1">Categoria</label>
                   <div class="select is-small is-fullwidth">
                     <select
                       .value=${catFilter}
+                      title=${catFilter}
                       @change=${(e) => onCatFilterChange(tab, e.target.value)}
                     >
                       <option value="">Tutte</option>
@@ -2249,11 +2673,12 @@ export async function Step1(props) {
                   </div>
                 </div>
 
-                <div style="width:200px;flex-shrink:0;">
+                <div style="flex:0 1 260px;min-width:190px;max-width:460px;">
                   <label class="label is-small mb-1">Tipologia</label>
                   <div class="select is-small is-fullwidth">
                     <select
                       .value=${tipFilter}
+                      title=${tipFilter}
                       @change=${(e) => onTipFilterChange(tab, e.target.value)}
                     >
                       <option value="">Tutte</option>
@@ -2263,7 +2688,7 @@ export async function Step1(props) {
                 </div>
               ` : null}
 
-              <div style="flex:1;min-width:0;">
+              <div style="flex:1 1 280px;min-width:280px;">
                 <label class="label is-small mb-1">Filtro per colonna</label>
                 <div class="field has-addons mb-0">
                   <p class="control">
@@ -2428,9 +2853,12 @@ export async function Step1(props) {
               </tbody>
             </table>
           </div>
+          `}
       </div>
     `;
   }
+
+  state.step1.mapPanel?.bind(mapDeps());
 
   return view();
 }

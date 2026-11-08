@@ -38,15 +38,21 @@ const CONTAINER_ID = "mp-leaflet-container";
 
 let _leafletReady = false;
 
+// Leaflet is a local copy (camila/js/leaflet, 1.9.4), not a CDN: the library is there with no
+// internet. Found from this module's own URL, like app-boot.js finds lit-html: six levels up from
+// views/shared/ is the web root. The map TILES and the Nominatim search still need internet.
+const LEAFLET_DIR = new URL("../../../../../../camila/js/leaflet/", import.meta.url);
+
+// The only loader of Leaflet: every map of the plugin asks this one (dynamic import, with the version).
 export async function loadLeaflet() {
   if (_leafletReady || window.L) { _leafletReady = true; return; }
   await new Promise((resolve, reject) => {
     const link = document.createElement("link");
     link.rel = "stylesheet";
-    link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+    link.href = new URL("leaflet.css", LEAFLET_DIR).href;
     document.head.appendChild(link);
     const script = document.createElement("script");
-    script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+    script.src = new URL("leaflet.js", LEAFLET_DIR).href;
     script.onload = resolve;
     script.onerror = reject;
     document.head.appendChild(script);
@@ -54,16 +60,34 @@ export async function loadLeaflet() {
   _leafletReady = true;
 }
 
+// What the operator reads when the address service does not answer. Nominatim is the public
+// OpenStreetMap service: it needs internet, and it can refuse (429) a client that asks too often.
+// An empty answer used to look exactly like "nothing found".
+export const NOMINATIM_MESSAGES = {
+  searchDown: "Ricerca indirizzi non disponibile: serve internet, oppure il servizio di OpenStreetMap non risponde. Puoi cliccare sulla mappa e completare comune e indirizzo nel modulo.",
+  reverseDown: "Indirizzo non ricavabile: serve internet. Completa comune e indirizzo nel modulo.",
+  none: (q) => `Nessun indirizzo trovato per «${q}».`,
+};
+
+// An HTTP error (429, 5xx) or a body that is not the list we asked for is a failure, not an empty result.
 export async function nominatimSearch(query) {
   const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=6&addressdetails=1&accept-language=it`;
   const res = await fetch(url, { headers: { "Accept-Language": "it" } });
-  return res.json();
+  if (!res.ok) throw new Error("HTTP " + res.status);
+  const data = await res.json();
+  if (!Array.isArray(data)) throw new Error("Risposta non valida");
+  return data;
 }
 
 export async function nominatimReverse(lat, lon) {
   const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1&accept-language=it`;
   const res = await fetch(url);
-  return res.json();
+  if (!res.ok) throw new Error("HTTP " + res.status);
+  const data = await res.json();
+  // a point with no address (open sea...) answers 200 {"error": "Unable to geocode"}: that is not a
+  // failure of the service, the position is still good, so it is returned as it is
+  if (!data || typeof data !== "object") throw new Error("Risposta non valida");
+  return data;
 }
 
 export function extractAddress(data) {
@@ -97,6 +121,9 @@ export function createMapPicker({ html, rerender, onConfirm }) {
   let lat = null;
   let lon = null;
   let address = {};
+  // what to tell the operator: null, { kind: "error" | "empty", text } for the search; a flag for the address
+  let searchNote = null;
+  let reverseDown = false;
 
   let _map = null;
   let _marker = null;
@@ -146,22 +173,25 @@ export function createMapPicker({ html, rerender, onConfirm }) {
   }
 
   async function reverseAndUpdate(la, lo) {
-    reversing = true; rerender();
+    reversing = true; reverseDown = false; rerender();
     try {
       address = extractAddress(await nominatimReverse(la, lo));
     } catch {
       address = {};
+      reverseDown = true;   // the position is still set; only comune and indirizzo are missing
     }
     reversing = false; rerender();
   }
 
   async function doSearch() {
     if (!search.trim()) return;
-    searching = true; results = []; rerender();
+    searching = true; results = []; searchNote = null; rerender();
     try {
       results = await nominatimSearch(search);
+      if (results.length === 0) searchNote = { kind: "empty", text: NOMINATIM_MESSAGES.none(search.trim()) };
     } catch {
       results = [];
+      searchNote = { kind: "error", text: NOMINATIM_MESSAGES.searchDown };
     }
     searching = false; rerender();
   }
@@ -171,6 +201,8 @@ export function createMapPicker({ html, rerender, onConfirm }) {
     lon = parseFloat(r.lon);
     address = extractAddress(r);
     results = [];
+    searchNote = null;
+    reverseDown = false;
     if (_map) {
       _map.setView([lat, lon], 15);
       placeMarker(lat, lon);
@@ -186,6 +218,8 @@ export function createMapPicker({ html, rerender, onConfirm }) {
     searching = false;
     reversing = false;
     address = {};
+    searchNote = null;
+    reverseDown = false;
     open = true;
     _inited = false;
     _map = null;
@@ -256,6 +290,9 @@ export function createMapPicker({ html, rerender, onConfirm }) {
                     `)}
                   </ul>
                 ` : ""}
+                ${searchNote ? html`
+                  <p class="is-size-7 mb-1 ${searchNote.kind === "error" ? "has-text-danger" : "has-text-grey"}" data-mp-note>${searchNote.text}</p>
+                ` : ""}
               </div>
 
               <hr style="margin:.25rem 0">
@@ -274,6 +311,7 @@ export function createMapPicker({ html, rerender, onConfirm }) {
                       ${address.comune ? html`<div><strong>Comune:</strong> ${address.comune}</div>` : ""}
                       ${address.provincia ? html`<div><strong>Prov.:</strong> ${address.provincia}</div>` : ""}
                       ${address.indirizzo ? html`<div><strong>Indirizzo:</strong> ${address.indirizzo}</div>` : ""}
+                      ${reverseDown ? html`<div class="has-text-danger mt-1" data-mp-reverse-note>${NOMINATIM_MESSAGES.reverseDown}</div>` : ""}
                     `}
                 </div>
               ` : html`

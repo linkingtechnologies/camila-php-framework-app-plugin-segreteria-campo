@@ -113,8 +113,8 @@ deleteBlocked = (getRecords(ro).length + getRecords(rd).length) > 0;
 ## 7. Mappa (Leaflet)
 
 Identica al service-manager:
-- Leaflet caricato lazy da CDN (`unpkg.com/leaflet@1.9.4`)
-- Geocoding: Nominatim (OpenStreetMap)
+- Leaflet 1.9.4, copia locale (`camila/js/leaflet/`), caricato lazy dall'unico `loadLeaflet()` di `views/shared/map-picker.js`
+- Geocoding: Nominatim (OpenStreetMap), tramite `nominatimSearch`/`nominatimReverse` di `views/shared/map-picker.js` (non piu' una copia locale); gli errori (rete, 429, 5xx, corpo non valido) diventano `mapNote` / `mapReverseNote`, con i testi di `NOMINATIM_MESSAGES`, e non piu' una lista vuota silenziosa
 - Click sulla mappa → reverse geocoding → popola comune, provincia, indirizzo
 - Marker draggable → stessa logica
 - Copia/incolla coordinate tra magazzini tramite `coordClipboard`

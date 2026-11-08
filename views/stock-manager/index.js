@@ -620,17 +620,9 @@ export async function StockManager({ state, client, html, render, root }) {
 
   async function loadLeaflet() {
     if (window.L) return;
-    await new Promise((resolve, reject) => {
-      const link = document.createElement("link");
-      link.rel  = "stylesheet";
-      link.href = "https://unpkg.com/leaflet@1.9.3/dist/leaflet.css";
-      document.head.appendChild(link);
-      const script = document.createElement("script");
-      script.src   = "https://unpkg.com/leaflet@1.9.3/dist/leaflet.js";
-      script.onload  = resolve;
-      script.onerror = reject;
-      document.head.appendChild(script);
-    });
+    // one loader for every map, in the shared module (Leaflet is a local copy: camila/js/leaflet)
+    const { loadLeaflet: load } = await import(`../shared/map-picker.js?v=${VERSION}`);
+    await load();
   }
 
   function traduciColore(c) {

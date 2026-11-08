@@ -598,7 +598,10 @@ Do not introduce a bundler requirement unless explicitly requested.
 ## Moduli condivisi
 
 Il codice usato da piu' viste sta in `views/shared/`. Oggi ci sono
-`map-picker.js` (selettore di posizione su mappa, Leaflet + Nominatim),
+`map-picker.js` (selettore di posizione su mappa, Leaflet + Nominatim; **e' anche l'unico
+caricatore di Leaflet** di tutte le mappe del plugin, `loadLeaflet()`, che prende la copia
+locale `camila/js/leaflet/` — niente CDN per la libreria; le tessere e Nominatim restano su
+internet),
 `org-picker.js` (selezione multipla di organizzazioni con ricerca e filtro per
 provincia) e `vocabularies.js` (elenchi di valori letti dalle colonne).
 `spreadsheet.js` scrive file `.xlsx` e `.ods` dal browser, con il loro controllo (usato dall'esportazione
@@ -978,6 +981,9 @@ const res = await client.call("GET", "/segreteria-campo/totem/organization-codes
 
 Endpoint attuali: `/telegram/webhook`, `/totem/organization-codes`, `/radio/health`,
 `/radio/messages`, `/import/examples`, `/status`. Spec in [`specs/api/`](specs/api/).
+
+In piu' le SPA usano `GET /whoami`, un endpoint **del framework** (non del plugin) che restituisce l'utente
+Camila e il suo gruppo: le SPA non lo ricevono in `APP_CONFIG`. Specifica in `specs/api/whoami/`.
 
 ## Operazioni già in uso
 

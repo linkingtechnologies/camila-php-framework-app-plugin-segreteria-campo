@@ -77,7 +77,9 @@ Passando a un altro intervento con modifiche in sospeso il sistema chiede confer
 - **Squadre e referente**: vedi sotto.
 - **Catalogo e mappa**: **Ordine**, **Lettera**, **Colore**, **Latitudine** e
   **Longitudine**. **Scegli sulla mappa** apre la mappa: puoi cercare un indirizzo
-  o cliccare sul punto.
+  o cliccare sul punto. La ricerca degli indirizzi usa il servizio pubblico di
+  OpenStreetMap: senza internet vedi **Ricerca indirizzi non disponibile** e puoi
+  comunque cliccare sul punto e scrivere comune e indirizzo a mano.
 - **Cronologia**: le note libere e il brogliaccio (vedi sotto).
 - **Richieste**: le richieste collegate (vedi sotto).
 

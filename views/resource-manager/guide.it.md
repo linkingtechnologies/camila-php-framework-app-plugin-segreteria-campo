@@ -14,8 +14,73 @@ Sono due passi: l'elenco, poi la scheda di una risorsa.
 ## Passo 1 — L'elenco {#passo-1}
 
 In alto, **Database Risorse** e il pulsante per aggiungere una risorsa. Subito
-sotto, la ricerca rapida; poi le schede **Volontari**, **Mezzi** e **Materiali**; poi
-i filtri e la tabella.
+sotto, la ricerca rapida; poi le schede **Riepilogo**, **Mappa**, **Volontari**, **Mezzi**
+e **Materiali**; poi i filtri e la tabella.
+
+### Riepilogo {#riepilogo}
+
+La prima scheda dà il colpo d'occhio: quanti volontari, quanti mezzi e quanti materiali
+sono registrati nell'anagrafica, in tre riquadri con il numero in grande. Si apre per
+prima quando entri senza scegliere una scheda; i tre pulsanti *Database volontari*,
+*Database mezzi* e *Database materiali* continuano ad aprire direttamente la loro.
+
+- **Organizzazione**: la tendina e la lente sono le stesse delle altre schede. Scegliendo
+  un'organizzazione i numeri sono i suoi, e sotto ciascuno vedi *su N in totale*. Se il
+  tuo gruppo in Camila è il codice di un'organizzazione, parte già su quella.
+- Un clic su un riquadro apre la scheda corrispondente, già filtrata sulla stessa
+  organizzazione.
+- Sotto i riquadri, **Per categoria e tipologia** elenca mezzi e materiali per categoria e,
+  sotto ciascuna, per tipologia, con il numero di risorse. Compaiono solo le categorie e le
+  tipologie che hanno almeno una risorsa (l'elenco completo, anche con gli zeri, è nella
+  finestra **Classificazioni**). Una risorsa che ha la categoria ma non la tipologia sta sotto la sua
+  categoria come *(tipologia non indicata)*; in **Fuori elenco** vanno solo i valori che la scheda non
+  definisce.
+- Il nome di una categoria o di una tipologia è un collegamento: apre la scheda Mezzi o
+  Materiali già filtrata su quella voce, con **Categoria** e **Tipologia** impostate e la
+  stessa organizzazione (la sola categoria, se premi la categoria). Il filtro per colonna
+  viene azzerato, così l'elenco ha esattamente le risorse contate. *(tipologia non
+  indicata)* e **Fuori elenco** non hanno il collegamento: i menu non possono mostrare un
+  valore che la scheda non definisce. Segue la stessa organizzazione dei riquadri. I volontari non hanno
+  categorie, quindi non compaiono. Se non si carica vedi **Ripartizione non disponibile:** con
+  il motivo, e i riquadri restano.
+- Se un conteggio non si carica vedi **—** al posto del numero e il messaggio **Non
+  tutti i conteggi si sono caricati:** con **Riprova**; se la sessione non è più valida,
+  il riquadro giallo con **Esci e rientra**. Gli altri conteggi restano leggibili.
+- Nella scheda Riepilogo non c'è il pulsante per aggiungere: si aggiunge da Volontari,
+  Mezzi o Materiali.
+
+### Mappa {#mappa}
+
+La seconda scheda mostra *quanti* mezzi e materiali ci sono nel territorio, come numeri su
+una mappa. Non sono marker di singole risorse: le risorse non hanno una posizione propria,
+hanno quella della sede della loro organizzazione (le coordinate della scheda dati delle
+organizzazioni). Per ogni luogo vedi un cerchio con il numero di risorse che rispettano i
+filtri; più il numero è grande, più il cerchio lo è. Il colore dice cosa stai contando: blu i
+mezzi, arancio i materiali, viola entrambi.
+
+- **Mostra**: scegli se contare i **Mezzi**, i **Materiali** o entrambi.
+- **Categoria** e **Tipologia**: restringono ciò che si conta; la tipologia dipende dalla
+  categoria scelta. Cambiare un filtro ridisegna subito la mappa, senza spostarla.
+- **Raggruppa per**: **Organizzazione** (un cerchio per sede), **Comune** o **Provincia**. Un
+  gruppo di organizzazioni sta nel punto medio delle loro sedi.
+- Un clic sul cerchio apre una finestra con il dettaglio per categoria e tipologia. Se
+  raggruppi per organizzazione, la finestra ha anche i collegamenti per aprire l'elenco dei suoi
+  mezzi o dei suoi materiali, già filtrato su quell'organizzazione (e su categoria e tipologia,
+  dove la scheda le può mostrare).
+- Sopra la mappa una riga dice quante risorse vedi e in quanti punti. Sotto trovi
+  **Elenco numerico**, la stessa informazione in tabella.
+- Le risorse la cui organizzazione non ha coordinate, o non è in anagrafica, non si possono
+  mettere sulla mappa: sono contate a parte (*non posizionabili*) e l'elenco dice quali sono.
+
+Il punto è la sede dell'organizzazione, non dove si trova il mezzo in quel momento: non è una
+posizione in tempo reale.
+
+La libreria della mappa è installata con il programma, ma lo sfondo (OpenStreetMap) si carica da
+internet. Senza connessione i cerchi con i numeri restano dove devono, su uno sfondo vuoto, e una
+riga avverte che lo sfondo non si carica. Se manca la libreria stessa vedi **La mappa non è
+disponibile** e i numeri restano nell'**Elenco numerico**. Se non tutti i dati si caricano vedi **Non
+tutti i dati si sono caricati:** con **Riprova**; con la sessione scaduta il riquadro giallo con
+**Esci e rientra**. Nella scheda Mappa non c'è il pulsante per aggiungere.
 
 ### Ricerca rapida {#ricerca}
 
@@ -43,6 +108,10 @@ Sotto le schede:
   una finestra dove scrivi parte del nome o del codice (*Cerca per denominazione o
   codice…*) e scegli dall'elenco. **Tutte le organizzazioni**, in cima, toglie il
   filtro; **Annulla** chiude senza cambiare nulla.
+  Se il tuo gruppo in Camila è il codice di un'organizzazione (e non sei amministratore),
+  la pagina si apre già filtrata su quella organizzazione: scegli **Tutte** per vedere il
+  resto. È solo il punto di partenza; per non far vedere le altre organizzazioni serve la
+  visibilità per gruppo di Camila, che imposta chi gestisce il sistema.
 - **Categoria** e **Tipologia**: solo nelle schede Mezzi e Materiali. La tipologia
   dipende dalla categoria scelta.
 - **Filtro per colonna**: scegli una colonna e scrivi un testo (*contiene…*).
@@ -169,7 +238,15 @@ Se il salvataggio non riesce, il messaggio compare sotto la cella.
    codice (*Cerca per denominazione o codice…*). L'elenco è l'anagrafica delle
    organizzazioni, in ordine alfabetico, anche per chi non ha ancora volontari
    registrati; se l'anagrafica è vuota vedi **Nessuna organizzazione trovata.**
-3. Un clic sull'organizzazione apre il passo 2 con la scheda vuota.
+   Se il tuo gruppo in Camila è il codice di un'organizzazione (e non sei amministratore)
+   questa finestra non compare: la scheda si apre direttamente con la tua organizzazione.
+   Altrimenti, se hai già aggiunto una risorsa in questa sessione, in cima trovi **Ultima
+   organizzazione usata**: un clic e prosegui con la stessa, senza cercarla di nuovo. Scrivendo nella
+   ricerca quel riquadro sparisce e vedi i risultati; il programma non sceglie mai al
+   posto tuo.
+3. Un clic sull'organizzazione apre il passo 2 con la scheda vuota. Ogni nuova risorsa
+   riparte da zero: non vengono riproposti i dati di quella salvata prima, e per i
+   materiali l'ID è il successivo.
 
 **Annulla** o la ✕ chiudono senza creare nulla.
 
@@ -213,7 +290,11 @@ I campi segnati **obbligatoria** vanno compilati: se manca qualcosa vedi **Campi
 obbligatori non compilati:** con l'elenco di quelli che mancano.
 
 **Salva** si attiva solo se ci sono modifiche (sotto vedi **Modifiche non salvate.**
-oppure **Nessuna modifica da salvare.**). Dopo il salvataggio torni all'elenco.
+oppure **Nessuna modifica da salvare.**). Dopo il salvataggio torni all'elenco e sopra
+la ricerca vedi in verde la conferma, per esempio *Materiale salvato: M101 (nome
+dell'organizzazione).* con l'identificativo della risorsa (cognome e nome per i
+volontari, targa per i mezzi, ID per i materiali). La conferma resta finché non la
+chiudi con la ✕ o non fai altro: aggiungi o apri un'altra risorsa, cambi scheda.
 **Annulla** e **Indietro** tornano all'elenco senza salvare.
 
 ## Se qualcosa non va {#problemi}
@@ -222,5 +303,11 @@ oppure **Nessuna modifica da salvare.**). Dopo il salvataggio torni all'elenco.
   motivo: ricarica la pagina e, se continua, avvisa chi gestisce il sistema.
 - Se il salvataggio non riesce vedi **Errore salvataggio** con il motivo e la scheda
   resta aperta.
+- Se vedi **Risorsa senza identificativo: salvataggio annullato, nessun dato scritto.**
+  la risorsa che stavi modificando non ha un identificativo nel database: non è stato
+  scritto nulla. Torna all'elenco e avvisa chi gestisce il sistema.
+- **Salva** si preme una volta sola: un secondo clic subito dopo non fa nulla, e non può
+  mai creare una copia della risorsa che stai modificando. Se dopo un salvataggio ne vedi
+  due uguali, sono state create prima di questa correzione: elimina quella in più.
 - Se la sessione di lavoro scade vedi un riquadro giallo: premi **Esci e rientra**.
   Ricaricare la pagina non basta.

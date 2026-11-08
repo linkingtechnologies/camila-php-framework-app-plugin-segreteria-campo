@@ -69,6 +69,8 @@ Operatore di segreteria campo / responsabile configurazione.
 4. Dopo la selezione, il pannello laterale mostra coordinate, comune, provincia e indirizzo ricavati via reverse geocoding. Il pulsante **Conferma** è disabilitato finché il reverse geocoding non è completato.
 5. L'operatore clicca **Conferma**: le coordinate e i dati di indirizzo vengono copiati nel form.
 
+Se il servizio degli indirizzi (Nominatim) non risponde (nessuna connessione, o rifiuto del servizio per troppe richieste, HTTP 429 o 5xx), la ricerca scrive «Ricerca indirizzi non disponibile…» e il punto cliccato mostra «Indirizzo non ricavabile…»: la posizione si imposta lo stesso e comune e indirizzo si completano a mano nel form, che **Conferma** non sovrascrive con valori vuoti. Una ricerca andata a buon fine ma senza risultati dice «Nessun indirizzo trovato per «…»»; un punto senza indirizzo (per esempio in mare) non e' un errore e non scrive nulla.
+
 ### 9d — Copia/incolla coordinate
 
 1. Con coordinate presenti nel form, l'operatore apre il dropdown **Copia coordinate** e sceglie:

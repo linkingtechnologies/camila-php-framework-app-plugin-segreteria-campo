@@ -106,9 +106,10 @@ Coordinatore sala operativa / Operatore di segreteria campo
 
 - I servizi senza `latitudine`/`longitudine` vengono ignorati nella mappa (nessun marker).
 
-### 1d. Leaflet non caricabile (CDN irraggiungibile)
+### 1d. Leaflet non caricabile
 
-- Il pannello mappa rimane vuoto (nessun errore visibile all'utente — la mappa è complementare).
+- Leaflet e' una copia locale (`camila/js/leaflet/`): non si carica solo se quei file mancano. Il pannello mappa rimane vuoto (nessun errore visibile all'utente — la mappa è complementare).
+- Senza internet la mappa si disegna lo stesso, con i marker ma senza sfondo: le tessere vengono da OpenStreetMap ed Esri.
 
 ### 2a. Messaggio ad alta priorità ricevuto
 

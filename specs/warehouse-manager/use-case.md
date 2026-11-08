@@ -65,6 +65,8 @@
 5. Il reverse geocoding popola automaticamente comune, provincia, indirizzo.
 6. Clicca "Conferma posizione" → i campi del form vengono aggiornati.
 
+Se Nominatim non risponde (senza internet, o rifiuto del servizio) la ricerca scrive «Ricerca indirizzi non disponibile…» e il punto cliccato «Indirizzo non ricavabile…»: la posizione si imposta lo stesso e comune e indirizzo si completano a mano; "Conferma posizione" non sovrascrive i campi del form con valori vuoti. Una ricerca senza risultati dice «Nessun indirizzo trovato per «…»».
+
 ---
 
 ## UC-7 — Copiare e incollare coordinate tra magazzini
